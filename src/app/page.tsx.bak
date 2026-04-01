@@ -1,0 +1,849 @@
+"use client";
+
+import React, { useState, useRef, useEffect } from 'react';
+import { 
+  Calendar as CalendarIcon, 
+  Search, 
+  Users, 
+  MessageSquare, 
+  MapPin, 
+  Heart, 
+  Bookmark, 
+  Eye, 
+  MessageCircle, 
+  X, 
+  Plus, 
+  CheckCircle2, 
+  Circle,
+  Map as MapIcon,
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
+  Zap,
+  Clock,
+  ArrowRight,
+  Loader2,
+  List as ListIcon
+} from 'lucide-react';
+import { allItems } from "@/lib/data";
+import { getAllStudies } from "@/lib/study";
+import KakaoMap from "@/components/KakaoMap";
+
+// --- MOCK DATABASE ---
+const initialUsers = [
+  { id: 'u1', email: 'user@test.com', password: 'password123', nickname: '열공러', name: '홍길동', ageGroup: '20대', gender: '남성', location: '서울시 강남구' }
+];
+
+const realStudies = getAllStudies();
+const studiesAsBoardData = realStudies.map(s => ({
+  id: s.id,
+  type: "study" as const,
+  title: s.title,
+  content: s.content,
+  author: s.userNickname,
+  location: s.locationName,
+  lat: s.latitude,
+  lng: s.longitude,
+  views: s.viewCount,
+  likes: s.favoriteCount,
+  scraps: 0,
+  comments: 0,
+  authorId: `u${s.id}`,
+}));
+
+const mockProfiles: Record<string, any> = realStudies.reduce((acc, s) => {
+  acc[`u${s.id}`] = {
+    id: `u${s.id}`,
+    nickname: s.userNickname,
+    name: "스터디 작성자",
+    ageGroup: "비공개",
+    gender: "비공개",
+    location: s.userRegion,
+  };
+  return acc;
+}, {} as any);
+
+mockProfiles['u2'] = { id: 'u2', nickname: '합격가즈아', name: '이수민', ageGroup: '20대', gender: '여성', location: '서울 강남역' };
+mockProfiles['u3'] = { id: 'u3', nickname: '벼락치기장인', name: '김동현', ageGroup: '30대', gender: '남성', location: '부산 해운대구' };
+
+const initialBoardData = [
+  ...studiesAsBoardData,
+  { id: 99991, type: 'free' as const, title: '필기 3일 남았는데 기출만 돌려도 될까요?', content: '기출문제 계속 돌리고 있는데 불안하네요. 합격 가능할까요?', author: '벼락치기장인', location: '부산 해운대구', lat: undefined as number | undefined, lng: undefined as number | undefined, views: 350, likes: 45, scraps: 1, comments: 22, authorId: 'u3' },
+];
+
+export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  const [activeTab, setActiveTab] = useState<'calendar' | 'search' | 'study' | 'free'>('calendar');
+  const [selectedDate, setSelectedDate] = useState<number>(15);
+  const [profileModal, setProfileModal] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  // To-Do list per day
+  const [todos, setTodos] = useState<{ [key: number]: { id: number, text: string, done: boolean, createdAt: string, completedAt?: string }[] }>({
+    15: [
+      { id: 1, text: '기출문제 1회분 풀기', done: true, createdAt: '09:00', completedAt: '11:30' },
+      { id: 2, text: '오답 노트 정리하기', done: false, createdAt: '09:05' }
+    ]
+  });
+  
+  // Multi-day events (for calendar bars)
+  const [events, setEvents] = useState<{id: number, title: string, startDay: number, endDay: number, color: string}[]>([
+    { id: 101, title: '정보처리기사 1회 필기 접수', startDay: 15, endDay: 18, color: 'bg-blue-500' }
+  ]);
+
+  const [newTodoText, setNewTodoText] = useState(''); 
+  const [writeModalOpen, setWriteModalOpen] = useState(false);
+  const [writeType, setWriteType] = useState<'study' | 'free'>('study');
+  const [postTitle, setPostTitle] = useState('');
+  const [postContent, setPostContent] = useState('');
+  const [boardData, setBoardData] = useState(initialBoardData);
+  
+  // Custom Modals states
+  const [addEventModalOpen, setAddEventModalOpen] = useState(false);
+  const [certModalOpen, setCertModalOpen] = useState<any>(null); // item object when open
+  const [showMap, setShowMap] = useState(false);
+  const [viewPostModal, setViewPostModal] = useState<any>(null); // target post when viewing
+
+  // New Event Form
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventStartDay, setEventStartDay] = useState(1);
+  const [eventEndDay, setEventEndDay] = useState(1);
+
+  const handleAuthSuccess = (user: any) => {
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') inputRef.current?.focus();
+      if (e.key === 'Escape') inputRef.current?.blur();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isAuthenticated]);
+
+  // To-Do actions
+  const toggleTodo = (date: number, id: number) => {
+    const now = new Date();
+    const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    setTodos(prev => ({ 
+      ...prev, [date]: prev[date]?.map(t => t.id === id ? { ...t, done: !t.done, completedAt: !t.done ? timeString : undefined } : t) ?? []
+    }));
+  };
+
+  const deleteTodo = (date: number, id: number) => {
+    setTodos(prev => ({ ...prev, [date]: prev[date]?.filter(t => t.id !== id) ?? [] }));
+  };
+
+  const handleAddTodo = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && newTodoText.trim() !== '') {
+      const now = new Date();
+      const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      const newTodo = { id: Date.now(), text: newTodoText.trim(), done: false, createdAt: timeString };
+      setTodos(prev => ({ ...prev, [selectedDate]: [...(prev[selectedDate] || []), newTodo] }));
+      setNewTodoText('');
+    }
+  };
+
+  const submitPost = () => {
+    if (!postTitle || !postContent) return;
+    const newPost = { id: Date.now(), type: writeType, title: postTitle, content: postContent, author: currentUser.nickname, location: currentUser.location, lat: 37.5665, lng: 126.9780, views: 0, likes: 0, scraps: 0, comments: 0, authorId: currentUser.id };
+    setBoardData([newPost, ...boardData]);
+    setWriteModalOpen(false);
+    setPostTitle(''); setPostContent('');
+  };
+
+  const addEvent = () => {
+    if(!eventTitle) return;
+    setEvents([...events, {
+      id: Date.now(),
+      title: eventTitle,
+      startDay: Number(eventStartDay),
+      endDay: Number(eventEndDay),
+      color: "bg-orange-500"
+    }]);
+    setAddEventModalOpen(false);
+    setEventTitle(''); setEventStartDay(1); setEventEndDay(1);
+  };
+
+  if (!isAuthenticated) {
+    return <AuthScreen onAuthSuccess={handleAuthSuccess} />;
+  }
+
+  // --- Modals ---
+  const AddEventModal = () => {
+    if (!addEventModalOpen) return null;
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
+          <div className="flex justify-between items-center p-5 border-b border-slate-100">
+            <h3 className="font-bold text-lg text-slate-800">일정 추가하기</h3>
+            <button onClick={() => setAddEventModalOpen(false)} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+          </div>
+          <div className="p-5 space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1">일정 제목</label>
+              <input type="text" value={eventTitle} onChange={e => setEventTitle(e.target.value)} className="w-full border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder="예: 정보처리기사 필기" />
+            </div>
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <label className="block text-xs font-bold text-slate-500 mb-1">시작일 (3월)</label>
+                <input type="number" min="1" max="31" value={eventStartDay} onChange={e => setEventStartDay(Number(e.target.value))} className="w-full border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs font-bold text-slate-500 mb-1">종료일 (3월)</label>
+                <input type="number" min="1" max="31" value={eventEndDay} onChange={e => setEventEndDay(Number(e.target.value))} className="w-full border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+              </div>
+            </div>
+          </div>
+          <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+            <button onClick={() => setAddEventModalOpen(false)} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200">취소</button>
+            <button onClick={addEvent} className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700">저장하기</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const CertModal = () => {
+    if (!certModalOpen) return null;
+    const addMappedEvent = (certName: string) => {
+      // Mock logic: add it matching certModalOpen item's dates roughly
+      let st = 1; let en = 3;
+      if (certModalOpen.startDate?.includes('-03-')) st = parseInt(certModalOpen.startDate.split('-')[2]) || 1;
+      else if (certModalOpen.startDate?.includes('-04-')) st = 11; // fake for demo
+      en = st + 14; 
+
+      setEvents([...events, {
+        id: Date.now(),
+        title: `${certName} 필기`,
+        startDay: st,
+        endDay: en > 31 ? 31 : en,
+        color: 'bg-green-500'
+      }]);
+      setCertModalOpen(null);
+      setActiveTab('calendar'); // Go see the calendar
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+          <div className="flex justify-between items-center p-5 border-b border-slate-100">
+            <h3 className="font-bold text-lg text-slate-800 flex flex-col">
+              <span className="text-xs text-slate-400 font-normal">[{certModalOpen.name}]</span>
+              추가할 자격증 선택
+            </h3>
+            <button onClick={() => setCertModalOpen(null)} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
+          </div>
+          <div className="p-2 space-y-1">
+            <button onClick={() => addMappedEvent('정보처리기사')} className="w-full text-left p-4 hover:bg-blue-50 rounded-xl transition-colors font-bold text-slate-700 group flex justify-between items-center">
+              정보처리기사 <Plus size={16} className="text-blue-500 opacity-0 group-hover:opacity-100" />
+            </button>
+            <button onClick={() => addMappedEvent('정보처리산업기사')} className="w-full text-left p-4 hover:bg-blue-50 rounded-xl transition-colors font-bold text-slate-700 group flex justify-between items-center">
+              정보처리산업기사 <Plus size={16} className="text-blue-500 opacity-0 group-hover:opacity-100" />
+            </button>
+            <button onClick={() => addMappedEvent('사무자동화산업기사')} className="w-full text-left p-4 hover:bg-blue-50 rounded-xl transition-colors font-bold text-slate-700 group flex justify-between items-center">
+              사무자동화산업기사 <Plus size={16} className="text-blue-500 opacity-0 group-hover:opacity-100" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const ProfileModal = () => {
+    if (!profileModal) return null;
+    const profile = profileModal === currentUser.id ? currentUser : mockProfiles[profileModal];
+    if (!profile) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-slate-100 h-24 relative">
+            <button onClick={() => setProfileModal(null)} className="absolute top-3 right-3 text-slate-400 hover:text-slate-700 bg-white/50 rounded-full p-1"><X size={20} /></button>
+          </div>
+          <div className="px-6 pb-6 relative text-center">
+            <div className="w-20 h-20 bg-blue-100 rounded-full border-4 border-white absolute -top-10 left-1/2 -translate-x-1/2 flex items-center justify-center text-blue-600 font-bold text-2xl shadow-sm">
+              {profile.nickname.substring(0,1)}
+            </div>
+            <div className="pt-14 flex flex-col items-center">
+              <h3 className="text-xl font-bold text-slate-800 flex items-center justify-center gap-2">
+                {profile.nickname}
+                <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{profile.name}</span>
+              </h3>
+              <div className="mt-4 space-y-2 text-sm text-slate-600 flex flex-col items-center">
+                <p className="flex items-center justify-center gap-2"><Users size={16} className="text-slate-400"/> {profile.ageGroup || '비공개'} / {profile.gender || '비공개'}</p>
+                <p className="flex items-center justify-center gap-2"><MapPin size={16} className="text-slate-400"/> {profile.location || '지역 미상'}</p>
+              </div>
+              {profileModal === currentUser.id ? (
+                <button className="w-full mt-6 bg-slate-800 hover:bg-slate-900 text-white font-medium py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm">
+                  프로필 수정하기
+                </button>
+              ) : (
+                <button className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
+                  <MessageSquare size={18} /> 1:1 채팅하기
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const ViewPostModal = () => {
+    if (!viewPostModal) return null;
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="flex justify-between items-center p-5 border-b border-slate-100">
+            <div>
+              <span className="text-xs font-bold bg-slate-200 text-slate-800 px-2 py-0.5 rounded mr-2">{viewPostModal.type === 'study' ? '스피드 크루 모집' : '자유 게시판'}</span>
+              <h3 className="font-bold text-xl text-slate-800 mt-2">{viewPostModal.title}</h3>
+            </div>
+            <button onClick={() => setViewPostModal(null)} className="text-slate-400 hover:text-slate-700 self-start"><X size={24} /></button>
+          </div>
+          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between text-sm text-slate-500 bg-slate-50">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-[10px]">{viewPostModal.author.substring(0,1)}</div>
+              <span className="font-bold text-slate-700">{viewPostModal.author}</span>
+              {viewPostModal.location && <span className="flex items-center gap-1"><MapPin size={12}/>{viewPostModal.location}</span>}
+            </div>
+            <div className="flex items-center gap-3">
+               <span className="flex items-center gap-1"><Eye size={14}/> {viewPostModal.views}</span>
+               <span className="flex items-center gap-1"><Heart size={14}/> {viewPostModal.likes}</span>
+               <span className="flex items-center gap-1"><MessageCircle size={14}/> {viewPostModal.comments}</span>
+            </div>
+          </div>
+          <div className="p-6 overflow-y-auto flex-1 whitespace-pre-wrap text-slate-700 leading-relaxed font-mono">
+            {viewPostModal.content || '내용이 없습니다.'}
+          </div>
+          <div className="p-4 border-t border-slate-100 flex justify-end">
+            <button onClick={() => setViewPostModal(null)} className="px-5 py-2 rounded-lg font-medium bg-slate-800 text-white hover:bg-slate-900 transition-colors">닫기</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const WriteModal = () => {
+    if (!writeModalOpen) return null;
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="flex justify-between items-center p-5 border-b border-slate-100">
+            <h3 className="font-bold text-xl text-slate-800">HighPass 새 글 쓰기</h3>
+            <button onClick={() => setWriteModalOpen(false)} className="text-slate-400 hover:text-slate-700"><X size={24} /></button>
+          </div>
+          <div className="p-5 overflow-y-auto flex-1">
+            <div className="mb-4">
+              <label className="block text-sm font-bold text-slate-700 mb-1">게시판 선택</label>
+              <select value={writeType} onChange={(e) => setWriteType(e.target.value as 'study' | 'free')} className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="study">스터디 모집</option>
+                <option value="free">자유 게시판</option>
+              </select>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-bold text-slate-700 mb-1">제목</label>
+              <input type="text" placeholder="제목을 입력하세요" value={postTitle} onChange={e => setPostTitle(e.target.value)} className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div className="mb-2">
+              <label className="block text-sm font-bold text-slate-700 mb-1">내용</label>
+              <textarea rows={8} placeholder="내용을 직접 입력하세요..." value={postContent} onChange={e => setPostContent(e.target.value)} className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500 resize-none font-mono text-sm"></textarea>
+            </div>
+          </div>
+          <div className="p-5 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
+            <button onClick={() => setWriteModalOpen(false)} className="px-5 py-2.5 rounded-lg font-medium text-slate-600 hover:bg-slate-200 transition-colors">취소</button>
+            <button onClick={submitPost} className="px-5 py-2.5 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors">등록하기</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderCalendar = () => (
+    <div className="flex flex-col lg:flex-row gap-6 h-full animate-in fade-in duration-500">
+      <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-slate-800">2026년 3월</h2>
+          <div className="flex gap-2">
+            <button onClick={() => setAddEventModalOpen(true)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors">
+              <Plus size={16} /> 일정 추가하기
+            </button>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-7 gap-1 mb-2 text-center text-sm font-medium text-slate-500">
+          <div className="text-red-500">일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div className="text-blue-500">토</div>
+        </div>
+        
+        <div className="grid grid-cols-7 gap-2 flex-1">
+          {Array.from({length: 31}, (_, i) => i + 1).map(day => {
+            // Find multi-day events crossing this day
+            const crossingEvents = events.filter(e => day >= e.startDay && day <= e.endDay);
+            
+            return (
+              <div 
+                key={day}
+                onClick={() => setSelectedDate(day)}
+                className={`min-h-[90px] p-2 border rounded-xl cursor-pointer transition-all flex flex-col ${
+                  selectedDate === day ? 'border-blue-500 ring-2 ring-blue-100 bg-blue-50' : 'border-slate-100 hover:border-blue-300 hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex justify-between items-start mb-1">
+                  <span className={`text-sm font-medium ${day === selectedDate ? 'bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center' : 'text-slate-700'}`}>
+                    {day}
+                  </span>
+                  {todos[day] && todos[day].length > 0 && (
+                    <div className={`w-2 h-2 rounded-full mt-1 ${todos[day].every(t=>t.done) ? 'bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.6)]' : 'bg-slate-300'}`}></div>
+                  )}
+                </div>
+                {/* Event Bars */}
+                <div className="flex-1 flex flex-col gap-1 mt-1">
+                  {crossingEvents.map(evt => {
+                    const isStart = day === evt.startDay;
+                    const isEnd = day === evt.endDay;
+                    return (
+                      <div key={evt.id} className={`h-4 ${evt.color} ${isStart ? 'rounded-l-md ml-1 pl-1.5' : '-ml-2'} ${isEnd ? 'rounded-r-md mr-1' : '-mr-2'} flex items-center overflow-hidden`}>
+                        {isStart && <span className="text-[9px] text-white font-bold whitespace-nowrap">{evt.title}</span>}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="w-full lg:w-80 bg-slate-50 rounded-2xl border border-slate-200 p-5 flex flex-col h-[calc(100vh-6rem)] relative overflow-hidden">
+        <div className="flex justify-between items-center mb-5">
+          <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+            3월 {selectedDate}일
+          </h3>
+          <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold border border-slate-200 px-2 py-1 rounded bg-white shadow-sm">Focus</span>
+        </div>
+        
+        {/* Selected date crossing events */}
+        {events.filter(e => selectedDate >= e.startDay && selectedDate <= e.endDay).map(evt => (
+          <div key={evt.id} className="mb-4 bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex gap-3">
+            <div className={`w-1.5 ${evt.color.replace('bg-', 'bg-')} rounded-full`}></div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">포커스 스케줄</p>
+              <p className="font-bold text-slate-800 text-sm leading-tight">{evt.title}</p>
+              <p className="text-xs text-slate-500 mt-1">3월 {evt.startDay}일 ~ {evt.endDay}일</p>
+            </div>
+          </div>
+        ))}
+
+        <div className="flex-1 overflow-y-auto flex flex-col mt-2">
+          <div className="flex justify-between items-center mb-3">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">나의 실행 목표 (To-Do)</p>
+          </div>
+          
+          <div className="space-y-2 mb-4 flex-1">
+            {(!todos[selectedDate] || todos[selectedDate].length === 0) ? (
+               <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 opacity-60">
+                 <Zap size={32} className="mb-3 text-slate-300" />
+                 <p className="text-sm font-medium">비어있습니다.<br/>하단에 즉시 타이핑하세요.</p>
+               </div>
+            ) : (
+              todos[selectedDate].map(todo => (
+                <div key={todo.id} className={`flex items-start gap-3 bg-white p-3.5 rounded-xl border shadow-sm transition-all group ${todo.done ? 'opacity-50 border-slate-200 bg-slate-50' : 'border-slate-300'}`}>
+                  <button onClick={() => toggleTodo(selectedDate, todo.id)} className="mt-0.5">
+                    {todo.done ? <CheckCircle2 size={20} className="text-slate-500" /> : <Circle size={20} className="text-slate-300 hover:text-slate-500 transition-colors" />}
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm break-all font-mono tracking-tight ${todo.done ? 'text-slate-500 line-through' : 'text-slate-800 font-bold'}`}>{todo.text}</p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className="text-[9px] text-slate-400 font-medium flex items-center gap-0.5"><Clock size={9}/> {todo.createdAt}</span>
+                      {todo.completedAt && <span className="text-[9px] text-blue-500 font-bold flex items-center gap-0.5">완료 {todo.completedAt}</span>}
+                    </div>
+                  </div>
+                  <button onClick={() => deleteTodo(selectedDate, todo.id)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-opacity">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="mt-auto bg-white rounded-xl border-2 border-slate-300 shadow-sm overflow-hidden flex items-center px-3 focus-within:border-slate-800 transition-all">
+            <Plus size={20} className="text-slate-400 font-bold" />
+            <input 
+              ref={inputRef}
+              type="text" 
+              value={newTodoText}
+              onChange={(e) => setNewTodoText(e.target.value)}
+              onKeyDown={handleAddTodo}
+              placeholder="단축키 Cmd+Enter" 
+              className="w-full py-4 px-2 text-sm outline-none text-slate-800 font-mono font-bold placeholder:font-normal placeholder:font-sans placeholder:text-slate-400 bg-transparent"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderSearch = () => (
+    <div className="max-w-4xl mx-auto animate-in fade-in duration-500">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+              <img src="https://www.q-net.or.kr/images/layout/logo.gif" alt="Q-Net" className="h-6 object-contain filter grayscale opacity-80 mix-blend-multiply" />
+              큐넷 시험일정 연동
+            </h2>
+            <p className="text-slate-500 mt-1">큐넷(Q-Net) 공공데이터와 완벽하게 동기화된 일정을 캘린더에 담아보세요.</p>
+          </div>
+        </div>
+        
+        <div className="space-y-4">
+          {allItems.map(item => (
+            <div key={item.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
+              <div className="bg-slate-50 border-b border-slate-200 px-5 py-4 flex justify-between items-center">
+                <div>
+                  <span className="text-xs font-bold bg-slate-200 text-slate-700 px-2 py-1 rounded-full">{item.category}</span>
+                  <h3 className="font-bold text-lg text-slate-800 mt-2">{item.name}</h3>
+                </div>
+                {item.category === "시험일정" && (
+                  <button onClick={() => setCertModalOpen(item)} className="bg-slate-800 hover:bg-black text-white text-sm font-bold py-2 px-5 rounded-lg flex items-center gap-2 shadow-sm transition-colors">
+                    <CalendarIcon size={16} /> 캘린더에 담기
+                  </button>
+                )}
+              </div>
+              <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                {item.category === "시험일정" && (
+                  <div><p className="text-slate-500 text-xs mb-1">일정</p><p className="font-bold text-slate-800">{item.startDate} ~ {item.endDate}</p></div>
+                )}
+                <div><p className="text-slate-500 text-xs mb-1">대상</p><p className="font-bold text-slate-800">{item.target}</p></div>
+                <div className="md:col-span-2 text-xs text-slate-600 bg-slate-50 p-4 rounded-lg leading-relaxed"><p>{item.summary}</p></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderBoard = (type: 'study' | 'free') => (
+    <div className="max-w-5xl mx-auto animate-in fade-in duration-500">
+      <div className="flex justify-between items-end mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            {type === 'study' ? 'HighPass 스피드 크루' : '자유 게시판'}
+          </h2>
+          <p className="text-slate-500 mt-1">
+            {type === 'study' ? '합격을 향해 단기간 몰입할 동료를 찾아보세요.' : '정보와 노하우를 자유롭게 공유하세요.'}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {type === 'study' && (
+            <button onClick={() => setShowMap(!showMap)} className={`border px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${showMap ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}>
+              {showMap ? <ListIcon size={16} /> : <MapIcon size={16} />}
+              {showMap ? '목록 뷰' : '지도 뷰'}
+            </button>
+          )}
+          <button onClick={() => { setWriteType(type); setWriteModalOpen(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-blue-700 shadow-sm transition-colors">
+            <Zap size={16} /> 새 글 쓰기
+          </button>
+        </div>
+      </div>
+
+      {type === 'study' && showMap && (
+        <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-200 mb-6 animate-in fade-in slide-in-from-top-4">
+          <KakaoMap 
+            apiKey="894423a9ffcffb29a1e5d50427ded82e" 
+            markers={boardData.filter(d => d.type === 'study' && d.lat && d.lng).map(d => ({ lat: d.lat!, lng: d.lng!, locationName: d.location }))}
+            level={10} 
+            center={{ lat: 36.3504, lng: 127.3845 }} 
+          />
+        </div>
+      )}
+
+      {(!showMap || type === 'free') && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in">
+          <div className="divide-y divide-slate-100">
+            {boardData.filter(d => d.type === type).map((post) => (
+              <div key={post.id} className="p-5 hover:bg-slate-50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    {type === 'study' && <span className="text-xs font-bold bg-slate-200 text-slate-800 px-2 py-0.5 rounded flex items-center gap-1"><MapPin size={12} /> {post.location}</span>}
+                    <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded font-medium">게시글</span>
+                  </div>
+                  <h3 onClick={() => setViewPostModal(post)} className="text-lg font-bold text-slate-800 mb-2 cursor-pointer hover:underline">{post.title}</h3>
+                  <div className="flex items-center gap-4 text-xs text-slate-500">
+                    <button onClick={() => setProfileModal(post.authorId)} className="font-semibold text-slate-700 hover:underline flex items-center gap-1">
+                      <div className="w-5 h-5 bg-slate-200 rounded-full flex items-center justify-center text-[10px] text-slate-600">{post.author.substring(0,1)}</div>
+                      {post.author}
+                    </button>
+                    <span>최근</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 text-sm text-slate-400 font-medium">
+                  <div className="flex items-center gap-1.5" title="조회수"><Eye size={16} /> {post.views}</div>
+                  <div className="flex items-center gap-1.5 cursor-pointer hover:text-slate-800 transition-colors" title="좋아요"><Heart size={16} /> {post.likes}</div>
+                  <div className="flex items-center gap-1.5 cursor-pointer hover:text-slate-800 transition-colors" title="관심(스크랩)"><Bookmark size={16} /> {post.scraps}</div>
+                  <div className="flex items-center gap-1.5 text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg" title="댓글"><MessageCircle size={16} /> {post.comments}</div>
+                </div>
+              </div>
+            ))}
+            {boardData.filter(d => d.type === type).length === 0 && <div className="p-8 text-center text-slate-500 font-medium">작성된 게시글이 없습니다.</div>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="flex h-screen bg-slate-100 font-sans text-slate-800">
+      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col hidden md:flex z-10 relative">
+        <div className="p-6 border-b border-slate-100">
+          <h1 className="text-2xl font-black text-slate-800 flex items-center gap-2 tracking-tight">
+            <Zap size={28} className="fill-blue-600 text-blue-600" /> HighPass
+          </h1>
+        </div>
+        
+        <nav className="flex-1 px-4 space-y-1.5 overflow-y-auto mt-4">
+          <button onClick={() => setActiveTab('calendar')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold transition-colors ${activeTab === 'calendar' ? 'bg-slate-100 text-slate-900 border-l-4 border-blue-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 border-l-4 border-transparent'}`}>
+            <CalendarIcon size={20} /> 포커스 캘린더
+          </button>
+          <button onClick={() => setActiveTab('search')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold transition-colors ${activeTab === 'search' ? 'bg-slate-100 text-slate-900 border-l-4 border-blue-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 border-l-4 border-transparent'}`}>
+            <Search size={20} /> 자격증 연동
+          </button>
+          <div className="pt-5 pb-2">
+            <p className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Community</p>
+          </div>
+          <button onClick={() => setActiveTab('study')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold transition-colors ${activeTab === 'study' ? 'bg-slate-100 text-slate-900 border-l-4 border-blue-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 border-l-4 border-transparent'}`}>
+            <Users size={20} /> 스피드 크루 모집
+          </button>
+          <button onClick={() => setActiveTab('free')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold transition-colors ${activeTab === 'free' ? 'bg-slate-100 text-slate-900 border-l-4 border-blue-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 border-l-4 border-transparent'}`}>
+            <MessageSquare size={20} /> 자유 게시판
+          </button>
+        </nav>
+
+        <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+          <div className="flex items-center gap-3 px-2 py-2 cursor-pointer hover:bg-white rounded-lg transition-colors flex-1" onClick={() => setProfileModal(currentUser.id)}>
+            <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center font-bold text-white shadow-sm ring-2 ring-white">
+              {currentUser.nickname.substring(0,1)}
+            </div>
+            <div className="overflow-hidden">
+              <p className="text-sm font-bold text-slate-800 truncate">{currentUser.nickname}</p>
+              <p className="text-[10px] text-slate-500 font-medium truncate">{currentUser.location}</p>
+            </div>
+          </div>
+          <button onClick={handleLogout} className="p-2.5 text-slate-400 hover:bg-white hover:text-red-500 rounded-lg transition-colors ml-1" title="로그아웃">
+            <X size={16} />
+          </button>
+        </div>
+      </aside>
+
+      <main className="flex-1 overflow-y-auto p-4 md:p-8 relative">
+        {activeTab === 'calendar' && renderCalendar()}
+        {activeTab === 'search' && renderSearch()}
+        {activeTab === 'study' && renderBoard('study')}
+        {activeTab === 'free' && renderBoard('free')}
+      </main>
+
+      <ProfileModal />
+      <ViewPostModal />
+      <WriteModal />
+      <AddEventModal />
+      <CertModal />
+    </div>
+  );
+}
+
+// Ensure AuthScreen has OAuth buttons
+const AuthScreen = ({ onAuthSuccess }: { onAuthSuccess: (user: any) => void }) => {
+  const [isLoginMode, setIsLoginMode] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [nickname, setNickname] = useState('');
+  const [location, setLocation] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    setTimeout(() => {
+      if (isLoginMode) {
+        const user = initialUsers.find(u => u.email === email && u.password === password);
+        if (user) {
+          onAuthSuccess(user);
+        } else {
+          setError('이메일 또는 비밀번호가 일치하지 않습니다.');
+          setLoading(false);
+        }
+      } else {
+        if (!email || !password || !nickname) {
+          setError('모든 필수 항목을 입력해주세요.');
+          setLoading(false);
+          return;
+        }
+        if (initialUsers.some(u => u.email === email)) {
+          setError('이미 존재하는 이메일입니다.');
+          setLoading(false);
+          return;
+        }
+        
+        const newUser = {
+          id: `u${Date.now()}`,
+          email,
+          password,
+          nickname,
+          name: '신규 유저',
+          ageGroup: '비공개',
+          gender: '비공개',
+          location: location || '지역 미상'
+        };
+        initialUsers.push(newUser);
+        onAuthSuccess(newUser);
+      }
+    }, 800);
+  };
+
+  const handleOAuthLogin = (provider: string) => {
+    setLoading(true);
+    setTimeout(() => {
+      const mockOAuthUser = {
+        id: `oauth_${Date.now()}`,
+        email: `user@${provider}.com`,
+        password: '',
+        nickname: `${provider}유저`,
+        name: '간편로그인',
+        ageGroup: '20대',
+        gender: '비공개',
+        location: '서울'
+      };
+      onAuthSuccess(mockOAuthUser);
+    }, 1000);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 selection:bg-blue-500/30 font-sans">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 shadow-2xl mb-6">
+            <Zap size={32} className="text-blue-500 fill-blue-500" />
+          </div>
+          <h1 className="text-3xl font-black text-white tracking-tight">HighPass</h1>
+          <p className="text-slate-400 mt-2 font-medium">오직 실행을 위한 단 하나의 공간</p>
+        </div>
+
+        <div className="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl p-8 animate-in zoom-in-95 fade-in duration-500">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">이메일 계정</label>
+              <input 
+                type="email" 
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                autoFocus
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-mono text-sm"
+                placeholder="user@example.com"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">비밀번호</label>
+              <input 
+                type="password" 
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-mono tracking-widest text-sm"
+                placeholder="••••••••"
+              />
+            </div>
+
+            {!isLoginMode && (
+              <div className="animate-in slide-in-from-top-2 fade-in space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">활동 닉네임</label>
+                  <input 
+                    type="text" 
+                    value={nickname}
+                    onChange={e => setNickname(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-sm font-bold"
+                    placeholder="예: 초고속합격자"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">거주 지역 (선택)</label>
+                  <input 
+                    type="text" 
+                    value={location}
+                    onChange={e => setLocation(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+                    placeholder="예: 서울시 강남구"
+                  />
+                </div>
+              </div>
+            )}
+
+            {error && <p className="text-red-400 text-sm font-bold mt-2">{error}</p>}
+
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 rounded-xl mt-4 transition-colors flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? <Loader2 size={18} className="animate-spin" /> : (
+                <>
+                  {isLoginMode ? '시스템 진입' : '결의하기 (Commit)'}
+                  <ArrowRight size={18} className="opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Social Logins */}
+          {isLoginMode && (
+             <div className="mt-6">
+                <div className="relative flex items-center py-2 mb-4">
+                   <div className="flex-grow border-t border-slate-700"></div>
+                   <span className="flex-shrink-0 mx-4 text-slate-500 text-xs font-medium">소셜 간편 로그인</span>
+                   <div className="flex-grow border-t border-slate-700"></div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                   <button onClick={() => handleOAuthLogin('google')} className="flex items-center justify-center gap-2 bg-white text-slate-800 hover:bg-slate-100 font-bold py-2.5 rounded-xl transition-colors text-sm">
+                      <svg viewBox="0 0 24 24" className="w-5 h-5" xmlns="http://www.w3.org/2000/svg">
+                         <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                      </svg>
+                      Google
+                   </button>
+                   <button onClick={() => handleOAuthLogin('kakao')} className="flex items-center justify-center gap-2 bg-[#FEE500] hover:bg-[#FDD800] text-[#000000] font-bold py-2.5 rounded-xl transition-colors text-sm">
+                      <svg viewBox="0 0 32 32" className="w-5 h-5 fill-current" xmlns="http://www.w3.org/2000/svg">
+                         <path d="M16 4.64c-6.96 0-12.64 4.48-12.64 10.08 0 3.52 2.32 6.64 5.76 8.48l-1.52 5.44c-.16.48.32.88.72.64l6.32-4.24c.48.08 1.04.08 1.52.08 6.96 0 12.64-4.48 12.64-10.08S22.96 4.64 16 4.64z"/>
+                      </svg>
+                      카카오
+                   </button>
+                </div>
+             </div>
+          )}
+
+          <div className="mt-6 pt-5 border-t border-slate-700 text-center">
+            <button 
+              onClick={() => { setIsLoginMode(!isLoginMode); setError(''); }}
+              className="text-slate-400 hover:text-white text-sm font-medium transition-colors"
+            >
+              {isLoginMode ? '새로운 여정을 시작하시나요? 결의하기' : '이미 계정이 있다면 로그인'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
