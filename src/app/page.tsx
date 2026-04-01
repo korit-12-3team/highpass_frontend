@@ -166,14 +166,14 @@ export default function App() {
         </div>
         <nav className="flex-1 px-4 space-y-1.5 overflow-y-auto mt-4">
           <button onClick={() => setActiveTab('calendar')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold transition-colors ${activeTab === 'calendar' ? 'bg-slate-100 text-slate-900 border-l-4 border-blue-600' : 'text-slate-500 hover:bg-slate-50 border-l-4 border-transparent'}`}>
-            <CalendarIcon size={20} /> 포커스 캘린더
+            <CalendarIcon size={20} /> 나의 캘린더
           </button>
           <button onClick={() => setActiveTab('search')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold transition-colors ${activeTab === 'search' ? 'bg-slate-100 text-slate-900 border-l-4 border-blue-600' : 'text-slate-500 hover:bg-slate-50 border-l-4 border-transparent'}`}>
-            <Search size={20} /> 자격증 연동
+            <Search size={20} /> 자격증 정보
           </button>
           <div className="pt-5 pb-2"><p className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Community</p></div>
           <button onClick={() => setActiveTab('study')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold transition-colors ${activeTab === 'study' ? 'bg-slate-100 text-slate-900 border-l-4 border-blue-600' : 'text-slate-500 hover:bg-slate-50 border-l-4 border-transparent'}`}>
-            <Users size={20} /> 스피드 크루 모집
+            <Users size={20} /> 스터디 모집
           </button>
           <button onClick={() => setActiveTab('free')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold transition-colors ${activeTab === 'free' ? 'bg-slate-100 text-slate-900 border-l-4 border-blue-600' : 'text-slate-500 hover:bg-slate-50 border-l-4 border-transparent'}`}>
             <MessageSquare size={20} /> 자유 게시판
@@ -284,7 +284,7 @@ export default function App() {
         {activeTab === 'search' && (
           <div className="max-w-4xl mx-auto animate-in fade-in duration-500">
             <div className="bg-white rounded-2xl shadow-sm border p-6 mb-6">
-              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">큐넷 시험일정 연동</h2>
+              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">Q-Net 국가기술자격 시험일정</h2>
               <div className="space-y-4">
                 {allItems.map(item => (
                   <div key={item.id} className="border border-slate-200 rounded-xl overflow-hidden hover:shadow-md">
@@ -311,7 +311,7 @@ export default function App() {
              <div className="bg-white rounded-2xl shadow-sm border p-6 md:p-10">
                <button onClick={() => setViewPostModal(null)} className="mb-6 text-sm font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"><ArrowRight size={16} className="rotate-180"/> 목록으로</button>
                <div className="border-b pb-5 mb-5">
-                 <div><span className="text-xs font-bold bg-slate-200 px-2 py-1 rounded-full mr-2">{viewPostModal.type === 'study' ? '스피드 크루 모집':'자유 게시판'}</span><h3 className="font-bold text-2xl md:text-3xl mt-4 leading-tight">{viewPostModal.title}</h3></div>
+                 <div><span className="text-xs font-bold bg-slate-200 px-2 py-1 rounded-full mr-2">{viewPostModal.type === 'study' ? '스터디 모집':'자유 게시판'}</span><h3 className="font-bold text-2xl md:text-3xl mt-4 leading-tight">{viewPostModal.title}</h3></div>
                  <div className="flex justify-between items-center mt-5 text-sm font-medium text-slate-500">
                    <div className="flex items-center gap-2 cursor-pointer hover:text-slate-800 transition-colors" onClick={() => setProfileModal(viewPostModal.authorId)}><div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">{viewPostModal.author.substring(0,1)}</div><span className="font-bold text-slate-800">{viewPostModal.author}</span><span>· {viewPostModal.createdAt || '오늘'}</span></div>
                    <div className="flex gap-4"><span className="flex gap-1 items-center"><Eye size={16}/>{viewPostModal.views}</span><span className="flex gap-1 items-center"><Heart size={16}/>{viewPostModal.likes}</span></div>
@@ -346,7 +346,6 @@ export default function App() {
                        </div>
                      </div>
                    ))}
-                   {(!viewPostModal.comments || viewPostModal.comments.length===0) && <div className="text-center py-10 border border-dashed border-slate-200 rounded-xl bg-slate-50 text-slate-400 font-medium text-sm">가장 먼저 댓글을 남겨보세요!</div>}
                  </div>
                </div>
              </div>
@@ -354,17 +353,13 @@ export default function App() {
              <>
               <div className="flex justify-between items-end mb-6">
                 <div>
-                  <h2 className="text-2xl font-bold">{activeTab === 'study' ? 'HighPass 스피드 크루' : '자유 게시판'}</h2>
+                  <h2 className="text-2xl font-bold">{activeTab === 'study' ? '스터디 모집' : '자유 게시판'}</h2>
                   <p className="text-slate-500 mt-1">{activeTab==='study'?'합격을 위해 단기간 몰입할 동료를 찾아보세요.':'정보와 노하우를 자유롭게 공유하세요.'}</p>
                 </div>
                 <div className="flex gap-2">
-                  {activeTab === 'study' && <button onClick={() => setShowMap(!showMap)} className="border px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"><MapIcon size={16} /> 지도 뷰</button>}
                   <button onClick={() => { setWriteType(activeTab); setWriteModalOpen(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"><Zap size={16} /> 새 글 쓰기</button>
                 </div>
               </div>
-              {activeTab === 'study' && showMap && (
-                <div className="bg-white p-2 rounded-2xl shadow-sm border mb-6"><KakaoMap apiKey="894423a9ffcffb29a1e5d50427ded82e" markers={boardData.filter(d=>d.type==='study'&&d.lat).map(d=>({lat:d.lat, lng:d.lng, locationName:d.location}))} level={10} center={{lat:36.3504, lng:127.3845}} /></div>
-              )}
               <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
                 <div className="divide-y divide-slate-100">
                   {boardData.filter(d => d.type === activeTab).map((post) => (
@@ -416,7 +411,7 @@ export default function App() {
             <div className="p-4 space-y-3">
               <label className="font-bold text-sm text-slate-600">자격증을 선택하세요</label>
               <select className="w-full p-2 border rounded-lg mb-2" id="certSel"><option value="정보처리기사">정보처리기사</option><option value="정보처리산업기사">정보처리산업기사</option></select>
-              <label className="font-bold text-sm text-slate-600 block">시험 일자 (3월 중 지정)</label>
+              <label className="font-bold text-sm text-slate-600 block">시험 일자</label>
               <div className="flex gap-2">
                  <input type="number" id="certDate" min="1" max="31" defaultValue="15" className="border rounded-lg p-2 w-full text-sm" placeholder="시험일" />
               </div>
@@ -506,6 +501,7 @@ export default function App() {
   );
 }
 
+// 로그인 화면
 const AuthScreen = ({ onAuthSuccess }: { onAuthSuccess: (user: any) => void }) => {
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [email, setEmail] = useState(''); const [password, setPassword] = useState('');
@@ -529,13 +525,13 @@ const AuthScreen = ({ onAuthSuccess }: { onAuthSuccess: (user: any) => void }) =
       <div className="w-full max-w-md bg-slate-800 rounded-2xl p-8">
         <h1 className="text-3xl font-black text-white text-center mb-6"><Zap size={32} className="inline text-blue-500 fill-blue-500 mb-1"/> HighPass</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:border-blue-500" />
-          <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:border-blue-500" />
+          <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="이메일" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:border-blue-500" />
+          <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="비밀번호" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:border-blue-500" />
           {!isLoginMode && (
-            <><input type="text" value={nickname} onChange={e=>setNickname(e.target.value)} placeholder="Nickname" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:border-blue-500" /><input type="text" value={location} onChange={e=>setLocation(e.target.value)} placeholder="Location" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:border-blue-500" /></>
+            <><input type="text" value={nickname} onChange={e=>setNickname(e.target.value)} placeholder="별명" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:border-blue-500" /><input type="text" value={location} onChange={e=>setLocation(e.target.value)} placeholder="지역" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white outline-none focus:border-blue-500" /></>
           )}
           {error && <p className="text-red-400">{error}</p>}
-          <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl">{loading ? '...' : (isLoginMode ? '시스템 진입' : '결의하기')}</button>
+          <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl">{loading ? '...' : (isLoginMode ? '로그인' : '가입하기')}</button>
         </form>
         {isLoginMode && (
           <div className="mt-6">
@@ -545,7 +541,7 @@ const AuthScreen = ({ onAuthSuccess }: { onAuthSuccess: (user: any) => void }) =
               <div className="flex-grow border-t border-slate-700"></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => onAuthSuccess({ id: `oauth_${Date.now()}`, email: `user@google.com`, password: '', nickname: `Google유저`, name: '간편로그인', ageGroup: '20대', gender: '비공개', location: 'SEOUL' })} className="flex items-center justify-center gap-2 bg-white text-slate-800 hover:bg-slate-100 font-bold py-2.5 rounded-xl text-sm transition-colors">
+              <button onClick={() => onAuthSuccess({ id: `oauth_${Date.now()}`, email: `user@google.com`, password: '', nickname: `Google유저`, name: '간편로그인', ageGroup: '20대', gender: '비공개', location: 'Busan' })} className="flex items-center justify-center gap-2 bg-white text-slate-800 hover:bg-slate-100 font-bold py-2.5 rounded-xl text-sm transition-colors">
                 <svg viewBox="0 0 24 24" className="w-5 h-5" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
                 Google
               </button>
