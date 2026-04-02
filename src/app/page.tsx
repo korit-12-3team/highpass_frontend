@@ -35,7 +35,7 @@ const initialBoardData = [
 ];
 
 export default function App() {
-  const [loadingKakao] = useKakaoLoader({
+  const [loadingKakao, errorKakao] = useKakaoLoader({
     appkey: "894423a9ffcffb29a1e5d50427ded82e",
     libraries: ["services", "clusterer"],
   });
