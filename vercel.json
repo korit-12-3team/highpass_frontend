@@ -1,4 +1,5 @@
 {
+  "name": "korit123team",
   "crons": [
     {
       "path": "/api/cron",
