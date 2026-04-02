@@ -1,0 +1,51 @@
+{
+  "schedules": [
+    {
+      "id": 1,
+      "name": "2026년 제1회 기사/산업기사 필기시험",
+      "category": "시험일정",
+      "startDate": "2026-04-11",
+      "endDate": "2026-04-25",
+      "location": "전국 CBT 시험장",
+      "target": "기사/산업기사 응시 자격 소지자",
+      "summary": "2026년 첫 번째 정기 기사/산업기사 필기시험입니다. 원서 접수 일정을 반드시 확인하세요.",
+      "link": "https://www.q-net.or.kr/crf021.do?id=crf02103&gSite=Q&gId=&schGb=cal&schMonth=20260401"
+    },
+    {
+      "id": 2,
+      "name": "2026년 제2회 기능사 필기시험",
+      "category": "시험일정",
+      "startDate": "2026-05-09",
+      "endDate": "2026-05-23",
+      "location": "전국 CBT 시험장",
+      "target": "제한 없음 (누구나 응시 가능)",
+      "summary": "기능사는 학력 제한 없이 도전할 수 있습니다! 실기 시험으로 가는 첫 번째 관문입니다.",
+      "link": "https://www.q-net.or.kr/crf021.do?id=crf02103&gSite=Q&gId=&schGb=cal&schMonth=20260501"
+    },
+    {
+      "id": 3,
+      "name": "2026년 제2회 기사/산업기사 실기시험",
+      "category": "시험일정",
+      "startDate": "2026-06-06",
+      "endDate": "2026-06-19",
+      "location": "각 지역 실기 지정 시험장",
+      "target": "기사/산업기사 필기 합격자",
+      "summary": "실기는 작업형과 필답형으로 나뉩니다. 합격 발표를 놓치지 않도록 일정을 저장해 두세요.",
+      "link": "https://www.q-net.or.kr/crf021.do?id=crf02103&gSite=Q&gId=&schGb=cal&schMonth=20260601"
+    }
+  ],
+  "qualifications": [
+    {
+      "id": 10,
+      "name": "정보처리기사",
+      "category": "자격정보",
+      "startDate": "-",
+      "endDate": "-",
+      "location": "-",
+      "target": "관련 학과 졸업(예정)자 또는 실무 경력자",
+      "summary": "IT 국가 기술자격의 기본이자 필수! 소프트웨어 개발, 설계, 운영 전반을 다루는 핵심 자격증입니다.",
+      "link": "https://www.q-net.or.kr/crf006.do?id=crf00610&gSite=Q&gId="
+    }
+  ],
+  "lastUpdated": "2026-03-30"
+}
