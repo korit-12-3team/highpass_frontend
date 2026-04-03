@@ -89,6 +89,8 @@ export default function App() {
   const [chatInput, setChatInput] = useState('');
   const [viewPostModal, setViewPostModal] = useState<any>(null);
   const [commentText, setCommentText] = useState('');
+  const [dragOverDay, setDragOverDay] = useState<number | null>(null);
+  const [isDraggingEvent, setIsDraggingEvent] = useState(false);
 
   const [eventTitle, setEventTitle] = useState('');
   const [eventStartDay, setEventStartDay] = useState(1);
@@ -251,7 +253,11 @@ export default function App() {
                   const isToday = new Date().getFullYear() === currentYear && new Date().getMonth() === currentMonth && new Date().getDate() === day;
 
                   return (
-                    <div key={day} onClick={() => setSelectedDate(day)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const eventId = e.dataTransfer.getData('eventId'); const sourceDay = parseInt(e.dataTransfer.getData('sourceDay'), 10); if (eventId && !isNaN(sourceDay)) { const diff = day - sourceDay; const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate(); setEvents(prev => prev.map(ev => { if (ev.id.toString() !== eventId) return ev; const newStart = ev.startDay + diff; const newEnd = ev.endDay + diff; if (newStart < 1 || newEnd > daysInMonth || newStart > newEnd) return ev; return { ...ev, startDay: newStart, endDay: newEnd }; })); } }} className={`min-h-[100px] border-b border-r border-slate-100 cursor-pointer p-0 flex flex-col ${selectedDate === day ? 'bg-blue-50 relative' : 'hover:bg-slate-50'}`}>
+                    <div key={day} onClick={() => setSelectedDate(day)}
+                      onDragOver={(e) => { e.preventDefault(); setDragOverDay(day); }}
+                      onDragLeave={() => setDragOverDay(null)}
+                      onDrop={(e) => { e.preventDefault(); setDragOverDay(null); setIsDraggingEvent(false); const eventId = e.dataTransfer.getData('eventId'); const sourceDay = parseInt(e.dataTransfer.getData('sourceDay'), 10); if (eventId && !isNaN(sourceDay)) { const diff = day - sourceDay; const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate(); setEvents(prev => prev.map(ev => { if (ev.id.toString() !== eventId) return ev; const newStart = ev.startDay + diff; const newEnd = ev.endDay + diff; if (newStart < 1 || newEnd > daysInMonth || newStart > newEnd) return ev; return { ...ev, startDay: newStart, endDay: newEnd }; })); } }}
+                      className={`min-h-[100px] border-b border-r border-slate-100 cursor-pointer p-0 flex flex-col transition-colors duration-150 ${dragOverDay === day && isDraggingEvent ? 'bg-blue-100 ring-2 ring-inset ring-blue-400' : selectedDate === day ? 'bg-blue-50 relative' : 'hover:bg-slate-50'}`}>
                       {selectedDate === day && <div className="absolute inset-0 border-2 border-blue-500 pointer-events-none"></div>}
                       <div className="p-1.5 flex justify-between items-start z-10">
                         <span className={`text-sm font-medium w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-red-500 text-white' : selectedDate === day ? 'bg-blue-600 text-white' : 'text-slate-700'}`}>{day}</span>
@@ -262,8 +268,12 @@ export default function App() {
                           const isStart = day === evt.startDay;
                           const isEnd = day === evt.endDay;
                           return (
-                            <div key={evt.id} draggable={true} onDragStart={(e) => { e.stopPropagation(); e.dataTransfer.setData('eventId', evt.id.toString()); e.dataTransfer.setData('sourceDay', day.toString()); e.dataTransfer.effectAllowed = 'move'; }} onDragOver={(e) => { e.stopPropagation(); e.preventDefault(); }} className={`h-[18px] ${evt.color} ${!isStart && colIndex !== 0 && '-ml-[1px]'} ${!isEnd && colIndex !== 6 && 'w-[calc(100%+1px)]'} ${isStart || colIndex === 0 ? 'rounded-l-full ml-1' : ''} ${isEnd || colIndex === 6 ? 'rounded-r-full mr-1' : ''} flex items-center relative z-0 cursor-grab active:cursor-grabbing`}>
-                              {(isStart || colIndex === 0) && <span className="text-[10px] text-white font-bold ml-1.5 whitespace-nowrap overflow-visible z-10 truncate pointer-events-none">{evt.title}</span>}
+                            <div key={evt.id} draggable={true}
+                              onDragStart={(e) => { e.stopPropagation(); setIsDraggingEvent(true); e.dataTransfer.setData('eventId', evt.id.toString()); e.dataTransfer.setData('sourceDay', day.toString()); e.dataTransfer.effectAllowed = 'move'; }}
+                              onDragEnd={() => { setIsDraggingEvent(false); setDragOverDay(null); }}
+                              onDragOver={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                              className={`h-[26px] ${evt.color} ${!isStart && colIndex !== 0 && '-ml-[1px]'} ${!isEnd && colIndex !== 6 && 'w-[calc(100%+1px)]'} ${isStart || colIndex === 0 ? 'rounded-l-full ml-1' : ''} ${isEnd || colIndex === 6 ? 'rounded-r-full mr-1' : ''} flex items-center relative z-20 cursor-grab active:cursor-grabbing hover:brightness-110 hover:shadow-md active:opacity-70 transition-all select-none`}>
+                              {(isStart || colIndex === 0) && <span className="text-[11px] text-white font-bold ml-2 whitespace-nowrap overflow-visible z-10 truncate pointer-events-none drop-shadow-sm">{evt.title}</span>}
                             </div>
                           )
                         })}
@@ -282,7 +292,7 @@ export default function App() {
                 <div className="flex justify-between items-center mb-5 drag-handle cursor-move bg-slate-100 -m-5 p-5 border-b border-slate-200">
                   <div className="flex items-center gap-2">
                     <ListIcon size={18} className="text-slate-400" />
-                    <h3 className="text-lg font-bold text-slate-800">3월 {selectedDate}일</h3>
+                    <h3 className="text-lg font-bold text-slate-800">{currentMonth + 1}월 {selectedDate}일</h3>
                   </div>
                   <span className="text-[10px] text-slate-400 font-bold border rounded px-2 py-1 bg-white">Focus Mode</span>
                 </div>
@@ -513,8 +523,8 @@ export default function App() {
             <div className="p-5 space-y-4">
               <div><label className="block text-xs font-bold text-slate-500 mb-1">일정 제목</label><input type="text" value={eventTitle} onChange={e => setEventTitle(e.target.value)} className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500" /></div>
               <div className="flex gap-4">
-                <div className="flex-1"><label className="block text-xs font-bold text-slate-500 mb-1">시작일 (3월)</label><input type="number" value={eventStartDay} onChange={e => setEventStartDay(Number(e.target.value))} className="w-full border rounded-lg p-2.5 outline-none" /></div>
-                <div className="flex-1"><label className="block text-xs font-bold text-slate-500 mb-1">종료일 (3월)</label><input type="number" value={eventEndDay} onChange={e => setEventEndDay(Number(e.target.value))} className="w-full border rounded-lg p-2.5 outline-none" /></div>
+                <div className="flex-1"><label className="block text-xs font-bold text-slate-500 mb-1">시작일 ({currentMonth + 1}월)</label><input type="number" value={eventStartDay} onChange={e => setEventStartDay(Number(e.target.value))} className="w-full border rounded-lg p-2.5 outline-none" /></div>
+                <div className="flex-1"><label className="block text-xs font-bold text-slate-500 mb-1">종료일 ({currentMonth + 1}월)</label><input type="number" value={eventEndDay} onChange={e => setEventEndDay(Number(e.target.value))} className="w-full border rounded-lg p-2.5 outline-none" /></div>
               </div>
             </div>
             <div className="p-4 bg-slate-50 border-t flex justify-end gap-2"><button onClick={() => setAddEventModalOpen(false)} className="px-4 py-2 rounded-lg bg-slate-200">취소</button><button onClick={() => { if (eventTitle) { setEvents([...events, { id: Date.now(), title: eventTitle, startDay: Number(eventStartDay), endDay: Number(eventEndDay), color: "bg-orange-500" }]); setAddEventModalOpen(false); setEventTitle(''); } }} className="px-4 py-2 rounded-lg bg-blue-600 text-white border-blue-600">저장</button></div>
