@@ -19,19 +19,24 @@ const initialUsers = [
 const realStudies = getAllStudies();
 const studiesAsBoardData = realStudies.map(s => ({
   id: s.id, type: "study" as const, title: s.title, content: s.content, author: s.userNickname,
-  location: s.locationName, lat: s.latitude, lng: s.longitude, views: s.viewCount, likes: s.favoriteCount, scraps: 0, comments: [], authorId: `u${s.id}`,
+  location: s.locationName, lat: s.latitude, lng: s.longitude,
+  views: s.viewCount, likes: s.favoriteCount, scraps: 0, comments: [],
+  authorId: `u${s.id}`, createdAt: s.createdAt.slice(0, 10), cert: s.cert,
 }));
 
 const mockProfiles: Record<string, any> = realStudies.reduce((acc, s) => ({
-  ...acc, [`u${s.id}`]: { id: `u${s.id}`, nickname: s.userNickname, name: "스터디 작성자", ageGroup: "비공개", gender: "비공개", location: s.userRegion }
+  ...acc, [`u${s.id}`]: { id: `u${s.id}`, nickname: s.userNickname, name: s.userName, ageGroup: s.userAge, gender: s.userGender, location: s.userRegion }
 }), {} as any);
 
-mockProfiles['u2'] = { id: 'u2', nickname: '합격가즈아', name: '이수민', ageGroup: '20대', gender: '여성', location: '서울 강남역' };
-mockProfiles['u3'] = { id: 'u3', nickname: '벼락치기장인', name: '김동현', ageGroup: '30대', gender: '남성', location: '부산 해운대구' };
+mockProfiles['uf1'] = { id: 'uf1', nickname: '벼락치기장인', name: '김동현', ageGroup: '30대', gender: '남성', location: '부산 해운대구' };
+mockProfiles['uf2'] = { id: 'uf2', nickname: '시험왕', name: '이지훈', ageGroup: '20대', gender: '남성', location: '서울 관악구' };
+mockProfiles['uf3'] = { id: 'uf3', nickname: '조용한공부러', name: '박세연', ageGroup: '20대', gender: '여성', location: '경기 수원시 영통구' };
 
 const initialBoardData = [
   ...studiesAsBoardData,
-  { id: 99991, type: 'free' as const, title: '필기 3일 남았는데 기출만 돌려도 될까요?', content: '기출문제 계속 돌리고 있는데 불안하네요.', author: '벼락치기장인', location: '부산 해운대구', lat: undefined, lng: undefined, views: 350, likes: 45, scraps: 1, comments: [{ id: 1, author: '합격가즈아', text: '5개년 확실하면 됩니다!' }], authorId: 'u3' },
+  { id: 99991, type: 'free' as const, title: '필기 3일 남았는데 기출만 돌려도 될까요?', content: '기출문제 계속 돌리고 있는데 불안하네요. 새로운 문제보다 기출 위주로 하는 게 맞는 건지 고민이에요.', author: '벼락치기장인', location: '부산 해운대구', lat: undefined, lng: undefined, views: 350, likes: 45, scraps: 12, comments: [{ id: 1, author: '합격가즈아', text: '5개년 확실하면 됩니다!' }, { id: 2, author: '단기합격러', text: '저도 기출만 했는데 합격했어요!' }], authorId: 'uf1', createdAt: '2026-04-01', cert: null },
+  { id: 99992, type: 'free' as const, title: '스터디 자리 추천해주세요 (서울 관악구)', content: '관악구 주변에 조용하고 오래 있을 수 있는 카페나 스터디룸 추천 받아요. 주말에 주로 이용할 것 같아요!', author: '시험왕', location: '서울 관악구', lat: undefined, lng: undefined, views: 128, likes: 22, scraps: 5, comments: [{ id: 3, author: '조용한공부러', text: '신림역 근처 작은 스터디카페 괜찮아요~' }], authorId: 'uf2', createdAt: '2026-04-02', cert: null },
+  { id: 99993, type: 'free' as const, title: '정보처리기사 실기 후기 공유', content: '오늘 정보처리기사 실기 보고 왔어요. 생각보다 SQL 문제가 많이 나왔고, 통합테스트 관련 내용도 꼭 보세요. 모두 파이팅!', author: '공부왕철수', location: '서울 강남구', lat: undefined, lng: undefined, views: 512, likes: 87, scraps: 34, comments: [], authorId: 'u1', createdAt: '2026-04-03', cert: null },
 ];
 
 export default function App() {
@@ -278,13 +283,18 @@ export default function App() {
                         {crossingEvents.slice(0, 3).map(evt => {
                           const isStart = day === evt.startDay;
                           const isEnd = day === evt.endDay;
+                          const isSingleDay = evt.startDay === evt.endDay;
                           return (
                             <div key={evt.id} draggable={true}
                               onDragStart={(e) => { e.stopPropagation(); setIsDraggingEvent(true); e.dataTransfer.setData('eventId', evt.id.toString()); e.dataTransfer.setData('sourceDay', day.toString()); e.dataTransfer.effectAllowed = 'move'; }}
                               onDragEnd={() => { setIsDraggingEvent(false); setDragOverDay(null); }}
                               onDragOver={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                              className={`h-[26px] ${evt.color} ${!isStart && colIndex !== 0 && '-ml-[1px]'} ${!isEnd && colIndex !== 6 && 'w-[calc(100%+1px)]'} ${isStart || colIndex === 0 ? 'rounded-l-full ml-1' : ''} ${isEnd || colIndex === 6 ? 'rounded-r-full mr-1' : ''} flex items-center relative z-20 cursor-grab active:cursor-grabbing hover:brightness-110 hover:shadow-md active:opacity-70 transition-all select-none`}>
-                              {(isStart || colIndex === 0) && <span className="text-[11px] text-white font-bold ml-2 whitespace-nowrap overflow-visible z-10 truncate pointer-events-none drop-shadow-sm">{evt.title}</span>}
+                              className={`${isSingleDay ? 'min-h-[26px] py-0.5 items-start' : 'h-[26px] items-center'} ${evt.color} ${!isStart && colIndex !== 0 && '-ml-[1px]'} ${!isEnd && colIndex !== 6 && 'w-[calc(100%+1px)]'} ${isStart || colIndex === 0 ? 'rounded-l-full ml-1' : ''} ${isEnd || colIndex === 6 ? 'rounded-r-full mr-1' : ''} flex relative z-20 cursor-grab active:cursor-grabbing hover:brightness-110 hover:shadow-md active:opacity-70 transition-all select-none`}>
+                              {(isStart || colIndex === 0) && (
+                                <span className={`text-[11px] text-white font-bold ml-2 z-10 pointer-events-none drop-shadow-sm ${isSingleDay ? 'whitespace-normal break-words leading-tight mr-2' : 'whitespace-nowrap overflow-visible'}`}>
+                                  {evt.title}
+                                </span>
+                              )}
                             </div>
                           )
                         })}
@@ -886,7 +896,7 @@ export default function App() {
               {writeType === 'study' && (
                 <>
                   <label className="block text-sm font-bold mb-1">자격증 선택</label>
-                  <div className="grid grid-cols-2 gap-2 mb-4">
+                  <div className={`grid ${postCertCategory === '기타' ? 'grid-cols-1' : 'grid-cols-2'} gap-2 mb-4`}>
                     <select
                       value={postCertCategory}
                       onChange={e => { setPostCertCategory(e.target.value); setPostCert(''); }}
@@ -894,16 +904,19 @@ export default function App() {
                     >
                       <option value="">카테고리 선택</option>
                       {Object.keys(CERT_DATA).map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                      <option value="기타">기타</option>
                     </select>
-                    <select
-                      value={postCert}
-                      onChange={e => setPostCert(e.target.value)}
-                      disabled={!postCertCategory}
-                      className="border p-3 rounded-lg outline-none focus:border-hp-500 font-medium appearance-none disabled:opacity-40"
-                    >
-                      <option value="">자격증 선택</option>
-                      {(CERT_DATA[postCertCategory] || []).map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                    {postCertCategory !== '기타' && (
+                      <select
+                        value={postCert}
+                        onChange={e => setPostCert(e.target.value)}
+                        disabled={!postCertCategory}
+                        className="border p-3 rounded-lg outline-none focus:border-hp-500 font-medium appearance-none disabled:opacity-40"
+                      >
+                        <option value="">자격증 선택</option>
+                        {(CERT_DATA[postCertCategory] || []).map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    )}
                   </div>
                 </>
               )}
