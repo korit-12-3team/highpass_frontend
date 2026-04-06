@@ -48,6 +48,20 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
 
+  // 카카오 로그인 성공 시 호출: 유저 세팅 + localStorage에서 일정/할일 불러오기
+  const handleAuthSuccess = (user: any) => {
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+    const savedEvents = localStorage.getItem(`hp_events_${user.id}`);
+    const savedTodos = localStorage.getItem(`hp_todos_${user.id}`);
+    if (savedEvents) {
+      try { setEvents(JSON.parse(savedEvents)); } catch {}
+    }
+    if (savedTodos) {
+      try { setTodos(JSON.parse(savedTodos)); } catch {}
+    }
+  };
+
   const [activeTab, setActiveTab] = useState<'calendar' | 'search' | 'study' | 'free' | 'chat'>('calendar');
   const [currentDate, setCurrentDate] = useState(new Date());
   const currentYear = currentDate.getFullYear();
@@ -65,8 +79,8 @@ export default function App() {
     ]
   });
 
-  const [events, setEvents] = useState<{ id: number, title: string, month: number, startDay: number, endDay: number, color: string }[]>([
-    { id: 101, title: '정보처리기사 1회 필기 접수', month: 3, startDay: 15, endDay: 18, color: 'bg-hp-500' }
+  const [events, setEvents] = useState<{ id: number, title: string, month: number, startDay: number, endDay: number, color: string, isAllDay: boolean, startTime?: string, endTime?: string }[]>([
+    { id: 101, title: '정보처리기사 1회 필기 접수', month: 3, startDay: 15, endDay: 18, color: 'bg-hp-500', isAllDay: true }
   ]);
 
   const [newTodoText, setNewTodoText] = useState('');
@@ -106,9 +120,15 @@ export default function App() {
   const [dragOverDay, setDragOverDay] = useState<number | null>(null);
   const [isDraggingEvent, setIsDraggingEvent] = useState(false);
 
+  const [calendarView, setCalendarView] = useState<'month' | 'week'>('month');
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [eventTitle, setEventTitle] = useState('');
   const [eventStartDate, setEventStartDate] = useState('');
   const [eventEndDate, setEventEndDate] = useState('');
+  const [eventColor, setEventColor] = useState('bg-hp-500');
+  const [eventIsAllDay, setEventIsAllDay] = useState(true);
+  const [eventStartTime, setEventStartTime] = useState('09:00');
+  const [eventEndTime, setEventEndTime] = useState('10:00');
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -119,6 +139,18 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isAuthenticated]);
+
+  // 일정 변경 시 localStorage 자동 저장
+  useEffect(() => {
+    if (!currentUser) return;
+    localStorage.setItem(`hp_events_${currentUser.id}`, JSON.stringify(events));
+  }, [events, currentUser]);
+
+  // 할일 변경 시 localStorage 자동 저장
+  useEffect(() => {
+    if (!currentUser) return;
+    localStorage.setItem(`hp_todos_${currentUser.id}`, JSON.stringify(todos));
+  }, [todos, currentUser]);
 
   const toggleTodo = (date: number, id: number) => {
     const timeString = new Date().toTimeString().slice(0, 5);
@@ -189,7 +221,7 @@ export default function App() {
     }
   };
 
-  if (!isAuthenticated) return <AuthScreen onAuthSuccess={(u) => { setCurrentUser(u); setIsAuthenticated(true); }} />;
+  if (!isAuthenticated) return <AuthScreen onAuthSuccess={handleAuthSuccess} />;
 
   return (
     <div className="flex h-screen bg-hp-50 font-sans text-slate-800">
@@ -244,9 +276,14 @@ export default function App() {
                     <button onClick={() => setCurrentDate(new Date())} className="px-2 text-xs font-bold text-hp-600 hover:bg-hp-50 rounded-lg">오늘</button>
                     <button onClick={() => setCurrentDate(new Date(currentYear, currentMonth + 1, 1))} className="p-1.5 hover:bg-hp-50 rounded-lg transition-colors"><ArrowRight size={20} className="text-slate-400" /></button>
                   </div>
+                  <div className="flex rounded-lg border border-hp-200 overflow-hidden text-xs font-bold">
+                    <button onClick={() => setCalendarView('month')} className={`px-3 py-1.5 transition-colors ${calendarView === 'month' ? 'bg-hp-600 text-white' : 'text-hp-600 hover:bg-hp-50'}`}>월간</button>
+                    <button onClick={() => setCalendarView('week')} className={`px-3 py-1.5 transition-colors border-l border-hp-200 ${calendarView === 'week' ? 'bg-hp-600 text-white' : 'text-hp-600 hover:bg-hp-50'}`}>주간</button>
+                  </div>
                 </div>
-                <button onClick={() => { setEventStartDate(''); setEventEndDate(''); setAddEventModalOpen(true); }} className="px-4 py-2 bg-hp-600 hover:bg-hp-700 text-white rounded-lg text-sm font-bold flex items-center gap-2"><Plus size={16} /> 일정 추가하기</button>
+                <button onClick={() => { setEventStartDate(''); setEventEndDate(''); setEventColor('bg-hp-500'); setEventIsAllDay(true); setEventStartTime('09:00'); setEventEndTime('10:00'); setAddEventModalOpen(true); }} className="px-4 py-2 bg-hp-600 hover:bg-hp-700 text-white rounded-lg text-sm font-bold flex items-center gap-2"><Plus size={16} /> 일정 추가하기</button>
               </div>
+              {calendarView === 'month' && (<>
               <div className="grid grid-cols-7 border border-hp-500 rounded-t-xl overflow-hidden bg-hp-600 text-center text-sm font-bold text-white border-b-0">
                 <div className="p-2 text-red-300 border-r border-hp-500">일</div>
                 <div className="p-2 border-r border-hp-500">월</div>
@@ -257,17 +294,13 @@ export default function App() {
                 <div className="p-2 text-hp-200">토</div>
               </div>
               <div className="grid grid-cols-7 border border-hp-100 rounded-b-xl overflow-hidden flex-1 bg-white">
-                {/* 시작 요일까지 빈 칸 채우기 */}
                 {Array.from({ length: new Date(currentYear, currentMonth, 1).getDay() }).map((_, i) => (
                   <div key={`empty-${i}`} className="min-h-[100px] border-b border-r border-hp-50 bg-hp-50/30"></div>
                 ))}
-
-                {/* 실제 날짜들 */}
                 {Array.from({ length: new Date(currentYear, currentMonth + 1, 0).getDate() }, (_, i) => i + 1).map(day => {
                   const crossingEvents = events.filter(e => e.month === currentMonth && day >= e.startDay && day <= e.endDay).sort((a, b) => a.startDay - b.startDay);
                   const colIndex = (new Date(currentYear, currentMonth, 1).getDay() + day - 1) % 7;
                   const isToday = new Date().getFullYear() === currentYear && new Date().getMonth() === currentMonth && new Date().getDate() === day;
-
                   return (
                     <div key={day} onClick={() => setSelectedDate(day)}
                       onDragOver={(e) => { e.preventDefault(); setDragOverDay(day); }}
@@ -286,10 +319,11 @@ export default function App() {
                           const isSingleDay = evt.startDay === evt.endDay;
                           return (
                             <div key={evt.id} draggable={true}
+                              onClick={(e) => { e.stopPropagation(); setSelectedEvent(evt); }}
                               onDragStart={(e) => { e.stopPropagation(); setIsDraggingEvent(true); e.dataTransfer.setData('eventId', evt.id.toString()); e.dataTransfer.setData('sourceDay', day.toString()); e.dataTransfer.effectAllowed = 'move'; }}
                               onDragEnd={() => { setIsDraggingEvent(false); setDragOverDay(null); }}
                               onDragOver={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                              className={`${isSingleDay ? 'min-h-[26px] py-0.5 items-start' : 'h-[26px] items-center'} ${evt.color} ${!isStart && colIndex !== 0 && '-ml-[1px]'} ${!isEnd && colIndex !== 6 && 'w-[calc(100%+1px)]'} ${isStart || colIndex === 0 ? 'rounded-l-full ml-1' : ''} ${isEnd || colIndex === 6 ? 'rounded-r-full mr-1' : ''} flex relative z-20 cursor-grab active:cursor-grabbing hover:brightness-110 hover:shadow-md active:opacity-70 transition-all select-none`}>
+                              className={`${isSingleDay ? 'min-h-[26px] py-0.5 items-start' : 'h-[26px] items-center'} ${evt.color} ${!isStart && colIndex !== 0 && '-ml-[1px]'} ${!isEnd && colIndex !== 6 && 'w-[calc(100%+1px)]'} ${isStart || colIndex === 0 ? 'rounded-l-full ml-1' : ''} ${isEnd || colIndex === 6 ? 'rounded-r-full mr-1' : ''} flex relative z-20 cursor-pointer hover:brightness-110 hover:shadow-md active:opacity-70 transition-all select-none`}>
                               {(isStart || colIndex === 0) && (
                                 <span className={`text-[11px] text-white font-bold ml-2 z-10 pointer-events-none drop-shadow-sm ${isSingleDay ? 'whitespace-normal break-words leading-tight mr-2' : 'whitespace-nowrap overflow-visible'}`}>
                                   {evt.title}
@@ -306,6 +340,50 @@ export default function App() {
                   );
                 })}
               </div>
+              </>)}
+
+              {calendarView === 'week' && (() => {
+                const weekDayLabels = ['일','월','화','수','목','금','토'];
+                const startOfWeek = new Date(currentYear, currentMonth, selectedDate - new Date(currentYear, currentMonth, selectedDate).getDay());
+                const weekDays = Array.from({length: 7}, (_, i) => { const d = new Date(startOfWeek); d.setDate(startOfWeek.getDate() + i); return d; });
+                const hours = Array.from({length: 24}, (_, i) => i);
+                const todayNow = new Date();
+                return (
+                  <div className="flex-1 flex flex-col overflow-hidden border border-hp-100 rounded-xl">
+                    <div className="grid grid-cols-8 bg-hp-600 text-white text-xs font-bold">
+                      <div className="p-2 border-r border-hp-500 text-center text-hp-200">시간</div>
+                      {weekDays.map((d, i) => {
+                        const isToday = d.toDateString() === todayNow.toDateString();
+                        return (
+                          <div key={i} onClick={() => { setCurrentDate(new Date(d.getFullYear(), d.getMonth(), 1)); setSelectedDate(d.getDate()); }} className={`p-2 text-center border-r border-hp-500 cursor-pointer hover:bg-hp-700 transition-colors ${i === 0 ? 'text-red-300' : i === 6 ? 'text-hp-200' : ''}`}>
+                            <div className={`text-[10px] ${isToday ? 'text-yellow-300' : 'opacity-70'}`}>{weekDayLabels[i]}</div>
+                            <div className={`w-7 h-7 flex items-center justify-center rounded-full mx-auto mt-0.5 ${isToday ? 'bg-red-500 text-white' : ''}`}>{d.getDate()}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex-1 overflow-y-auto">
+                      {hours.map(h => (
+                        <div key={h} className="grid grid-cols-8 border-b border-hp-50 min-h-[48px]">
+                          <div className="text-[10px] text-slate-400 font-medium p-1 text-right pr-2 border-r border-hp-100 leading-none pt-1 sticky left-0 bg-white">{h}:00</div>
+                          {weekDays.map((d, di) => {
+                            const dayEvents = events.filter(e => e.month === d.getMonth() && d.getDate() >= e.startDay && d.getDate() <= e.endDay && !e.isAllDay && e.startTime && parseInt(e.startTime.split(':')[0]) === h);
+                            return (
+                              <div key={di} onClick={() => { setCurrentDate(new Date(d.getFullYear(), d.getMonth(), 1)); setSelectedDate(d.getDate()); }} className={`border-r border-hp-50 p-0.5 cursor-pointer hover:bg-hp-50 transition-colors relative ${di === 0 ? 'bg-red-50/20' : ''}`}>
+                                {dayEvents.map(evt => (
+                                  <div key={evt.id} onClick={(e) => { e.stopPropagation(); setSelectedEvent(evt); }} className={`${evt.color} text-white text-[10px] font-bold rounded px-1 py-0.5 truncate cursor-pointer hover:brightness-110`}>
+                                    {evt.startTime} {evt.title}
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <Draggable nodeRef={draggableRef} handle=".drag-handle">
@@ -319,14 +397,14 @@ export default function App() {
                 </div>
                 <div className="mt-5 flex-1 flex flex-col overflow-hidden">
                   {events.filter(e => e.month === currentMonth && selectedDate >= e.startDay && selectedDate <= e.endDay).map(evt => (
-                    <div key={evt.id} className="mb-4 bg-white border border-hp-100 rounded-xl p-4 shadow-sm flex gap-3 group relative overflow-hidden">
+                    <div key={evt.id} onClick={() => setSelectedEvent(evt)} className="mb-3 bg-white border border-hp-100 rounded-xl p-3.5 shadow-sm flex gap-3 group relative overflow-hidden cursor-pointer hover:border-hp-300 transition-colors">
                       <div className={`w-1.5 ${evt.color} rounded-full`}></div>
                       <div className="flex-1">
-                        <p className="text-[10px] font-bold text-slate-400 mb-1">포커스 스케줄</p>
+                        <p className="text-[10px] font-bold text-slate-400 mb-1">{evt.isAllDay ? '종일' : `${evt.startTime} ~ ${evt.endTime}`}</p>
                         <p className="font-bold text-sm">{evt.title}</p>
-                        <p className="text-xs text-slate-500 mt-1">{evt.startDay}일 ~ {evt.endDay}일</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{evt.startDay === evt.endDay ? `${evt.startDay}일` : `${evt.startDay}일 ~ ${evt.endDay}일`}</p>
                       </div>
-                      <button onClick={() => deleteEvent(evt.id)} className="absolute right-3 top-3 p-1.5 text-slate-400 hover:text-red-500 hover:bg-slate-100 opacity-0 group-hover:opacity-100 rounded-lg transition-all"><Trash2 size={16} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); deleteEvent(evt.id); }} className="absolute right-3 top-3 p-1.5 text-slate-400 hover:text-red-500 hover:bg-slate-100 opacity-0 group-hover:opacity-100 rounded-lg transition-all"><Trash2 size={16} /></button>
                     </div>
                   ))}
                   <div className="flex-1 overflow-y-auto flex flex-col mt-2">
@@ -702,26 +780,84 @@ export default function App() {
 
       {/* --- INLINE MODALS (To prevent focus loss) --- */}
       {addEventModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
-            <div className="flex justify-between items-center p-5 border-b"><h3 className="font-bold text-lg">일정 추가하기</h3><button onClick={() => setAddEventModalOpen(false)}><X size={20} /></button></div>
-            <div className="p-5 space-y-4">
-              <div><label className="block text-xs font-bold text-slate-500 mb-1">일정 제목</label><input type="text" value={eventTitle} onChange={e => setEventTitle(e.target.value)} className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-hp-500" /></div>
-              <div className="flex gap-4">
-                <div className="flex-1"><label className="block text-xs font-bold text-slate-500 mb-1">시작일</label><input type="date" value={eventStartDate} onChange={e => { setEventStartDate(e.target.value); if (!eventEndDate) setEventEndDate(e.target.value); }} className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-hp-500" /></div>
-                <div className="flex-1"><label className="block text-xs font-bold text-slate-500 mb-1">종료일</label><input type="date" value={eventEndDate} min={eventStartDate} onChange={e => setEventEndDate(e.target.value)} className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-hp-500" /></div>
+        <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden flex flex-col animate-in slide-in-from-bottom duration-300 sm:animate-in sm:fade-in">
+            <div className="flex justify-between items-center p-5 border-b border-hp-100">
+              <h3 className="font-bold text-lg text-slate-800">새 일정</h3>
+              <button onClick={() => setAddEventModalOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-full"><X size={20} /></button>
+            </div>
+            <div className="p-5 space-y-4 overflow-y-auto">
+              <div>
+                <input type="text" value={eventTitle} onChange={e => setEventTitle(e.target.value)} placeholder="일정 제목" className="w-full border-b-2 border-hp-200 focus:border-hp-600 p-2 outline-none text-lg font-bold placeholder:font-normal placeholder:text-slate-300 transition-colors" />
+              </div>
+              <div className="flex items-center justify-between py-1">
+                <span className="text-sm font-bold text-slate-600">종일</span>
+                <button onClick={() => setEventIsAllDay(!eventIsAllDay)} className={`w-12 h-6 rounded-full transition-colors relative ${eventIsAllDay ? 'bg-hp-600' : 'bg-slate-200'}`}>
+                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${eventIsAllDay ? 'translate-x-6' : 'translate-x-0.5'}`}></span>
+                </button>
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1"><label className="block text-xs font-bold text-slate-400 mb-1">시작일</label><input type="date" value={eventStartDate} onChange={e => { setEventStartDate(e.target.value); if (!eventEndDate) setEventEndDate(e.target.value); }} className="w-full border border-hp-100 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-hp-500 text-sm" /></div>
+                <div className="flex-1"><label className="block text-xs font-bold text-slate-400 mb-1">종료일</label><input type="date" value={eventEndDate} min={eventStartDate} onChange={e => setEventEndDate(e.target.value)} className="w-full border border-hp-100 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-hp-500 text-sm" /></div>
+              </div>
+              {!eventIsAllDay && (
+                <div className="flex gap-3">
+                  <div className="flex-1"><label className="block text-xs font-bold text-slate-400 mb-1">시작 시간</label><input type="time" value={eventStartTime} onChange={e => setEventStartTime(e.target.value)} className="w-full border border-hp-100 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-hp-500 text-sm" /></div>
+                  <div className="flex-1"><label className="block text-xs font-bold text-slate-400 mb-1">종료 시간</label><input type="time" value={eventEndTime} onChange={e => setEventEndTime(e.target.value)} className="w-full border border-hp-100 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-hp-500 text-sm" /></div>
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-2">색상</label>
+                <div className="flex gap-2">
+                  {[['bg-hp-500','#6ab8f5'],['bg-blue-600','#2563eb'],['bg-emerald-500','#10b981'],['bg-violet-500','#8b5cf6'],['bg-orange-500','#f97316'],['bg-red-500','#ef4444'],['bg-pink-500','#ec4899'],['bg-slate-500','#64748b']].map(([cls, hex]) => (
+                    <button key={cls} onClick={() => setEventColor(cls)} style={{backgroundColor: hex}} className={`w-7 h-7 rounded-full transition-all ${eventColor === cls ? 'ring-2 ring-offset-2 ring-slate-400 scale-110' : 'hover:scale-105'}`}></button>
+                  ))}
+                </div>
               </div>
             </div>
-            <div className="p-4 bg-hp-50 border-t flex justify-end gap-2">
-              <button onClick={() => setAddEventModalOpen(false)} className="px-4 py-2 rounded-lg bg-hp-50 text-hp-700 border border-hp-200 hover:bg-hp-100">취소</button>
+            <div className="p-4 border-t border-hp-50 flex gap-2">
+              <button onClick={() => setAddEventModalOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl bg-hp-50 text-hp-700 border border-hp-200 hover:bg-hp-100 font-bold">취소</button>
               <button onClick={() => {
                 if (!eventTitle || !eventStartDate || !eventEndDate) return;
                 const [sy, sm, sd] = eventStartDate.split('-').map(Number);
                 const [, , ed] = eventEndDate.split('-').map(Number);
-                setEvents([...events, { id: Date.now(), title: eventTitle, month: sm - 1, startDay: sd, endDay: ed, color: 'bg-orange-500' }]);
+                setEvents([...events, { id: Date.now(), title: eventTitle, month: sm - 1, startDay: sd, endDay: ed, color: eventColor, isAllDay: eventIsAllDay, startTime: eventIsAllDay ? undefined : eventStartTime, endTime: eventIsAllDay ? undefined : eventEndTime }]);
                 setCurrentDate(new Date(sy, sm - 1, 1));
                 setAddEventModalOpen(false); setEventTitle(''); setEventStartDate(''); setEventEndDate('');
-              }} className="px-4 py-2 rounded-lg bg-hp-600 text-white">저장</button>
+              }} className="flex-1 px-4 py-2.5 rounded-xl bg-hp-600 text-white font-bold hover:bg-hp-700">저장</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedEvent && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedEvent(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className={`${selectedEvent.color} p-5`}>
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-white/70 text-xs font-bold mb-1">{selectedEvent.isAllDay ? '종일 일정' : `${selectedEvent.startTime} ~ ${selectedEvent.endTime}`}</p>
+                  <h3 className="text-white font-bold text-xl leading-tight">{selectedEvent.title}</h3>
+                </div>
+                <button onClick={() => setSelectedEvent(null)} className="p-1.5 bg-white/20 hover:bg-white/30 rounded-full transition-colors"><X size={18} className="text-white" /></button>
+              </div>
+            </div>
+            <div className="p-5 space-y-3">
+              <div className="flex items-center gap-3 text-sm text-slate-600">
+                <CalendarIcon size={16} className="text-hp-500" />
+                <span className="font-medium">
+                  {currentYear}년 {selectedEvent.month + 1}월 {selectedEvent.startDay === selectedEvent.endDay ? `${selectedEvent.startDay}일` : `${selectedEvent.startDay}일 ~ ${selectedEvent.endDay}일`}
+                </span>
+              </div>
+              {!selectedEvent.isAllDay && (
+                <div className="flex items-center gap-3 text-sm text-slate-600">
+                  <Clock size={16} className="text-hp-500" />
+                  <span className="font-medium">{selectedEvent.startTime} ~ {selectedEvent.endTime}</span>
+                </div>
+              )}
+            </div>
+            <div className="px-5 pb-5 flex gap-2">
+              <button onClick={() => { deleteEvent(selectedEvent.id); setSelectedEvent(null); }} className="flex-1 py-2.5 rounded-xl border border-red-200 text-red-500 font-bold text-sm hover:bg-red-50 transition-colors flex items-center justify-center gap-1"><Trash2 size={15} /> 삭제</button>
             </div>
           </div>
         </div>
@@ -771,7 +907,7 @@ export default function App() {
                 const [year, month, day] = dateStr.split('-').map(Number);
                 const title = certModalCert || certModalOpen.name;
                 setCurrentDate(new Date(year, month - 1, 1));
-                setEvents([...events, { id: Date.now(), title, month: month - 1, startDay: day, endDay: day, color: 'bg-green-500' }]);
+                setEvents([...events, { id: Date.now(), title, month: month - 1, startDay: day, endDay: day, color: 'bg-emerald-500', isAllDay: true }]);
                 setCertModalOpen(null); setCertModalCertCat(''); setCertModalCert('');
                 setActiveTab('calendar');
               }}>일정 확정 및 추가</button>
@@ -1015,6 +1151,7 @@ const AuthScreen = ({ onAuthSuccess }: { onAuthSuccess: (user: any) => void }) =
   const [sido, setSido] = useState(''); const [sigungu, setSigungu] = useState('');
   const [ageGroup, setAgeGroup] = useState(''); const [gender, setGender] = useState('');
   const [loading, setLoading] = useState(false); const [error, setError] = useState('');
+  const [kakaoLoading, setKakaoLoading] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault(); setError(''); setLoading(true);
@@ -1027,6 +1164,74 @@ const AuthScreen = ({ onAuthSuccess }: { onAuthSuccess: (user: any) => void }) =
         initialUsers.push(newUser); onAuthSuccess(newUser);
       }
     }, 800);
+  };
+
+  const handleKakaoLogin = () => {
+    const kakao = (window as any).Kakao;
+    if (!kakao || !kakao.Auth) {
+      alert('카카오 SDK가 로드되지 않았습니다. 페이지를 새로고침 후 다시 시도해주세요.');
+      return;
+    }
+    const jsKey = process.env.NEXT_PUBLIC_KAKAO_JS_KEY;
+    if (!jsKey || jsKey === '여기에_카카오_JavaScript_키_입력') {
+      alert('.env.local에 NEXT_PUBLIC_KAKAO_JS_KEY를 설정해주세요.');
+      return;
+    }
+    try {
+      if (!kakao.isInitialized()) kakao.init(jsKey);
+    } catch (e) {
+      console.error('Kakao init 실패:', e);
+    }
+    setKakaoLoading(true);
+
+    // 팝업 차단 감지: 10초 내 응답 없으면 알림
+    const popupTimeout = setTimeout(() => {
+      setKakaoLoading(false);
+      alert('팝업이 차단되었습니다.\n브라우저 주소창 오른쪽의 팝업 차단 아이콘을 클릭해 허용해주세요.');
+    }, 10000);
+
+    kakao.Auth.login({
+      scope: 'profile_nickname,account_email',
+      success: () => {
+        clearTimeout(popupTimeout);
+        kakao.API.request({
+          url: '/v2/user/me',
+          success: (res: any) => {
+            const kakaoAccount = res.kakao_account || {};
+            const profile = kakaoAccount.profile || {};
+            const user = {
+              id: `kakao_${res.id}`,
+              email: kakaoAccount.email || `kakao_${res.id}@kakao.com`,
+              password: '',
+              nickname: profile.nickname || `카카오유저`,
+              name: profile.nickname || '카카오유저',
+              profileImage: profile.profile_image_url || null,
+              ageGroup: '비공개',
+              gender: '비공개',
+              location: '비공개',
+              loginType: 'kakao',
+            };
+            onAuthSuccess(user);
+            setKakaoLoading(false);
+          },
+          fail: (err: any) => {
+            console.error('사용자 정보 요청 실패:', err);
+            alert('사용자 정보를 가져오지 못했습니다.');
+            setKakaoLoading(false);
+          },
+        });
+      },
+      fail: (err: any) => {
+        clearTimeout(popupTimeout);
+        console.error('카카오 로그인 실패:', err);
+        if (err.error === 'access_denied') {
+          alert('로그인이 취소되었습니다.');
+        } else {
+          alert(`로그인 실패: ${err.error_description || err.error || '알 수 없는 오류'}`);
+        }
+        setKakaoLoading(false);
+      },
+    });
   };
   return (
     <div className="min-h-screen bg-gradient-to-br from-hp-900 via-hp-800 to-hp-600 flex items-center justify-center p-4">
@@ -1096,9 +1301,9 @@ const AuthScreen = ({ onAuthSuccess }: { onAuthSuccess: (user: any) => void }) =
                 <svg viewBox="0 0 24 24" className="w-5 h-5" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" /><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" /><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" /><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" /></svg>
                 Google
               </button>
-              <button onClick={() => onAuthSuccess({ id: `oauth_${Date.now()}`, email: `user@kakao.com`, password: '', nickname: `Kakao유저`, name: '간편로그인', ageGroup: '20대', gender: '비공개', location: 'SEOUL' })} className="flex items-center justify-center gap-2 bg-[#FEE500] hover:bg-[#FDD800] text-black font-bold py-2.5 rounded-xl text-sm transition-colors">
-                <svg viewBox="0 0 32 32" className="w-5 h-5 fill-current" xmlns="http://www.w3.org/2000/svg"><path d="M16 4.64c-6.96 0-12.64 4.48-12.64 10.08 0 3.52 2.32 6.64 5.76 8.48l-1.52 5.44c-.16.48.32.88.72.64l6.32-4.24c.48.08 1.04.08 1.52.08 6.96 0 12.64-4.48 12.64-10.08S22.96 4.64 16 4.64z" /></svg>
-                카카오
+              <button onClick={handleKakaoLogin} disabled={kakaoLoading} className="flex items-center justify-center gap-2 bg-[#FEE500] hover:bg-[#FDD800] disabled:opacity-60 text-black font-bold py-2.5 rounded-xl text-sm transition-colors">
+                {kakaoLoading ? <Loader2 size={18} className="animate-spin" /> : <svg viewBox="0 0 32 32" className="w-5 h-5 fill-current" xmlns="http://www.w3.org/2000/svg"><path d="M16 4.64c-6.96 0-12.64 4.48-12.64 10.08 0 3.52 2.32 6.64 5.76 8.48l-1.52 5.44c-.16.48.32.88.72.64l6.32-4.24c.48.08 1.04.08 1.52.08 6.96 0 12.64-4.48 12.64-10.08S22.96 4.64 16 4.64z" /></svg>}
+                {kakaoLoading ? '로그인 중...' : '카카오 로그인'}
               </button>
             </div>
           </div>
