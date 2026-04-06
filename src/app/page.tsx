@@ -1167,22 +1167,39 @@ const AuthScreen = ({ onAuthSuccess }: { onAuthSuccess: (user: any) => void }) =
   };
 
   const handleKakaoLogin = () => {
-    const kakao = (window as any).Kakao;
-    if (!kakao || !kakao.Auth) {
-      alert('카카오 SDK가 로드되지 않았습니다. 페이지를 새로고침 후 다시 시도해주세요.');
-      return;
-    }
     const jsKey = process.env.NEXT_PUBLIC_KAKAO_JS_KEY;
     if (!jsKey || jsKey === '여기에_카카오_JavaScript_키_입력') {
       alert('.env.local에 NEXT_PUBLIC_KAKAO_JS_KEY를 설정해주세요.');
       return;
     }
-    try {
-      if (!kakao.isInitialized()) kakao.init(jsKey);
-    } catch (e) {
-      console.error('Kakao init 실패:', e);
-    }
+
     setKakaoLoading(true);
+
+    // SDK 로드 대기 (최대 5초)
+    let waited = 0;
+    const tryLogin = () => {
+      const kakao = (window as any).Kakao;
+      if (!kakao || !kakao.Auth) {
+        if (waited >= 5000) {
+          setKakaoLoading(false);
+          alert('카카오 SDK 로드에 실패했습니다. 페이지를 새로고침 후 다시 시도해주세요.');
+          return;
+        }
+        waited += 300;
+        setTimeout(tryLogin, 300);
+        return;
+      }
+      try {
+        if (!kakao.isInitialized()) kakao.init(jsKey);
+      } catch (e) {
+        console.error('Kakao init 실패:', e);
+      }
+      doKakaoLogin(kakao);
+    };
+    tryLogin();
+  };
+
+  const doKakaoLogin = (kakao: any) => {
 
     // 팝업 차단 감지: 10초 내 응답 없으면 알림
     const popupTimeout = setTimeout(() => {
