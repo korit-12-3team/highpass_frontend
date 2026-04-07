@@ -24,7 +24,3 @@ export const REGION_DATA: Record<string, string[]> = {
   '제주': ['서귀포시', '제주시'],
 };
 
-export const INITIAL_USERS = [
-  { id: 'u1', email: 'user@test.com', password: 'password123', nickname: '열공러', name: '홍길동', ageGroup: '20대', gender: '남성', location: '서울시 강남구' },
-  { id: 'u2', email: 'user1@test.com', password: 'test1234', nickname: '스터디어', name: '김테스트', ageGroup: '20대', gender: '여성', location: '서울시 마포구' },
-];
