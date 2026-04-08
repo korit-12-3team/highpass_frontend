@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AuthShell from "@/components/auth/AuthShell";
@@ -13,39 +13,101 @@ interface SignupFormProps {
 }
 
 type SignupApiResponse = {
+  id?: string | number;
   userId?: string | number;
   email?: string;
   nickname?: string;
   redirectUrl?: string;
   message?: string;
+  data?: unknown;
 };
 
-function mapSignupResponseToUser(
-  payload: SignupApiResponse | null,
-  fallback: {
-    email: string;
-    nickname: string;
-    ageGroup: string;
-    gender: string;
-    sido: string;
-    sigungu: string;
-  },
-): UserProfile {
+type LoginApiResponse = {
+  id?: string | number;
+  userId?: string | number;
+  email?: string;
+  nickname?: string;
+  redirectUrl?: string;
+  message?: string;
+  data?: unknown;
+};
+
+function unwrapAuthPayload(payload: unknown): unknown {
+  if (!payload || typeof payload !== "object") return payload;
+  if ("data" in (payload as Record<string, unknown>)) return (payload as Record<string, unknown>).data;
+  return payload;
+}
+
+function extractNumericUserId(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const p = payload as any;
+  const candidates = [
+    p.userId,
+    p.id,
+    p.user_id,
+    p.memberId,
+    p.data?.userId,
+    p.data?.id,
+    p.data?.user?.id,
+  ];
+
+  for (const c of candidates) {
+    if (c == null) continue;
+    const s = String(c).trim();
+    if (/^\d+$/.test(s)) return s;
+  }
+  return null;
+}
+
+function mapSignupResponseToUser(payload: unknown, fallback: { email: string; nickname: string; ageGroup: string; gender: string; location: string }): UserProfile {
+  const unwrapped = unwrapAuthPayload(payload);
+  const userId = extractNumericUserId(unwrapped);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const p = (unwrapped && typeof unwrapped === "object" ? (unwrapped as any) : {}) as any;
+
   return {
-    id: String(payload?.userId ?? fallback.email),
-    email: payload?.email ?? fallback.email,
-    nickname: payload?.nickname ?? fallback.nickname,
-    name: payload?.nickname ?? fallback.nickname,
+    id: userId ?? "",
+    email: typeof p.email === "string" ? p.email : fallback.email,
+    nickname: typeof p.nickname === "string" ? p.nickname : fallback.nickname,
+    name: typeof p.nickname === "string" ? p.nickname : fallback.nickname,
     ageGroup: fallback.ageGroup,
     gender: fallback.gender,
-    location: `${fallback.sido} ${fallback.sigungu}`.trim(),
+    location: fallback.location,
+    profileImage: null,
+    loginType: "local",
+  };
+}
+
+function mapLoginResponseToUser(payload: unknown, fallback: { email: string; nickname: string; location: string }): UserProfile {
+  const unwrapped = unwrapAuthPayload(payload);
+  const userId = extractNumericUserId(unwrapped);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const p = (unwrapped && typeof unwrapped === "object" ? (unwrapped as any) : {}) as any;
+
+  const nickname =
+    typeof p.nickname === "string"
+      ? p.nickname
+      : typeof p.email === "string"
+        ? String(p.email).split("@")[0]
+        : fallback.nickname;
+
+  return {
+    id: userId ?? "",
+    email: typeof p.email === "string" ? p.email : fallback.email,
+    nickname: nickname || fallback.nickname,
+    name: nickname || fallback.nickname,
+    ageGroup: "미등록",
+    gender: "미등록",
+    location: fallback.location,
     profileImage: null,
     loginType: "local",
   };
 }
 
 export default function SignupForm({ isSocialSignup }: SignupFormProps) {
-  const { isAuthenticated, handleAuthSuccess } = useApp();
+  const { isAuthenticated, authReady, handleAuthSuccess } = useApp();
   const router = useRouter();
 
   const [email, setEmail] = useState(isSocialSignup ? "social-user@example.com" : "");
@@ -59,14 +121,15 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const isPasswordMismatch =
-    !isSocialSignup && passwordConfirm.length > 0 && password !== passwordConfirm;
+  const isPasswordMismatch = useMemo(
+    () => !isSocialSignup && passwordConfirm.length > 0 && password !== passwordConfirm,
+    [isSocialSignup, password, passwordConfirm],
+  );
 
   useEffect(() => {
-    if (isAuthenticated) {
-      router.replace("/calendar");
-    }
-  }, [isAuthenticated, router]);
+    if (!authReady || !isAuthenticated) return;
+    router.replace("/calendar");
+  }, [authReady, isAuthenticated, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,7 +144,7 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
 
     if (isSocialSignup) {
       setLoading(false);
-      setError("소셜 회원가입 API 연결 후 활성화됩니다.");
+      setError("소셜 회원가입은 아직 준비 중입니다.");
       return;
     }
 
@@ -92,7 +155,6 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include",
         body: JSON.stringify({
           email,
           password,
@@ -116,29 +178,74 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
         return;
       }
 
+      const location = `${sido} ${sigungu}`.trim();
       const user = mapSignupResponseToUser(payload, {
         email,
         nickname,
         ageGroup,
         gender,
-        sido,
-        sigungu,
+        location,
       });
+
+      if (!/^\d+$/.test(String(user.id).trim())) {
+        // Signup succeeded but backend didn't return userId.
+        // Try auto-login using the just-created credentials.
+        try {
+          const loginRes = await fetch(`${API_BASE_URL}/api/auth/login`, {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ email, password }),
+          });
+
+          let loginPayload: LoginApiResponse | null = null;
+          try {
+            loginPayload = (await loginRes.json()) as LoginApiResponse;
+          } catch {
+            loginPayload = null;
+          }
+
+          if (!loginRes.ok) {
+            setError(loginPayload?.message || "회원가입은 완료됐지만 자동 로그인에 실패했습니다. 로그인 해주세요.");
+            router.replace("/login?signup=success");
+            return;
+          }
+
+          const authed = mapLoginResponseToUser(loginPayload, {
+            email,
+            nickname,
+            location,
+          });
+
+          if (!/^\d+$/.test(String(authed.id).trim())) {
+            setError("회원가입은 완료됐지만 서버가 숫자 userId를 내려주지 않아 자동 로그인이 불가능합니다.");
+            router.replace("/login?signup=success");
+            return;
+          }
+
+          handleAuthSuccess(authed);
+          router.replace((loginPayload as LoginApiResponse | null)?.redirectUrl || "/calendar");
+          return;
+        } catch {
+          setError("회원가입은 완료됐지만 자동 로그인에 실패했습니다. 로그인 해주세요.");
+          router.replace("/login?signup=success");
+          return;
+        }
+      }
 
       handleAuthSuccess(user);
       router.replace(payload?.redirectUrl || "/calendar");
     } catch {
-      setError("서버에 연결할 수 없습니다. API 주소와 서버 상태를 확인해 주세요.");
+      setError("서버에 연결할 수 없습니다. API 주소 또는 서버 상태를 확인해주세요.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <AuthShell
-      title="회원가입"
-      subtitle={isSocialSignup ? "소셜 회원가입 초기 세팅" : "일반 회원가입"}
-    >
+    <AuthShell title="회원가입" subtitle={isSocialSignup ? "소셜 회원가입" : "계정을 생성하세요"}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           type="email"
@@ -204,7 +311,7 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
             className="appearance-none rounded-xl border border-hp-200 bg-hp-50 px-3 py-3 text-slate-800 outline-none focus:border-hp-500 disabled:opacity-40"
             required
           >
-            <option value="">시/군/구 선택</option>
+            <option value="">군/구 선택</option>
             {(REGION_DATA[sido] || []).map((region) => (
               <option key={region} value={region}>
                 {region}
@@ -255,9 +362,7 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
 
         <div className="min-h-5">
           {(error || isPasswordMismatch) && (
-            <p className="text-sm text-red-500">
-              {isPasswordMismatch ? "비밀번호가 일치하지 않습니다." : error}
-            </p>
+            <p className="text-sm text-red-500">{isPasswordMismatch ? "비밀번호가 일치하지 않습니다." : error}</p>
           )}
         </div>
 

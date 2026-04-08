@@ -8,6 +8,8 @@ import { REGION_DATA } from "@/lib/constants";
 interface ProfileModalProps {
   currentUser: UserProfile;
   profile: UserProfile;
+  loading?: boolean;
+  error?: string;
   isOpen: boolean;
   isCurrentUser: boolean;
   editProfileOpen: boolean;
@@ -33,6 +35,8 @@ export default function ProfileModal(props: ProfileModalProps) {
   const {
     currentUser,
     profile,
+    loading,
+    error,
     isOpen,
     isCurrentUser,
     editProfileOpen,
@@ -67,6 +71,12 @@ export default function ProfileModal(props: ProfileModalProps) {
           <div className="w-20 h-20 bg-white rounded-full border-4 border-hp-100 absolute -top-10 left-1/2 -translate-x-1/2 flex items-center justify-center text-hp-600 font-bold text-2xl shadow-sm">
             {profile.nickname.substring(0, 1)}
           </div>
+          {(loading || error) && (
+            <div className="pt-14">
+              {loading && <p className="text-xs text-slate-400">프로필 불러오는 중...</p>}
+              {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+            </div>
+          )}
           {editProfileOpen ? (
             <div className="pt-14 flex flex-col gap-3 text-left">
               <div>

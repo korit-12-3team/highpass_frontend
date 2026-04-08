@@ -2,9 +2,10 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { clearAuthSession, loadAuthSession, saveAuthSession } from "@/lib/auth";
+import { createBoard, listBoards } from "@/lib/boards";
 
 export interface EventType {
-  id: number;
+  id: string;
   title: string;
   month: number;
   startDay: number;
@@ -36,7 +37,7 @@ export interface PostComment {
 }
 
 export interface BoardPost {
-  id: number;
+  id: string;
   type: "study" | "free";
   title: string;
   content: string;
@@ -90,6 +91,7 @@ export type TodoMap = Record<number, TodoItem[]>;
 interface AppContextType {
   currentUser: UserProfile | null;
   isAuthenticated: boolean;
+  authReady: boolean;
   handleAuthSuccess: (user: UserProfile) => void;
   logout: () => void;
   setCurrentUser: React.Dispatch<React.SetStateAction<UserProfile | null>>;
@@ -142,13 +144,14 @@ interface AppContextType {
   setSearchKeyword: React.Dispatch<React.SetStateAction<string>>;
   searchResults: SearchPlace[];
   setSearchResults: React.Dispatch<React.SetStateAction<SearchPlace[]>>;
-  submitPost: () => boolean;
+  submitPost: () => Promise<boolean>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => loadAuthSession()?.user ?? null);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [boardData, setBoardData] = useState<BoardPost[]>([]);
   const [events, setEvents] = useState<EventType[]>([]);
   const [todos, setTodos] = useState<TodoMap>({});
@@ -175,7 +178,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [searchResults, setSearchResults] = useState<SearchPlace[]>([]);
 
   useEffect(() => {
-    if (!currentUser) return;
+    // Hydrate auth from browser storage only after mount to keep SSR and first client render identical.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCurrentUser(loadAuthSession()?.user ?? null);
+    setAuthReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!authReady || !currentUser) return;
     const savedEvents = localStorage.getItem(`hp_events_${currentUser.id}`);
     const savedTodos = localStorage.getItem(`hp_todos_${currentUser.id}`);
     if (savedEvents) {
@@ -189,22 +199,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setTodos(JSON.parse(savedTodos));
       } catch {}
     }
-  }, [currentUser]);
+  }, [authReady, currentUser]);
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!authReady || !currentUser) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const boards = await listBoards();
+        if (cancelled) return;
+        setBoardData(boards);
+      } catch {
+        // Keep UI usable even if boards API is not ready.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authReady, currentUser]);
+
+  useEffect(() => {
+    if (!authReady || !currentUser) return;
     localStorage.setItem(`hp_events_${currentUser.id}`, JSON.stringify(events));
-  }, [events, currentUser]);
+  }, [authReady, events, currentUser]);
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!authReady || !currentUser) return;
     localStorage.setItem(`hp_todos_${currentUser.id}`, JSON.stringify(todos));
-  }, [todos, currentUser]);
+  }, [authReady, todos, currentUser]);
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!authReady || !currentUser) return;
     saveAuthSession(currentUser);
-  }, [currentUser]);
+  }, [authReady, currentUser]);
 
   const handleAuthSuccess = useCallback((user: UserProfile) => {
     setCurrentUser(user);
@@ -217,14 +246,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     clearAuthSession();
   }, []);
 
-  const submitPost = useCallback(() => {
-    // Post creation is intentionally disabled until backend APIs are connected.
-    return false;
-  }, []);
+  const submitPost = useCallback(async () => {
+    if (!currentUser) return false;
+    if (!postContent.trim() && !postTitle.trim()) return false;
+    const numericUserId = String(currentUser.id).trim();
+    if (!/^\d+$/.test(numericUserId)) {
+      throw new Error(`Board POST requires numeric userId. Current user id: "${currentUser.id}"`);
+    }
+
+    const certValue = writeType === "study" ? postCert || postCertCategory || null : null;
+
+    const created = await createBoard({
+      userId: numericUserId,
+      author: currentUser.nickname,
+      type: writeType,
+      title: postTitle.trim(),
+      content: postContent.trim(),
+      cert: certValue,
+      location: selectedPlace?.address,
+      lat: selectedPlace?.lat,
+      lng: selectedPlace?.lng,
+    });
+
+    setBoardData((prev) => [created, ...prev]);
+    return true;
+  }, [currentUser, postContent, postTitle, postCert, postCertCategory, selectedPlace, setBoardData, writeType]);
 
   const value: AppContextType = {
     currentUser,
     isAuthenticated: !!currentUser,
+    authReady,
     handleAuthSuccess,
     logout,
     setCurrentUser,

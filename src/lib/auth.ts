@@ -8,6 +8,11 @@ type AuthSession = {
   user: UserProfile;
 };
 
+function isNumericId(value: unknown): boolean {
+  const str = typeof value === "string" ? value : value == null ? "" : String(value);
+  return /^\d+$/.test(str.trim());
+}
+
 export function loadAuthSession(): AuthSession | null {
   if (typeof window === "undefined") return null;
 
@@ -15,7 +20,13 @@ export function loadAuthSession(): AuthSession | null {
   if (!raw) return null;
 
   try {
-    return JSON.parse(raw) as AuthSession;
+    const session = JSON.parse(raw) as AuthSession;
+    // Reject legacy sessions where user.id was stored as email (boards API requires numeric userId).
+    if (!session?.user || !isNumericId(session.user.id)) {
+      window.localStorage.removeItem(AUTH_STORAGE_KEY);
+      return null;
+    }
+    return session;
   } catch {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
     return null;

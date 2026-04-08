@@ -1,7 +1,15 @@
 "use client";
 
 import React from "react";
-import { Calendar as CalendarIcon, MessageCircle, MessageSquare, Search, Users, X, Zap } from "lucide-react";
+import {
+  Calendar as CalendarIcon,
+  MessageCircle,
+  MessageSquare,
+  Search,
+  Users,
+  X,
+  Zap,
+} from "lucide-react";
 import { ChatRoom, UserProfile } from "@/lib/AppContext";
 
 interface MainSidebarProps {
@@ -39,42 +47,52 @@ export default function MainSidebar({
           <Zap size={28} className="text-hp-600 fill-hp-600" /> HighPass
         </h1>
       </div>
+
       <nav className="flex-1 px-4 space-y-1.5 overflow-y-auto mt-4">
-        {navItems.map((item) => (
-          <button
-            key={item.href}
-            onClick={() => onNavigate(item.href)}
-            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold transition-colors ${
-              pathname === item.href
-                ? "bg-hp-700 text-white border-l-4 border-hp-300"
-                : "text-hp-200 hover:bg-hp-800 border-l-4 border-transparent"
-            }`}
-          >
-            {item.icon} {item.label}
-          </button>
-        ))}
+        {navItems.map((item) => {
+          const active = pathname === item.href;
+          return (
+            <button
+              key={item.href}
+              onClick={() => onNavigate(item.href)}
+              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold transition-colors ${
+                active
+                  ? "bg-hp-700 text-white border-l-4 border-hp-300"
+                  : "text-hp-200 hover:bg-hp-800 border-l-4 border-transparent"
+              }`}
+            >
+              {item.icon} {item.label}
+            </button>
+          );
+        })}
+
         <div className="pt-5 pb-2">
           <p className="px-4 text-[10px] font-black text-hp-400 uppercase tracking-widest">Community</p>
         </div>
-        {communityItems.map((item) => (
-          <button
-            key={item.href}
-            onClick={() => onNavigate(item.href)}
-            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold transition-colors ${
-              pathname === item.href
-                ? "bg-hp-700 text-white border-l-4 border-hp-300"
-                : "text-hp-200 hover:bg-hp-800 border-l-4 border-transparent"
-            }`}
-          >
-            {item.icon} {item.label}
-            {item.href === "/chat" && chatRooms.length > 0 && (
-              <span className="ml-auto text-[10px] bg-hp-600 text-white rounded-full px-1.5 py-0.5 font-bold">
-                {chatRooms.length}
-              </span>
-            )}
-          </button>
-        ))}
+
+        {communityItems.map((item) => {
+          const active = pathname === item.href;
+          return (
+            <button
+              key={item.href}
+              onClick={() => onNavigate(item.href)}
+              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold transition-colors ${
+                active
+                  ? "bg-hp-700 text-white border-l-4 border-hp-300"
+                  : "text-hp-200 hover:bg-hp-800 border-l-4 border-transparent"
+              }`}
+            >
+              {item.icon} {item.label}
+              {item.href === "/chat" && chatRooms.length > 0 && (
+                <span className="ml-auto text-[10px] bg-hp-600 text-white rounded-full px-1.5 py-0.5 font-bold">
+                  {chatRooms.length}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </nav>
+
       <div className="p-4 border-t border-hp-700 bg-hp-900/80 flex items-center justify-between">
         <div
           className="flex items-center gap-3 px-2 py-2 cursor-pointer hover:bg-hp-800 rounded-lg flex-1"
@@ -88,7 +106,7 @@ export default function MainSidebar({
             <p className="text-[10px] text-hp-300 truncate">{currentUser.location}</p>
           </div>
         </div>
-        <button onClick={onLogout} className="p-2.5 text-hp-300 hover:text-white">
+        <button onClick={onLogout} className="p-2.5 text-hp-300 hover:text-white" aria-label="Logout">
           <X size={16} />
         </button>
       </div>

@@ -2,7 +2,7 @@ export {};
 
 declare global {
   interface Window {
-    kakao: any;
+    kakao: unknown;
     daum: {
       Postcode: new (options: {
         oncomplete: (data: DaumPostcodeData) => void;

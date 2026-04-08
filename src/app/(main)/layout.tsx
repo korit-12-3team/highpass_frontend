@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useKakaoLoader } from "react-kakao-maps-sdk";
 import MainSidebar from "@/components/layout/MainSidebar";
 import ProfileModal from "@/components/profile/ProfileModal";
 import WritePostModal from "@/components/post/WritePostModal";
 import { SearchPlace, UserProfile, useApp } from "@/lib/AppContext";
+import { getUserProfile } from "@/lib/users";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const {
     currentUser,
     isAuthenticated,
+    authReady,
     logout,
     setCurrentUser,
     boardData,
@@ -62,12 +64,26 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   });
 
   useEffect(() => {
-    if (!isAuthenticated) router.replace("/login");
-  }, [isAuthenticated, router]);
+    if (authReady && !isAuthenticated) router.replace("/login");
+  }, [authReady, isAuthenticated, router]);
 
-  if (!isAuthenticated || !currentUser) return null;
+  const [profileRemote, setProfileRemote] = useState<UserProfile | null>(null);
+  const [profileRemoteLoading, setProfileRemoteLoading] = useState(false);
+  const [profileRemoteError, setProfileRemoteError] = useState("");
+
+  const ready = authReady && isAuthenticated && !!currentUser;
 
   const getProfileById = (profileId: string): UserProfile => {
+    if (!currentUser) {
+      return {
+        id: profileId,
+        nickname: "사용자",
+        name: "사용자",
+        ageGroup: "미등록",
+        gender: "미등록",
+        location: "미등록",
+      };
+    }
     if (profileId === currentUser.id) return currentUser;
 
     const boardProfile = boardData.find((post) => post.authorId === profileId);
@@ -104,7 +120,52 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     };
   };
 
-  const profile = profileModal ? getProfileById(profileModal) : currentUser;
+  useEffect(() => {
+    if (!currentUser) return;
+    if (!profileModal) {
+      setProfileRemote(null);
+      setProfileRemoteError("");
+      setProfileRemoteLoading(false);
+      return;
+    }
+
+    // Current user profile is already available in context.
+    if (profileModal === currentUser.id) {
+      setProfileRemote(null);
+      setProfileRemoteError("");
+      setProfileRemoteLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setProfileRemoteLoading(true);
+    setProfileRemoteError("");
+
+    (async () => {
+      try {
+        const fetched = await getUserProfile(profileModal);
+        if (cancelled) return;
+        setProfileRemote(fetched);
+      } catch (e) {
+        if (cancelled) return;
+        setProfileRemote(null);
+        setProfileRemoteError(e instanceof Error ? e.message : "프로필을 불러오지 못했습니다.");
+      } finally {
+        if (cancelled) return;
+        setProfileRemoteLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profileModal, currentUser]);
+
+  if (!ready || !currentUser) return null;
+
+  const baseProfile = profileModal ? getProfileById(profileModal) : currentUser;
+  const profile =
+    profileModal && profileRemote && profileRemote.id === baseProfile.id ? profileRemote : baseProfile;
 
   const resetWriteForm = () => {
     setWriteModalOpen(false);
@@ -179,6 +240,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <ProfileModal
         currentUser={currentUser}
         profile={profile}
+        loading={profileRemoteLoading}
+        error={profileRemoteError}
         isOpen={!!profileModal}
         isCurrentUser={profile.id === currentUser.id}
         editProfileOpen={editProfileOpen}
