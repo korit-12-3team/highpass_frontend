@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import type { UserProfile } from "@/lib/AppContext";
 
 const AUTH_STORAGE_KEY = "hp_auth_user";
@@ -41,4 +42,11 @@ export function saveAuthSession(user: UserProfile) {
 export function clearAuthSession() {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
+export async function logoutSession() {
+  await fetch(`${API_BASE_URL}/api/auth/logout`, {
+    method: "POST",
+    credentials: "include",
+  }).catch(() => {});
 }

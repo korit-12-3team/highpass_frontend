@@ -25,6 +25,7 @@ type BoardApiRecord = {
   location?: unknown;
   lat?: unknown;
   lng?: unknown;
+  likedByUser?: unknown;
 };
 
 function toBoardType(value: unknown): "study" | "free" {
@@ -47,16 +48,14 @@ function safeNumber(value: unknown, fallback = 0) {
 
 function safeComments(value: unknown): PostComment[] {
   if (!Array.isArray(value)) return [];
-  // We don't know the backend shape; keep empty objects out.
   return value
     .map((item) => {
       if (!item || typeof item !== "object") return null;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const anyItem = item as any;
+      const anyItem = item as Record<string, unknown>;
       return {
         id: safeNumber(anyItem.id, Date.now()),
-        author: safeString(anyItem.author, "Unknown"),
-        text: safeString(anyItem.text, ""),
+        author: safeString(anyItem.nickname ?? anyItem.author, "Unknown"),
+        text: safeString(anyItem.content ?? anyItem.text, ""),
         createdAt: typeof anyItem.createdAt === "string" ? anyItem.createdAt : undefined,
       } satisfies PostComment;
     })
@@ -83,6 +82,7 @@ function mapApiRecordToBoardPost(record: BoardApiRecord): BoardPost {
     location: typeof record.location === "string" ? record.location : undefined,
     lat: typeof record.lat === "number" ? record.lat : undefined,
     lng: typeof record.lng === "number" ? record.lng : undefined,
+    likedByUser: typeof record.likedByUser === "boolean" ? record.likedByUser : undefined,
   };
 }
 
@@ -93,15 +93,19 @@ function unwrapData(payload: unknown) {
   return (payload as any).data as unknown;
 }
 
-export async function listBoards(): Promise<BoardPost[]> {
-  const response = await http.get("/api/boards");
+export async function listBoards(userId?: string): Promise<BoardPost[]> {
+  const response = await http.get("/api/boards", {
+    params: userId ? { userId } : undefined,
+  });
   const payload = unwrapData(response.data);
   if (!Array.isArray(payload)) return [];
   return payload.map((item) => mapApiRecordToBoardPost(item as BoardApiRecord));
 }
 
-export async function getBoard(freeBoardId: string): Promise<BoardPost | null> {
-  const response = await http.get(`/api/boards/${encodeURIComponent(freeBoardId)}`);
+export async function getBoard(freeBoardId: string, userId?: string): Promise<BoardPost | null> {
+  const response = await http.get(`/api/boards/${encodeURIComponent(freeBoardId)}`, {
+    params: userId ? { userId } : undefined,
+  });
   const payload = unwrapData(response.data);
   if (!payload || typeof payload !== "object") return null;
   return mapApiRecordToBoardPost(payload as BoardApiRecord);
@@ -172,6 +176,7 @@ export async function createBoard(input: {
       location: input.location,
       lat: input.lat,
       lng: input.lng,
+      likedByUser: false,
     };
   }
 

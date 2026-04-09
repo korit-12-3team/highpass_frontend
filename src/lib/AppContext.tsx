@@ -1,8 +1,10 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { clearAuthSession, loadAuthSession, saveAuthSession } from "@/lib/auth";
+import { clearAuthSession, loadAuthSession, logoutSession, saveAuthSession } from "@/lib/auth";
 import { createBoard, listBoards } from "@/lib/boards";
+import { isPostLiked } from "@/lib/likes";
+import { createStudy, listStudies } from "@/lib/study-api";
 
 export interface EventType {
   id: string;
@@ -14,6 +16,7 @@ export interface EventType {
   isAllDay: boolean;
   startTime?: string;
   endTime?: string;
+  kind?: "general" | "certificate";
 }
 
 export interface UserProfile {
@@ -52,6 +55,7 @@ export interface BoardPost {
   authorId: string;
   createdAt: string;
   cert: string | null;
+  likedByUser?: boolean;
 }
 
 export interface ChatMessage {
@@ -86,7 +90,15 @@ export type TodoItem = {
   completedAt?: string;
 };
 
-export type TodoMap = Record<number, TodoItem[]>;
+export type TodoMap = Record<string, TodoItem[]>;
+
+function dedupeBoardPosts(posts: BoardPost[]) {
+  const map = new Map<string, BoardPost>();
+  for (const post of posts) {
+    map.set(`${post.type}:${post.id}`, post);
+  }
+  return Array.from(map.values());
+}
 
 interface AppContextType {
   currentUser: UserProfile | null;
@@ -177,6 +189,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [searchResults, setSearchResults] = useState<SearchPlace[]>([]);
 
+  const hydrateLikedBoards = useCallback((posts: BoardPost[], userId: string) => {
+    return dedupeBoardPosts(
+      posts.map((post) => ({
+        ...post,
+        likedByUser:
+          typeof post.likedByUser === "boolean"
+            ? post.likedByUser
+            : isPostLiked(userId, post.type === "free" ? "FREE" : "STUDY", post.id),
+      })),
+    );
+  }, []);
+
   useEffect(() => {
     // Hydrate auth from browser storage only after mount to keep SSR and first client render identical.
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -207,9 +231,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     (async () => {
       try {
-        const boards = await listBoards();
+        const [freeBoards, studies] = await Promise.all([listBoards(currentUser.id), listStudies(currentUser.id)]);
         if (cancelled) return;
-        setBoardData(boards);
+        setBoardData(hydrateLikedBoards([...freeBoards, ...studies], currentUser.id));
       } catch {
         // Keep UI usable even if boards API is not ready.
       }
@@ -218,7 +242,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [authReady, currentUser]);
+  }, [authReady, currentUser, hydrateLikedBoards]);
 
   useEffect(() => {
     if (!authReady || !currentUser) return;
@@ -241,8 +265,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    void logoutSession();
     setCurrentUser(null);
     setActiveChatRoomId(null);
+    setBoardData([]);
+    setEvents([]);
+    setTodos({});
     clearAuthSession();
   }, []);
 
@@ -256,19 +284,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const certValue = writeType === "study" ? postCert || postCertCategory || null : null;
 
-    const created = await createBoard({
-      userId: numericUserId,
-      author: currentUser.nickname,
-      type: writeType,
-      title: postTitle.trim(),
-      content: postContent.trim(),
-      cert: certValue,
-      location: selectedPlace?.address,
-      lat: selectedPlace?.lat,
-      lng: selectedPlace?.lng,
-    });
+    const created =
+      writeType === "study"
+        ? await createStudy({
+            userId: numericUserId,
+            author: currentUser.nickname,
+            title: postTitle.trim(),
+            content: postContent.trim(),
+            cert: certValue,
+            locationName: selectedPlace?.name,
+            address: selectedPlace?.address,
+            latitude: selectedPlace?.lat,
+            longitude: selectedPlace?.lng,
+            placeId: selectedPlace?.id,
+          })
+        : await createBoard({
+            userId: numericUserId,
+            author: currentUser.nickname,
+            type: writeType,
+            title: postTitle.trim(),
+            content: postContent.trim(),
+            cert: certValue,
+            location: selectedPlace?.address,
+            lat: selectedPlace?.lat,
+            lng: selectedPlace?.lng,
+          });
 
-    setBoardData((prev) => [created, ...prev]);
+    setBoardData((prev) => dedupeBoardPosts([created, ...prev]));
     return true;
   }, [currentUser, postContent, postTitle, postCert, postCertCategory, selectedPlace, setBoardData, writeType]);
 

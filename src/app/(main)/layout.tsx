@@ -129,14 +129,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       return;
     }
 
-    // Current user profile is already available in context.
-    if (profileModal === currentUser.id) {
-      setProfileRemote(null);
-      setProfileRemoteError("");
-      setProfileRemoteLoading(false);
-      return;
-    }
-
     let cancelled = false;
     setProfileRemoteLoading(true);
     setProfileRemoteError("");

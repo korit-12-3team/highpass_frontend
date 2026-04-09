@@ -37,13 +37,13 @@ function mapApiRecordToUserProfile(record: UserApiRecord): UserProfile {
   const nickname = safeString(record.nickname, "");
   const name = safeString(record.name, nickname || "사용자");
   const email = typeof record.email === "string" ? record.email : undefined;
-  const ageGroup = safeString(record.ageGroup ?? record.ageRange, "미등록");
-  const gender = safeString(record.gender, "미등록");
+  const ageGroup = safeString(record.ageGroup ?? record.ageRange, "미분류");
+  const gender = safeString(record.gender, "미분류");
 
   const location =
     safeString(record.location, "") ||
     `${safeString(record.siDo ?? record.sido, "")} ${safeString(record.gunGu ?? record.sigungu, "")}`.trim() ||
-    "미등록";
+    "미분류";
 
   const profileImage =
     typeof record.profileImage === "string"
@@ -66,10 +66,8 @@ function mapApiRecordToUserProfile(record: UserApiRecord): UserProfile {
 }
 
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
-  // Assumption: backend exposes GET /api/users/{userId}
   const response = await http.get(`/api/users/${encodeURIComponent(userId)}`);
   const payload = unwrapData(response.data);
   if (!payload || typeof payload !== "object") return null;
   return mapApiRecordToUserProfile(payload as UserApiRecord);
 }
-

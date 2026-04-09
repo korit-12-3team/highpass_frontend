@@ -14,10 +14,11 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { EventType, useApp } from "@/lib/AppContext";
+import { EventType, TodoItem, useApp } from "@/lib/AppContext";
 import { createCalendarEvent, removeCalendarEvent } from "@/lib/calendar";
+import { createTodo, deleteTodo as deleteTodoApi, listTodosByDate, toggleTodoStatus } from "@/lib/todos";
 
-const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEK_DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
 type TodayInfo = {
   year: number;
@@ -51,6 +52,10 @@ export default function CalendarPageClient() {
 
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay();
+  const prevMonthDays = new Date(currentYear, currentMonth, 0).getDate();
+  const selectedDateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(selectedDate).padStart(2, "0")}`;
 
   useEffect(() => {
     const now = new Date();
@@ -75,34 +80,55 @@ export default function CalendarPageClient() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const toggleTodo = (date: number, id: number) => {
-    const timeString = new Date().toTimeString().slice(0, 5);
+  useEffect(() => {
+    if (!currentUser) return;
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const requests = Array.from({ length: daysInMonth }, (_, index) => {
+          const date = index + 1;
+          const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(date).padStart(2, "0")}`;
+          return listTodosByDate(currentUser.id, dateKey).then((items) => ({ dateKey, items }));
+        });
+
+        const results = await Promise.all(requests);
+        if (cancelled) return;
+
+        setTodos((prev) => {
+          const next = { ...prev };
+          results.forEach(({ dateKey, items }) => {
+            next[dateKey] = items;
+          });
+          return next;
+        });
+      } catch (error) {
+        if (cancelled) return;
+        setCalendarError(error instanceof Error ? error.message : "할 일을 불러오지 못했습니다.");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser, currentMonth, currentYear, daysInMonth, setTodos]);
+
+  const syncTodoList = (dateKey: string, updater: (items: typeof todos[string]) => typeof todos[string]) => {
     setTodos((prev) => ({
       ...prev,
-      [date]:
-        prev[date]?.map((todo) =>
-          todo.id === id
-            ? { ...todo, done: !todo.done, completedAt: !todo.done ? timeString : undefined }
-            : todo,
-        ) ?? [],
+      [dateKey]: updater(prev[dateKey] ?? []),
     }));
   };
 
-  const deleteTodo = (date: number, id: number) => {
-    setTodos((prev) => ({ ...prev, [date]: prev[date]?.filter((todo) => todo.id !== id) ?? [] }));
-  };
+  const handleAddTodo = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter" || !newTodoText.trim() || !currentUser) return;
 
-  const handleAddTodo = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && newTodoText.trim() !== "") {
-      const newTodo = {
-        id: Date.now(),
-        text: newTodoText.trim(),
-        done: false,
-        createdAt: new Date().toTimeString().slice(0, 5),
-      };
-
-      setTodos((prev) => ({ ...prev, [selectedDate]: [...(prev[selectedDate] || []), newTodo] }));
+    try {
+      const created = await createTodo(currentUser.id, newTodoText.trim(), selectedDateKey);
+      syncTodoList(selectedDateKey, (items) => [...items, created]);
       setNewTodoText("");
+    } catch (error) {
+      setCalendarError(error instanceof Error ? error.message : "할 일을 추가하지 못했습니다.");
     }
   };
 
@@ -115,10 +141,6 @@ export default function CalendarPageClient() {
       setCalendarError(error instanceof Error ? error.message : "일정을 삭제하지 못했습니다.");
     }
   };
-
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay();
-  const prevMonthDays = new Date(currentYear, currentMonth, 0).getDate();
 
   const calendarDays = Array.from({ length: 42 }, (_, index) => {
     const dayNumber = index - firstDayOfWeek + 1;
@@ -142,6 +164,30 @@ export default function CalendarPageClient() {
     events.filter(
       (event) => event.month === currentMonth && date >= event.startDay && date <= event.endDay,
     );
+
+  const getTodosForDate = (date: number) =>
+    todos[`${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(date).padStart(2, "0")}`] ?? [];
+  const selectedTodos = getTodosForDate(selectedDate);
+
+  const handleToggleTodo = async (todoId: number) => {
+    try {
+      const updated = await toggleTodoStatus(todoId);
+      syncTodoList(selectedDateKey, (items: TodoItem[]) =>
+        items.map((todo) => (todo.id === todoId ? updated : todo)),
+      );
+    } catch (error) {
+      setCalendarError(error instanceof Error ? error.message : "할 일 상태를 변경하지 못했습니다.");
+    }
+  };
+
+  const handleDeleteTodo = async (todoId: number) => {
+    try {
+      await deleteTodoApi(todoId);
+      syncTodoList(selectedDateKey, (items: TodoItem[]) => items.filter((todo) => todo.id !== todoId));
+    } catch (error) {
+      setCalendarError(error instanceof Error ? error.message : "할 일을 삭제하지 못했습니다.");
+    }
+  };
 
   if (!mounted) return null;
 
@@ -168,7 +214,7 @@ export default function CalendarPageClient() {
                 }}
                 className="px-2 text-xs font-bold text-hp-600 hover:bg-hp-50 rounded-lg"
               >
-                Today
+                오늘
               </button>
               <button
                 onClick={() => setCurrentDate(new Date(currentYear, currentMonth + 1, 1))}
@@ -184,7 +230,7 @@ export default function CalendarPageClient() {
                   calendarView === "month" ? "bg-hp-600 text-white" : "text-hp-600 hover:bg-hp-50"
                 }`}
               >
-                Month
+                월
               </button>
               <button
                 onClick={() => setCalendarView("week")}
@@ -192,7 +238,7 @@ export default function CalendarPageClient() {
                   calendarView === "week" ? "bg-hp-600 text-white" : "text-hp-600 hover:bg-hp-50"
                 }`}
               >
-                Week
+                주
               </button>
             </div>
           </div>
@@ -208,7 +254,7 @@ export default function CalendarPageClient() {
             }}
             className="px-4 py-2 bg-hp-600 hover:bg-hp-700 text-white rounded-lg text-sm font-bold flex items-center gap-2"
           >
-            <Plus size={16} /> Add Event
+            <Plus size={16} /> 일정 추가
           </button>
         </div>
 
@@ -216,7 +262,7 @@ export default function CalendarPageClient() {
 
         {calendarView === "week" ? (
           <div className="rounded-2xl border border-dashed border-hp-200 bg-hp-50/50 p-8 text-sm text-slate-500">
-            Week view will be connected after the monthly flow is stabilized.
+            주간 보기는 준비 중입니다. 현재는 월간 보기에서 일정과 할 일을 확인할 수 있습니다.
           </div>
         ) : (
           <>
@@ -231,6 +277,9 @@ export default function CalendarPageClient() {
             <div className="grid grid-cols-7 flex-1 auto-rows-fr min-h-[32rem] rounded-b-2xl overflow-hidden border border-hp-100">
               {calendarDays.map((day, index) => {
                 const dayEvents = day.currentMonth ? getEventsForDate(day.date) : [];
+                const dayTodos = day.currentMonth ? todos[`${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day.date).padStart(2, "0")}`] ?? [] : [];
+                const dayCompletedTodos = dayTodos.filter((todo) => todo.done).length;
+                const dayPendingTodos = dayTodos.length - dayCompletedTodos;
                 const isSelected = day.currentMonth && day.date === selectedDate;
                 const isToday =
                   day.currentMonth &&
@@ -246,7 +295,7 @@ export default function CalendarPageClient() {
                       if (!day.currentMonth) return;
                       setSelectedDate(day.date);
                     }}
-                    className={`min-h-28 border-r border-b border-hp-100 p-3 text-left transition-colors ${
+                    className={`relative min-h-28 border-r border-b border-hp-100 p-3 text-left transition-colors ${
                       day.currentMonth
                         ? isSelected
                           ? "bg-hp-50"
@@ -258,26 +307,35 @@ export default function CalendarPageClient() {
                       borderBottomWidth: index >= 35 ? 0 : undefined,
                     }}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <span
-                        className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
-                          isToday
-                            ? "bg-hp-600 text-white"
-                            : isSelected
-                              ? "bg-white text-hp-700 ring-1 ring-hp-200"
-                              : day.currentMonth
-                                ? "text-slate-700"
-                                : "text-slate-300"
-                        }`}
-                      >
-                        {day.date}
-                      </span>
-                      {day.currentMonth && dayEvents.length > 0 && (
-                        <span className="text-[10px] font-bold text-hp-600">{dayEvents.length}</span>
-                      )}
-                    </div>
+                    <span
+                      className={`absolute left-3 top-3 flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
+                        isToday
+                          ? "bg-hp-600 text-white"
+                          : isSelected
+                            ? "bg-white text-hp-700 ring-1 ring-hp-200"
+                            : day.currentMonth
+                              ? "text-slate-700"
+                              : "text-slate-300"
+                      }`}
+                    >
+                      {day.date}
+                    </span>
+                    {day.currentMonth && (dayCompletedTodos > 0 || dayPendingTodos > 0) && (
+                      <div className="absolute right-3 top-3 flex items-center gap-1.5 whitespace-nowrap">
+                        {dayCompletedTodos > 0 && (
+                          <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                            ?? {dayCompletedTodos}
+                          </span>
+                        )}
+                        {dayPendingTodos > 0 && (
+                          <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
+                            ?? {dayPendingTodos}
+                          </span>
+                        )}
+                      </div>
+                    )}
 
-                    <div className="space-y-1.5">
+                    <div className="mt-11 space-y-1.5">
                       {dayEvents.slice(0, 2).map((event) => (
                         <div
                           key={`${day.key}-${event.id}`}
@@ -287,7 +345,7 @@ export default function CalendarPageClient() {
                         </div>
                       ))}
                       {day.currentMonth && dayEvents.length > 2 && (
-                        <p className="text-[11px] font-medium text-slate-400">+{dayEvents.length - 2} more</p>
+                        <p className="text-[11px] font-medium text-slate-400">+{dayEvents.length - 2}? ???</p>
                       )}
                     </div>
                   </button>
@@ -311,7 +369,7 @@ export default function CalendarPageClient() {
               </h3>
             </div>
             <span className="text-[10px] text-hp-600 font-bold border border-hp-200 rounded px-2 py-1 bg-hp-50">
-              Focus Mode
+              포커스 모드
             </span>
           </div>
 
@@ -325,7 +383,7 @@ export default function CalendarPageClient() {
                 <div className={`w-1.5 ${event.color} rounded-full`}></div>
                 <div className="flex-1">
                   <p className="text-[10px] font-bold text-slate-400 mb-1">
-                    {event.isAllDay ? "All Day" : `${event.startTime} ~ ${event.endTime}`}
+                    {event.isAllDay ? "종일 일정" : `${event.startTime} ~ ${event.endTime}`}
                   </p>
                   <p className="font-bold text-sm">{event.title}</p>
                 </div>
@@ -342,22 +400,22 @@ export default function CalendarPageClient() {
             ))}
 
             <div className="flex-1 overflow-y-auto flex flex-col mt-2">
-              <p className="text-xs font-bold text-slate-500 mb-3">To-Do</p>
+              <p className="text-xs font-bold text-slate-500 mb-3">할 일</p>
               <div className="space-y-2 mb-4 flex-1">
-                {!todos[selectedDate] || todos[selectedDate].length === 0 ? (
+                {selectedTodos.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60">
                     <Zap size={32} className="mb-3" />
-                    <p className="text-sm font-medium">No tasks yet.</p>
+                    <p className="text-sm font-medium">아직 할 일이 없습니다.</p>
                   </div>
                 ) : (
-                  todos[selectedDate].map((todo) => (
+                  selectedTodos.map((todo) => (
                     <div
                       key={todo.id}
                       className={`flex items-start gap-3 bg-white p-3.5 rounded-xl border border-hp-100 shadow-sm group ${
                         todo.done ? "opacity-50" : ""
                       }`}
                     >
-                      <button onClick={() => toggleTodo(selectedDate, todo.id)} className="mt-0.5">
+                      <button onClick={() => handleToggleTodo(todo.id)} className="mt-0.5">
                         {todo.done ? (
                           <CheckCircle2 size={20} className="text-slate-500" />
                         ) : (
@@ -370,7 +428,7 @@ export default function CalendarPageClient() {
                         </p>
                       </div>
                       <button
-                        onClick={() => deleteTodo(selectedDate, todo.id)}
+                        onClick={() => handleDeleteTodo(todo.id)}
                         className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500"
                       >
                         <Trash2 size={16} />
@@ -387,7 +445,7 @@ export default function CalendarPageClient() {
                   value={newTodoText}
                   onChange={(e) => setNewTodoText(e.target.value)}
                   onKeyDown={handleAddTodo}
-                  placeholder="Add a task..."
+                  placeholder="할 일을 입력하고 엔터를 누르세요"
                   className="w-full py-4 px-2 text-sm outline-none font-bold placeholder:font-normal bg-transparent"
                 />
               </div>
@@ -400,7 +458,7 @@ export default function CalendarPageClient() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
             <div className="flex justify-between items-center p-5 border-b border-hp-100">
-              <h3 className="font-bold text-lg text-slate-800">New Event</h3>
+              <h3 className="font-bold text-lg text-slate-800">일정 추가</h3>
               <button onClick={() => setAddEventModalOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-full">
                 <X size={20} />
               </button>
@@ -410,7 +468,7 @@ export default function CalendarPageClient() {
                 type="text"
                 value={eventTitle}
                 onChange={(e) => setEventTitle(e.target.value)}
-                placeholder="Event title"
+                placeholder="일정 제목"
                 className="w-full border-b-2 border-hp-200 focus:border-hp-600 p-2 outline-none text-lg font-bold"
               />
               <div className="flex gap-3">
@@ -432,7 +490,7 @@ export default function CalendarPageClient() {
                   onClick={() => setEventIsAllDay((prev) => !prev)}
                   className="px-3 py-2 rounded-lg border border-hp-200 text-sm"
                 >
-                  {eventIsAllDay ? "All Day" : "Timed"}
+                  {eventIsAllDay ? "종일 일정" : "시간 지정"}
                 </button>
                 {!eventIsAllDay && (
                   <>
@@ -457,7 +515,7 @@ export default function CalendarPageClient() {
                 onClick={() => setAddEventModalOpen(false)}
                 className="flex-1 px-4 py-2.5 rounded-xl bg-hp-50 text-hp-700 border border-hp-200 hover:bg-hp-100 font-bold"
               >
-                Cancel
+                취소
               </button>
               <button
                 disabled={savingEvent}
@@ -495,7 +553,7 @@ export default function CalendarPageClient() {
                 }}
                 className="flex-1 px-4 py-2.5 rounded-xl bg-hp-600 text-white font-bold hover:bg-hp-700 disabled:opacity-60"
               >
-                {savingEvent ? "Saving..." : "Save"}
+                {savingEvent ? "저장 중..." : "저장"}
               </button>
             </div>
           </div>
@@ -515,7 +573,7 @@ export default function CalendarPageClient() {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-white/70 text-xs font-bold mb-1">
-                    {selectedEvent.isAllDay ? "All Day Event" : `${selectedEvent.startTime} ~ ${selectedEvent.endTime}`}
+                    {selectedEvent.isAllDay ? "종일 일정" : `${selectedEvent.startTime} ~ ${selectedEvent.endTime}`}
                   </p>
                   <h3 className="text-white font-bold text-xl leading-tight">{selectedEvent.title}</h3>
                 </div>
@@ -549,7 +607,7 @@ export default function CalendarPageClient() {
                 }}
                 className="flex-1 py-2.5 rounded-xl border border-red-200 text-red-500 font-bold text-sm hover:bg-red-50 transition-colors flex items-center justify-center gap-1"
               >
-                <Trash2 size={15} /> Delete
+                <Trash2 size={15} /> 삭제
               </button>
             </div>
           </div>

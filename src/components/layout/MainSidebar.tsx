@@ -106,7 +106,7 @@ export default function MainSidebar({
             <p className="text-[10px] text-hp-300 truncate">{currentUser.location}</p>
           </div>
         </div>
-        <button onClick={onLogout} className="p-2.5 text-hp-300 hover:text-white" aria-label="Logout">
+        <button onClick={onLogout} className="p-2.5 text-hp-300 hover:text-white" aria-label="로그아웃">
           <X size={16} />
         </button>
       </div>
