@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchWithAuth } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/config";
 
 export type UserCertificateRecord = {
@@ -67,9 +68,8 @@ function mapRecord(record: UserCertificateApiRecord): UserCertificateRecord {
 
 export async function saveUserCertificate(userId: string, certificateScheduleId: string): Promise<UserCertificateRecord> {
   const parsedScheduleId = Number(certificateScheduleId);
-  const response = await fetch(`${API_BASE_URL}/api/user-certificates/${userId}`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/api/user-certificates/${userId}`, {
     method: "POST",
-    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       certificateScheduleId: Number.isFinite(parsedScheduleId) ? parsedScheduleId : certificateScheduleId,

@@ -8,6 +8,8 @@ export default function ChatPageClient() {
   const { currentUser, chatRooms, setChatRooms, activeChatRoomId, setActiveChatRoomId } = useApp();
   const [chatInput, setChatInput] = React.useState("");
 
+  if (!currentUser) return null;
+
   const sendMessage = () => {
     if (!chatInput.trim() || !activeChatRoomId) return;
     const message = {

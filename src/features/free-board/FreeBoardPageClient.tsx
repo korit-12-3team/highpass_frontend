@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { format, isSameDay, isSameYear } from "date-fns";
 import { ArrowLeft, Eye, Heart, MessageCircle, Pencil, Trash2, X } from "lucide-react";
 import { BoardPost, useApp } from "@/lib/AppContext";
@@ -70,6 +70,7 @@ export default function FreeBoardPageClient() {
   const [likeSubmittingPostId, setLikeSubmittingPostId] = useState<string | null>(null);
   const [inlineCommentDrafts, setInlineCommentDrafts] = useState<Record<string, string>>({});
   const [inlineCommentSubmittingPostId, setInlineCommentSubmittingPostId] = useState<string | null>(null);
+  const [hydratedCommentPostIds, setHydratedCommentPostIds] = useState<string[]>([]);
 
   const syncPostComments = (postId: string, comments: BoardPost["comments"]) => {
     setViewPost((prev) => (prev && prev.id === postId ? { ...prev, comments } : prev));
@@ -80,6 +81,46 @@ export default function FreeBoardPageClient() {
     const comments = await listComments("FREE", postId);
     syncPostComments(postId, comments);
   };
+
+  useEffect(() => {
+    const targetPostIds = freePosts
+      .map((post) => post.id)
+      .filter((postId) => !hydratedCommentPostIds.includes(postId));
+
+    if (targetPostIds.length === 0) return;
+
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const loaded = await Promise.all(
+          targetPostIds.map(async (postId) => ({
+            postId,
+            comments: await listComments("FREE", postId),
+          })),
+        );
+
+        if (cancelled) return;
+
+        setBoardData((prev) =>
+          prev.map((post) => {
+            if (post.type !== "free") return post;
+            const matched = loaded.find((item) => item.postId === post.id);
+            return matched ? { ...post, comments: matched.comments } : post;
+          }),
+        );
+        setHydratedCommentPostIds((prev) => [...prev, ...targetPostIds.filter((postId) => !prev.includes(postId))]);
+      } catch {
+        if (!cancelled) {
+          setHydratedCommentPostIds((prev) => [...prev, ...targetPostIds.filter((postId) => !prev.includes(postId))]);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [freePosts, hydratedCommentPostIds, setBoardData]);
 
   const openPost = (post: BoardPost) => {
     setViewPost(post);
@@ -548,6 +589,18 @@ export default function FreeBoardPageClient() {
                     댓글 {post.comments?.length || 0}
                   </button>
                 </div>
+
+                {post.comments.length > 0 && (
+                  <div className="mt-4 space-y-2 rounded-2xl bg-slate-50 px-4 py-3">
+                    {post.comments.slice(-2).map((comment) => (
+                      <div key={comment.id} className="flex items-center gap-1 text-sm text-slate-600">
+                        <span className="font-semibold text-slate-800">{comment.author}</span>
+                        <span className="text-slate-300">·</span>
+                        <span className="truncate">{comment.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 <div className="mt-4 flex items-center gap-3 rounded-2xl border border-black/10 bg-slate-50 px-4 py-3">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[11px] font-bold text-white">

@@ -7,6 +7,8 @@ import MainSidebar from "@/components/layout/MainSidebar";
 import ProfileModal from "@/components/profile/ProfileModal";
 import WritePostModal from "@/components/post/WritePostModal";
 import { SearchPlace, UserProfile, useApp } from "@/lib/AppContext";
+import { REGION_DATA } from "@/lib/constants";
+import { updateUserProfile } from "@/lib/profile";
 import { getUserProfile } from "@/lib/users";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
@@ -63,13 +65,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     libraries: ["services", "clusterer"],
   });
 
-  useEffect(() => {
-    if (authReady && !isAuthenticated) router.replace("/login");
-  }, [authReady, isAuthenticated, router]);
-
   const [profileRemote, setProfileRemote] = useState<UserProfile | null>(null);
   const [profileRemoteLoading, setProfileRemoteLoading] = useState(false);
   const [profileRemoteError, setProfileRemoteError] = useState("");
+  const [profileSaveLoading, setProfileSaveLoading] = useState(false);
+  const [profileSaveError, setProfileSaveError] = useState("");
+
+  useEffect(() => {
+    if (authReady && !isAuthenticated) router.replace("/login");
+  }, [authReady, isAuthenticated, router]);
 
   const ready = authReady && isAuthenticated && !!currentUser;
 
@@ -84,6 +88,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         location: "미등록",
       };
     }
+
     if (profileId === currentUser.id) return currentUser;
 
     const boardProfile = boardData.find((post) => post.authorId === profileId);
@@ -126,6 +131,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       setProfileRemote(null);
       setProfileRemoteError("");
       setProfileRemoteLoading(false);
+      setProfileSaveError("");
       return;
     }
 
@@ -159,6 +165,21 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const profile =
     profileModal && profileRemote && profileRemote.id === baseProfile.id ? profileRemote : baseProfile;
 
+  const openEditProfile = () => {
+    const [initialSido = "", initialSigungu = ""] = (currentUser.location || "").split(" ").filter(Boolean);
+    const normalizedSigungu =
+      initialSido && (REGION_DATA[initialSido] || []).includes(initialSigungu) ? initialSigungu : "";
+
+    setEditNickname(currentUser.nickname);
+    setEditAgeGroup(currentUser.ageGroup);
+    setEditGender(currentUser.gender);
+    setEditSido(initialSido);
+    setEditSigungu(normalizedSigungu);
+    setEditLocation([initialSido, normalizedSigungu].filter(Boolean).join(" ").trim() || currentUser.location);
+    setProfileSaveError("");
+    setEditProfileOpen(true);
+  };
+
   const resetWriteForm = () => {
     setWriteModalOpen(false);
     setPostTitle("");
@@ -172,34 +193,17 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   const searchPlacesOnKakao = () => {
     if (typeof window === "undefined") return;
-    const kakaoWindow = window as Window & {
-      kakao?: {
-        maps?: {
-          services?: {
-            Places: new () => {
-              keywordSearch: (
-                keyword: string,
-                callback: (
-                  data: Array<Record<string, string>>,
-                  status: string,
-                ) => void,
-              ) => void;
-              Status: { OK: string };
-            };
-            Status: { OK: string };
-          };
-        };
-      };
-    };
+    const kakaoMaps = window.kakao?.maps;
+    const services = kakaoMaps?.services;
 
-    if (!kakaoWindow.kakao?.maps?.services) {
+    if (!services) {
       alert("지도 스크립트가 아직 로드되지 않았습니다.");
       return;
     }
 
-    const places = new kakaoWindow.kakao.maps.services.Places();
+    const places = new services.Places();
     places.keywordSearch(searchKeyword, (data, status) => {
-      if (status !== kakaoWindow.kakao?.maps?.services?.Status.OK) return;
+      if (status !== services.Status.OK) return;
       setSearchResults(
         data.map(
           (item): SearchPlace => ({
@@ -227,16 +231,18 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         onLogout={logout}
       />
 
-      <main className="flex-1 overflow-y-auto p-4 md:p-8 relative">{children}</main>
+      <main className="relative flex-1 overflow-y-auto p-4 md:p-8">{children}</main>
 
       <ProfileModal
         currentUser={currentUser}
         profile={profile}
         loading={profileRemoteLoading}
         error={profileRemoteError}
+        saveError={profileSaveError}
         isOpen={!!profileModal}
         isCurrentUser={profile.id === currentUser.id}
         editProfileOpen={editProfileOpen}
+        isSaving={profileSaveLoading}
         setEditProfileOpen={setEditProfileOpen}
         editNickname={editNickname}
         setEditNickname={setEditNickname}
@@ -250,24 +256,56 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         setEditSido={setEditSido}
         editSigungu={editSigungu}
         setEditSigungu={setEditSigungu}
+        onOpenEdit={openEditProfile}
         onClose={() => {
           setProfileModal(null);
           setEditProfileOpen(false);
+          setProfileSaveError("");
         }}
-        onSaveProfile={() => {
-          setCurrentUser((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  nickname: editNickname || prev.nickname,
-                  ageGroup: editAgeGroup || prev.ageGroup,
-                  gender: editGender || prev.gender,
-                  location: editLocation || prev.location,
-                }
-              : prev,
-          );
-          setEditProfileOpen(false);
-          setProfileModal(null);
+        onSaveProfile={async () => {
+          if (!currentUser) return;
+
+          const nickname = editNickname.trim();
+          const ageRange = editAgeGroup.trim();
+          const gender = editGender.trim();
+          const siDo = editSido.trim();
+          const gunGu = editSigungu.trim();
+
+          if (!nickname || !ageRange || !gender || !siDo || !gunGu) {
+            setProfileSaveError("닉네임, 연령대, 성별, 지역을 모두 입력해 주세요.");
+            return;
+          }
+
+          setProfileSaveLoading(true);
+          setProfileSaveError("");
+
+          try {
+            const updated = await updateUserProfile(currentUser.id, {
+              nickname,
+              ageRange,
+              gender,
+              siDo,
+              gunGu,
+            });
+
+            setCurrentUser((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    ...updated,
+                    name: prev.name,
+                  }
+                : prev,
+            );
+            setProfileRemote(updated);
+            setEditLocation(updated.location);
+            setEditProfileOpen(false);
+            setProfileModal(null);
+          } catch (e) {
+            setProfileSaveError(e instanceof Error ? e.message : "프로필 수정에 실패했습니다.");
+          } finally {
+            setProfileSaveLoading(false);
+          }
         }}
         onStartChat={() => {
           const existing = chatRooms.find((room) => room.partnerId === profile.id);
@@ -285,6 +323,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           }
           setProfileModal(null);
           setEditProfileOpen(false);
+          setProfileSaveError("");
           router.push("/chat");
         }}
       />

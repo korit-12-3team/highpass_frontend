@@ -2,72 +2,17 @@
 
 import type { UserProfile } from "@/lib/AppContext";
 import { http } from "@/lib/http";
-
-type UserApiRecord = {
-  id?: string | number;
-  userId?: string | number;
-  email?: unknown;
-  nickname?: unknown;
-  name?: unknown;
-  ageGroup?: unknown;
-  ageRange?: unknown;
-  gender?: unknown;
-  location?: unknown;
-  siDo?: unknown;
-  sido?: unknown;
-  gunGu?: unknown;
-  sigungu?: unknown;
-  profileImage?: unknown;
-  profileImageUrl?: unknown;
-};
-
-function safeString(value: unknown, fallback = "") {
-  return typeof value === "string" ? value : value == null ? fallback : String(value);
-}
+import { mapApiRecordToUserProfile } from "@/lib/profile";
 
 function unwrapData(payload: unknown) {
   if (!payload || typeof payload !== "object") return payload;
   if (!("data" in payload)) return payload;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (payload as any).data as unknown;
-}
-
-function mapApiRecordToUserProfile(record: UserApiRecord): UserProfile {
-  const id = record.userId ?? record.id ?? "";
-  const nickname = safeString(record.nickname, "");
-  const name = safeString(record.name, nickname || "사용자");
-  const email = typeof record.email === "string" ? record.email : undefined;
-  const ageGroup = safeString(record.ageGroup ?? record.ageRange, "미분류");
-  const gender = safeString(record.gender, "미분류");
-
-  const location =
-    safeString(record.location, "") ||
-    `${safeString(record.siDo ?? record.sido, "")} ${safeString(record.gunGu ?? record.sigungu, "")}`.trim() ||
-    "미분류";
-
-  const profileImage =
-    typeof record.profileImage === "string"
-      ? record.profileImage
-      : typeof record.profileImageUrl === "string"
-        ? record.profileImageUrl
-        : null;
-
-  return {
-    id: safeString(id),
-    email,
-    nickname: nickname || "사용자",
-    name,
-    ageGroup,
-    gender,
-    location,
-    profileImage,
-    loginType: "local",
-  };
+  return (payload as { data?: unknown }).data;
 }
 
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
   const response = await http.get(`/api/users/${encodeURIComponent(userId)}`);
   const payload = unwrapData(response.data);
   if (!payload || typeof payload !== "object") return null;
-  return mapApiRecordToUserProfile(payload as UserApiRecord);
+  return mapApiRecordToUserProfile(payload as Parameters<typeof mapApiRecordToUserProfile>[0]);
 }

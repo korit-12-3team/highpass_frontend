@@ -187,54 +187,6 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
         location,
       });
 
-      if (!/^\d+$/.test(String(user.id).trim())) {
-        // Signup succeeded but backend didn't return userId.
-        // Try auto-login using the just-created credentials.
-        try {
-          const loginRes = await fetch(`${API_BASE_URL}/api/auth/login`, {
-            method: "POST",
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ email, password }),
-          });
-
-          let loginPayload: LoginApiResponse | null = null;
-          try {
-            loginPayload = (await loginRes.json()) as LoginApiResponse;
-          } catch {
-            loginPayload = null;
-          }
-
-          if (!loginRes.ok) {
-            setError(loginPayload?.message || "회원가입은 완료됐지만 자동 로그인에 실패했습니다. 로그인 해주세요.");
-            router.replace("/login?signup=success");
-            return;
-          }
-
-          const authed = mapLoginResponseToUser(loginPayload, {
-            email,
-            nickname,
-            location,
-          });
-
-          if (!/^\d+$/.test(String(authed.id).trim())) {
-            setError("회원가입은 완료됐지만 서버가 숫자 userId를 내려주지 않아 자동 로그인이 불가능합니다.");
-            router.replace("/login?signup=success");
-            return;
-          }
-
-          handleAuthSuccess(authed);
-          router.replace((loginPayload as LoginApiResponse | null)?.redirectUrl || "/calendar");
-          return;
-        } catch {
-          setError("회원가입은 완료됐지만 자동 로그인에 실패했습니다. 로그인 해주세요.");
-          router.replace("/login?signup=success");
-          return;
-        }
-      }
-
       handleAuthSuccess(user);
       router.replace(payload?.redirectUrl || "/calendar");
     } catch {

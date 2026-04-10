@@ -1,11 +1,13 @@
 "use client";
 
 import { EventType } from "@/lib/AppContext";
+import { fetchWithAuth } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/config";
 
 type CalendarApiRecord = {
   id?: string | number;
   calendarId?: string | number;
+  userId?: string | number;
   title?: string;
   content?: string;
   name?: string;
@@ -16,11 +18,15 @@ type CalendarApiRecord = {
   allDay?: boolean;
   startTime?: string;
   endTime?: string;
+  kind?: "general" | "certificate";
 };
+
+type CalendarListApiRecord = CalendarApiRecord[] | { data?: CalendarApiRecord[] };
 
 type CreateCalendarEventInput = {
   userId: string;
   title: string;
+  content?: string;
   startDate: string;
   endDate: string;
   color: string;
@@ -30,11 +36,24 @@ type CreateCalendarEventInput = {
   kind?: "general" | "certificate";
 };
 
-type CalendarListApiRecord = CalendarApiRecord[] | { data?: CalendarApiRecord[] };
+type UpdateCalendarEventInput = {
+  calendarId: string;
+  title: string;
+  content?: string;
+  startDate: string;
+  endDate: string;
+  color?: string;
+  isAllDay: boolean;
+  startTime?: string;
+  endTime?: string;
+  kind?: "general" | "certificate";
+};
 
 function inferEventKind(title?: string, color?: string): "general" | "certificate" {
   const text = `${title || ""} ${color || ""}`;
-  return /필기|실기|접수/.test(text) || /emerald|teal|violet|amber|indigo/i.test(text) ? "certificate" : "general";
+  return /written|practical|registration|exam/i.test(text) || /emerald|teal|violet|amber|indigo/i.test(text)
+    ? "certificate"
+    : "general";
 }
 
 function inferEventColor(title?: string, color?: string) {
@@ -48,22 +67,32 @@ function parseDateParts(dateText?: string) {
   return { month: date.getMonth(), day: date.getDate() };
 }
 
+function normalizeTime(value?: string | null) {
+  if (!value) return undefined;
+  return value.slice(0, 5);
+}
+
 function mapApiRecordToEvent(record: CalendarApiRecord): EventType {
-  const start = parseDateParts(record.startDate);
-  const end = parseDateParts(record.endDate || record.startDate);
-  const title = record.title || record.content || record.name || "일정";
+  const startDate = record.startDate;
+  const endDate = record.endDate || record.startDate;
+  const start = parseDateParts(startDate);
+  const end = parseDateParts(endDate);
+  const title = record.title || record.content || record.name || "Event";
 
   return {
     id: String(record.calendarId ?? record.id ?? Date.now()),
     title,
+    content: record.content ?? record.title ?? title,
     month: start.month,
     startDay: start.day,
     endDay: end.day,
+    startDate,
+    endDate,
     color: inferEventColor(title, record.color),
-    isAllDay: record.isAllDay ?? record.allDay ?? true,
-    startTime: record.startTime,
-    endTime: record.endTime,
-    kind: inferEventKind(title, record.color),
+    isAllDay: record.isAllDay ?? record.allDay ?? (!record.startTime && !record.endTime),
+    startTime: normalizeTime(record.startTime),
+    endTime: normalizeTime(record.endTime),
+    kind: record.kind ?? inferEventKind(title, record.color),
   };
 }
 
@@ -71,7 +100,7 @@ async function parseCalendarResponse(response: Response) {
   const text = await response.text();
   if (!text) return null;
   if (text.trim().startsWith("<")) {
-    throw new Error("서버가 JSON 대신 HTML을 반환했습니다.");
+    throw new Error("Server returned HTML instead of JSON.");
   }
 
   const parsed = JSON.parse(text) as CalendarApiRecord | { data?: CalendarApiRecord };
@@ -80,19 +109,18 @@ async function parseCalendarResponse(response: Response) {
 }
 
 export async function listCalendarEvents(userId: string): Promise<EventType[]> {
-  const response = await fetch(`${API_BASE_URL}/api/calendar/${userId}`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/api/calendar/${userId}`, {
     method: "GET",
-    credentials: "include",
   });
 
   if (!response.ok) {
-    throw new Error("캘린더 일정을 불러오지 못했습니다.");
+    throw new Error("Failed to load calendar events.");
   }
 
   const text = await response.text();
   if (!text) return [];
   if (text.trim().startsWith("<")) {
-    throw new Error("서버가 JSON 대신 HTML을 반환했습니다.");
+    throw new Error("Server returned HTML instead of JSON.");
   }
 
   const parsed = JSON.parse(text) as CalendarListApiRecord;
@@ -103,25 +131,24 @@ export async function listCalendarEvents(userId: string): Promise<EventType[]> {
 }
 
 export async function createCalendarEvent(input: CreateCalendarEventInput): Promise<EventType> {
-  const response = await fetch(`${API_BASE_URL}/api/calendar/${input.userId}`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/api/calendar/${input.userId}`, {
     method: "POST",
-    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       title: input.title,
-      content: input.title,
+      content: input.content ?? input.title,
       startDate: input.startDate,
       endDate: input.endDate,
       color: input.color,
       isAllDay: input.isAllDay,
-      startTime: input.startTime,
-      endTime: input.endTime,
+      startTime: input.isAllDay ? null : input.startTime,
+      endTime: input.isAllDay ? null : input.endTime,
       kind: input.kind,
     }),
   });
 
   if (!response.ok) {
-    throw new Error("캘린더 일정을 추가하지 못했습니다.");
+    throw new Error("Failed to create the calendar event.");
   }
 
   const data = await parseCalendarResponse(response);
@@ -131,13 +158,16 @@ export async function createCalendarEvent(input: CreateCalendarEventInput): Prom
     return {
       id: String(Date.now()),
       title: input.title,
+      content: input.content ?? input.title,
       month: start.month,
       startDay: start.day,
       endDay: end.day,
+      startDate: input.startDate,
+      endDate: input.endDate,
       color: input.color,
       isAllDay: input.isAllDay,
-      startTime: input.startTime,
-      endTime: input.endTime,
+      startTime: input.isAllDay ? undefined : input.startTime,
+      endTime: input.isAllDay ? undefined : input.endTime,
       kind: input.kind || inferEventKind(input.title, input.color),
     };
   }
@@ -145,18 +175,73 @@ export async function createCalendarEvent(input: CreateCalendarEventInput): Prom
   const mapped = mapApiRecordToEvent(data);
   return {
     ...mapped,
+    content: input.content ?? mapped.content,
     color: input.color || mapped.color,
+    isAllDay: input.isAllDay,
+    startTime: input.isAllDay ? undefined : input.startTime,
+    endTime: input.isAllDay ? undefined : input.endTime,
     kind: input.kind || mapped.kind,
   };
 }
 
-export async function removeCalendarEvent(calendarId: string) {
-  const response = await fetch(`${API_BASE_URL}/api/calendar/${calendarId}`, {
-    method: "DELETE",
-    credentials: "include",
+export async function updateCalendarEvent(input: UpdateCalendarEventInput): Promise<EventType> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/api/calendar/${input.calendarId}/content`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      title: input.title,
+      content: input.content ?? input.title,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      startTime: input.isAllDay ? null : input.startTime,
+      endTime: input.isAllDay ? null : input.endTime,
+      kind: input.kind,
+    }),
   });
 
   if (!response.ok) {
-    throw new Error("캘린더 일정을 삭제하지 못했습니다.");
+    throw new Error("Failed to update the calendar event.");
+  }
+
+  const data = await parseCalendarResponse(response);
+  if (!data) {
+    const start = parseDateParts(input.startDate);
+    const end = parseDateParts(input.endDate);
+    return {
+      id: input.calendarId,
+      title: input.title,
+      content: input.content ?? input.title,
+      month: start.month,
+      startDay: start.day,
+      endDay: end.day,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      color: input.color ?? inferEventColor(input.title, undefined),
+      isAllDay: input.isAllDay,
+      startTime: input.isAllDay ? undefined : input.startTime,
+      endTime: input.isAllDay ? undefined : input.endTime,
+      kind: input.kind ?? inferEventKind(input.title, input.color),
+    };
+  }
+
+  const mapped = mapApiRecordToEvent(data);
+  return {
+    ...mapped,
+    content: input.content ?? mapped.content,
+    color: input.color ?? mapped.color,
+    isAllDay: input.isAllDay,
+    startTime: input.isAllDay ? undefined : input.startTime,
+    endTime: input.isAllDay ? undefined : input.endTime,
+    kind: input.kind ?? mapped.kind,
+  };
+}
+
+export async function removeCalendarEvent(calendarId: string) {
+  const response = await fetchWithAuth(`${API_BASE_URL}/api/calendar/${calendarId}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to delete the calendar event.");
   }
 }

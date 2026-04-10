@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { usePathname } from "next/navigation";
 import { Loader2, X } from "lucide-react";
 import KakaoMap from "@/components/KakaoMap";
 import { CERT_DATA } from "@/lib/constants";
@@ -37,7 +38,6 @@ export default function WritePostModal(props: WritePostModalProps) {
   const {
     isOpen,
     writeType,
-    setWriteType,
     postTitle,
     setPostTitle,
     postContent,
@@ -68,44 +68,37 @@ export default function WritePostModal(props: WritePostModalProps) {
   const canSubmit = Boolean(postTitle.trim() || postContent.trim());
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden">
-        <div className="flex justify-between items-center p-5 border-b">
-          <h3 className="font-bold text-xl">게시물 작성</h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b p-5">
+          <h3 className="text-xl font-bold">게시물 작성</h3>
           <button
             onClick={() => {
               if (saving) return;
               onClose();
             }}
-            className="p-1 rounded-lg hover:bg-slate-100"
+            className="rounded-lg p-1 hover:bg-slate-100"
           >
             <X size={24} />
           </button>
         </div>
 
-        <div className="p-5 overflow-y-auto flex-1">
+        <div className="flex-1 overflow-y-auto p-5">
           {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
-
-          <div className="mb-4 p-3 rounded-xl bg-hp-50 border border-hp-200 text-sm text-hp-800">
-            게시글은 서버에 저장됩니다.
-          </div>
-
-          <label className="block text-sm font-bold mb-1">게시판</label>
-          <select
-            value={writeType}
-            onChange={(e) => setWriteType(e.target.value as "study" | "free")}
-            className="w-full border p-3 rounded-lg mb-4 outline-none focus:border-hp-500 font-medium"
+          <label className="mb-1 block text-sm font-bold">제목</label>
+          <input
+            type="text"
+            value={postTitle}
+            onChange={(e) => setPostTitle(e.target.value)}
+            className="mb-4 w-full rounded-lg border p-3 font-medium outline-none focus:border-hp-500"
+            placeholder="제목을 입력하세요"
             disabled={saving}
-          >
-            <option value="study">스터디 모집</option>
-            <option value="free">자유게시판</option>
-          </select>
-
+          />
           {writeType === "study" && (
             <>
-              <label className="block text-sm font-bold mb-1">자격증</label>
+              <label className="mb-1 block text-sm font-bold">자격증</label>
               <div
-                className={`grid ${postCertCategory === "Other" ? "grid-cols-1" : "grid-cols-2"} gap-2 mb-4`}
+                className={`mb-4 grid ${postCertCategory === "Other" ? "grid-cols-1" : "grid-cols-2"} gap-2`}
               >
                 <select
                   value={postCertCategory}
@@ -113,7 +106,7 @@ export default function WritePostModal(props: WritePostModalProps) {
                     setPostCertCategory(e.target.value);
                     setPostCert("");
                   }}
-                  className="border p-3 rounded-lg outline-none focus:border-hp-500 font-medium appearance-none"
+                  className="appearance-none rounded-lg border p-3 font-medium outline-none focus:border-hp-500"
                   disabled={saving}
                 >
                   <option value="">--- 선택 ---</option>
@@ -129,7 +122,7 @@ export default function WritePostModal(props: WritePostModalProps) {
                     value={postCert}
                     onChange={(e) => setPostCert(e.target.value)}
                     disabled={saving || !postCertCategory}
-                    className="border p-3 rounded-lg outline-none focus:border-hp-500 font-medium appearance-none disabled:opacity-40"
+                    className="appearance-none rounded-lg border p-3 font-medium outline-none focus:border-hp-500 disabled:opacity-40"
                   >
                     <option value=""></option>
                     {(CERT_DATA[postCertCategory] || []).map((certificate) => (
@@ -142,31 +135,20 @@ export default function WritePostModal(props: WritePostModalProps) {
               </div>
             </>
           )}
-
-          <label className="block text-sm font-bold mb-1">제목</label>
-          <input
-            type="text"
-            value={postTitle}
-            onChange={(e) => setPostTitle(e.target.value)}
-            className="w-full border p-3 rounded-lg mb-4 outline-none focus:border-hp-500 font-medium"
-            placeholder="제목을 입력하세요"
-            disabled={saving}
-          />
-
-          <label className="block text-sm font-bold mb-1">내용</label>
+          <label className="mb-1 block text-sm font-bold">내용</label>
           <textarea
             rows={6}
             value={postContent}
             onChange={(e) => setPostContent(e.target.value)}
-            className="w-full border p-3 rounded-lg mb-4 outline-none focus:border-hp-500 font-medium resize-none"
+            className="mb-4 w-full resize-none rounded-lg border p-3 font-medium outline-none focus:border-hp-500"
             placeholder="내용을 작성하세요"
             disabled={saving}
           />
 
           {writeType === "study" && (
-            <div className="bg-hp-900 border border-hp-700 p-4 rounded-xl text-white mt-4 shadow-xl">
-              <label className="block text-sm font-bold mb-3 text-slate-300">스터디 장소</label>
-              <div className="flex gap-2 mb-4">
+            <div className="mt-4 rounded-xl border border-hp-700 bg-hp-900 p-4 text-white shadow-xl">
+              <label className="mb-3 block text-sm font-bold text-slate-300">스터디 장소</label>
+              <div className="mb-4 flex gap-2">
                 <input
                   type="text"
                   value={searchKeyword}
@@ -174,14 +156,14 @@ export default function WritePostModal(props: WritePostModalProps) {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") searchPlacesOnKakao();
                   }}
-                  className="border border-hp-600 bg-hp-800 p-2.5 rounded-lg flex-1 outline-none text-sm placeholder:text-hp-400 text-white"
-                  placeholder="장소 검색 (예시: 서면 카페)"
+                  className="flex-1 rounded-lg border border-hp-600 bg-hp-800 p-2.5 text-sm text-white outline-none placeholder:text-hp-400"
+                  placeholder="장소 검색 (예시: 신림 카페)"
                   disabled={saving}
                 />
                 <button
                   type="button"
                   onClick={searchPlacesOnKakao}
-                  className="bg-hp-600 hover:bg-hp-500 transition-colors text-white px-5 rounded-lg font-bold text-sm"
+                  className="rounded-lg bg-hp-600 px-5 text-sm font-bold text-white transition-colors hover:bg-hp-500"
                   disabled={saving}
                 >
                   검색
@@ -189,32 +171,33 @@ export default function WritePostModal(props: WritePostModalProps) {
               </div>
 
               {searchResults.length > 0 && (
-                <div className="flex flex-col md:flex-row gap-4 h-72">
-                  <div className="w-full md:w-1/2 overflow-y-auto space-y-2 pr-2">
+                <div className="flex h-72 flex-col gap-4 md:flex-row">
+                  <div className="w-full space-y-2 overflow-y-auto pr-2 md:w-1/2">
                     {searchResults.map((result) => (
                       <div
                         key={result.id}
                         onClick={() => setSelectedPlace(result)}
-                        className={`p-4 rounded-xl text-sm cursor-pointer border transition-all ${
+                        className={`cursor-pointer rounded-xl border p-4 text-sm transition-all ${
                           selectedPlace?.id === result.id
-                            ? "bg-slate-800 border-hp-500 ring-1 ring-hp-500"
-                            : "bg-slate-800/50 border-slate-700 hover:bg-slate-800 hover:border-slate-600"
+                            ? "border-hp-500 bg-slate-800 ring-1 ring-hp-500"
+                            : "border-slate-700 bg-slate-800/50 hover:border-slate-600 hover:bg-slate-800"
                         }`}
                       >
-                        <h4 className="font-bold text-base truncate">{result.name}</h4>
-                        <p className="text-slate-400 text-xs mt-1 truncate">{result.address}</p>
-                        {result.phone && <p className="text-slate-500 text-xs font-mono mt-1">{result.phone}</p>}
+                        <h4 className="truncate text-base font-bold">{result.name}</h4>
+                        <p className="mt-1 truncate text-xs text-slate-400">{result.address}</p>
+                        {result.phone && <p className="mt-1 font-mono text-xs text-slate-500">{result.phone}</p>}
                       </div>
                     ))}
                   </div>
 
-                  <div className="w-full md:w-1/2 h-full rounded-xl overflow-hidden shadow-inner border border-slate-700 bg-slate-800 flex items-center justify-center">
+                  <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-inner md:w-1/2">
                     {loadingKakao ? (
-                      <div className="text-slate-500 flex flex-col items-center gap-2">
-                        <Loader2 className="animate-spin" /> 로딩중...
+                      <div className="flex flex-col items-center gap-2 text-slate-500">
+                        <Loader2 className="animate-spin" />
+                        로딩 중...
                       </div>
                     ) : errorKakao ? (
-                      <div className="text-red-400 text-xs p-4 text-center">카카오맵 불러오기 실패</div>
+                      <div className="p-4 text-center text-xs text-red-400">카카오맵을 불러오지 못했습니다.</div>
                     ) : (
                       <KakaoMap
                         apiKey="894423a9ffcffb29a1e5d50427ded82e"
@@ -236,21 +219,21 @@ export default function WritePostModal(props: WritePostModalProps) {
               )}
 
               {selectedPlace && (
-                <div className="mt-4 p-3 bg-hp-900/30 border border-hp-800/50 rounded-lg">
-                  <p className="text-sm text-hp-300 font-bold">Selected: {selectedPlace.name}</p>
+                <div className="mt-4 rounded-lg border border-hp-800/50 bg-hp-900/30 p-3">
+                  <p className="text-sm font-bold text-hp-300">선택한 장소: {selectedPlace.name}</p>
                 </div>
               )}
             </div>
           )}
         </div>
 
-        <div className="p-5 border-t flex justify-end gap-3 bg-hp-50">
+        <div className="flex justify-end gap-3 border-t bg-hp-50 p-5">
           <button
             onClick={() => {
               if (saving) return;
               onClose();
             }}
-            className="px-5 py-2.5 rounded-lg bg-hp-50 text-hp-700 border border-hp-200 font-bold"
+            className="rounded-lg border border-hp-200 bg-hp-50 px-5 py-2.5 font-bold text-hp-700"
           >
             취소
           </button>
@@ -264,7 +247,7 @@ export default function WritePostModal(props: WritePostModalProps) {
               try {
                 const ok = await submitPost();
                 if (!ok) {
-                  setError("제목 또는 내용을 입력해주세요.");
+                  setError("제목 또는 내용을 입력해 주세요.");
                   return;
                 }
                 onClose();
@@ -274,9 +257,9 @@ export default function WritePostModal(props: WritePostModalProps) {
                 setSaving(false);
               }
             }}
-            className="px-5 py-2.5 rounded-lg bg-hp-600 hover:bg-hp-700 text-white font-bold disabled:opacity-60"
+            className="rounded-lg bg-hp-600 px-5 py-2.5 font-bold text-white hover:bg-hp-700 disabled:opacity-60"
           >
-            {saving ? "저장중..." : "작성"}
+            {saving ? "저장 중..." : "작성"}
           </button>
         </div>
       </div>

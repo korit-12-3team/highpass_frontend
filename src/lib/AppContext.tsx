@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { clearAuthSession, loadAuthSession, logoutSession, saveAuthSession } from "@/lib/auth";
+import { clearAuthSession, loadAuthSession, logoutSession, saveAuthSession, subscribeAuthExpired } from "@/lib/auth";
 import { createBoard, listBoards } from "@/lib/boards";
 import { isPostLiked } from "@/lib/likes";
 import { createStudy, listStudies } from "@/lib/study-api";
@@ -9,9 +9,12 @@ import { createStudy, listStudies } from "@/lib/study-api";
 export interface EventType {
   id: string;
   title: string;
+  content?: string;
   month: number;
   startDay: number;
   endDay: number;
+  startDate?: string;
+  endDate?: string;
   color: string;
   isAllDay: boolean;
   startTime?: string;
@@ -210,19 +213,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!authReady || !currentUser) return;
-    const savedEvents = localStorage.getItem(`hp_events_${currentUser.id}`);
-    const savedTodos = localStorage.getItem(`hp_todos_${currentUser.id}`);
-    if (savedEvents) {
-      try {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setEvents(JSON.parse(savedEvents));
-      } catch {}
-    }
-    if (savedTodos) {
-      try {
-        setTodos(JSON.parse(savedTodos));
-      } catch {}
-    }
+    localStorage.removeItem(`hp_events_${currentUser.id}`);
+    localStorage.removeItem(`hp_todos_${currentUser.id}`);
   }, [authReady, currentUser]);
 
   useEffect(() => {
@@ -246,18 +238,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!authReady || !currentUser) return;
-    localStorage.setItem(`hp_events_${currentUser.id}`, JSON.stringify(events));
-  }, [authReady, events, currentUser]);
-
-  useEffect(() => {
-    if (!authReady || !currentUser) return;
-    localStorage.setItem(`hp_todos_${currentUser.id}`, JSON.stringify(todos));
-  }, [authReady, todos, currentUser]);
-
-  useEffect(() => {
-    if (!authReady || !currentUser) return;
     saveAuthSession(currentUser);
   }, [authReady, currentUser]);
+
+  useEffect(() => {
+    return subscribeAuthExpired(() => {
+      setCurrentUser(null);
+      setActiveChatRoomId(null);
+      setBoardData([]);
+      setEvents([]);
+      setTodos({});
+      clearAuthSession();
+    });
+  }, []);
 
   const handleAuthSuccess = useCallback((user: UserProfile) => {
     setCurrentUser(user);

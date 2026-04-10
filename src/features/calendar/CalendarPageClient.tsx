@@ -2,29 +2,241 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Draggable from "react-draggable";
-import {
-  ArrowRight,
-  Calendar as CalendarIcon,
-  CheckCircle2,
-  Circle,
-  Clock,
-  List as ListIcon,
-  Plus,
-  Trash2,
-  X,
-  Zap,
-} from "lucide-react";
+import { ArrowRight, Calendar as CalendarIcon, CheckCircle2, Circle, Clock, List as ListIcon, Pencil, Plus, Trash2, X, Zap,} from "lucide-react";
 import { EventType, TodoItem, useApp } from "@/lib/AppContext";
-import { createCalendarEvent, removeCalendarEvent } from "@/lib/calendar";
-import { createTodo, deleteTodo as deleteTodoApi, listTodosByDate, toggleTodoStatus } from "@/lib/todos";
+import {
+  createCalendarEvent,
+  listCalendarEvents,
+  removeCalendarEvent,
+  updateCalendarEvent,
+} from "@/lib/calendar";
+import {
+  createTodo,
+  deleteTodo as deleteTodoApi,
+  listTodos,
+  toggleTodoStatus,
+  updateTodoContent,
+} from "@/lib/todos";
 
 const WEEK_DAYS = ["일", "월", "화", "수", "목", "금", "토"];
-
+const MAX_VISIBLE_EVENT_ROWS = 2;
 type TodayInfo = {
   year: number;
   month: number;
   date: number;
 };
+
+type EventFormState = {
+  id: string | null;
+  title: string;
+  content: string;
+  startDate: string;
+  endDate: string;
+  color: string;
+  isAllDay: boolean;
+  startTime: string;
+  endTime: string;
+  kind: "general" | "certificate";
+};
+
+const DEFAULT_EVENT_FORM: EventFormState = {
+  id: null,
+  title: "",
+  content: "",
+  startDate: "",
+  endDate: "",
+  color: "bg-hp-500",
+  isAllDay: true,
+  startTime: "09:00",
+  endTime: "10:00",
+  kind: "general",
+};
+
+const formatDateKey = (y: number, m: number, d: number) =>
+  `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+
+function parseDate(dateText?: string, fallbackYear?: number) {
+  if (!dateText) return null;
+
+  const date = new Date(dateText);
+  if (Number.isNaN(date.getTime())) return null;
+
+  if (typeof fallbackYear === "number" && date.getFullYear() === 1970) {
+    date.setFullYear(fallbackYear);
+  }
+
+  return date;
+}
+
+function formatEventRange(event: EventType, fallbackYear: number) {
+  const start = parseDate(event.startDate, fallbackYear);
+  const end = parseDate(event.endDate || event.startDate, fallbackYear);
+
+  if (!start) return `${fallbackYear}.${event.month + 1}.${event.startDay}`;
+
+  const startLabel = `${start.getFullYear()}.${start.getMonth() + 1}.${start.getDate()}`;
+  if (!end) return startLabel;
+
+  return start.toDateString() === end.toDateString()
+    ? startLabel
+    : `${startLabel} - ${end.getFullYear()}.${end.getMonth() + 1}.${end.getDate()}`;
+}
+
+function eventOverlapsDate(event: EventType, dateKey: string, fallbackYear: number) {
+  const target = parseDate(dateKey);
+  const start = parseDate(event.startDate, fallbackYear);
+  const end = parseDate(event.endDate || event.startDate, fallbackYear);
+
+  if (!target || !start) {
+    const date = new Date(dateKey);
+    return event.month === date.getMonth() && date.getDate() >= event.startDay && date.getDate() <= event.endDay;
+  }
+
+  return start <= target && target <= (end ?? start);
+}
+
+function getEventSegmentState(event: EventType, dateKey: string, fallbackYear: number) {
+  const target = parseDate(dateKey);
+  const start = parseDate(event.startDate, fallbackYear);
+  const end = parseDate(event.endDate || event.startDate, fallbackYear) ?? start;
+
+  if (!target || !start || !end) {
+    return {
+      startsToday: event.startDate === dateKey,
+      endsToday: (event.endDate ?? event.startDate) === dateKey,
+      showLabel: event.startDate === dateKey,
+    };
+  }
+
+  const startsToday = start.toDateString() === target.toDateString();
+  const endsToday = end.toDateString() === target.toDateString();
+
+  return {
+    startsToday,
+    endsToday,
+    showLabel: startsToday || target.getDate() === 1,
+  };
+}
+
+function sortEventsForCalendar(events: EventType[], fallbackYear: number) {
+  return [...events].sort((a, b) => {
+    const aStart = parseDate(a.startDate, fallbackYear)?.getTime() ?? 0;
+    const bStart = parseDate(b.startDate, fallbackYear)?.getTime() ?? 0;
+    if (aStart !== bStart) return aStart - bStart;
+
+    const aEnd = parseDate(a.endDate || a.startDate, fallbackYear)?.getTime() ?? aStart;
+    const bEnd = parseDate(b.endDate || b.startDate, fallbackYear)?.getTime() ?? bStart;
+
+    return bEnd - aEnd;
+  });
+}
+
+type CalendarDayCell = {
+  key: string;
+  date: number;
+  currentMonth: boolean;
+};
+
+function getCellDate(cell: CalendarDayCell, year: number, month: number) {
+  if (cell.currentMonth) return new Date(year, month, cell.date);
+  if (cell.key.startsWith("prev-")) return new Date(year, month - 1, cell.date);
+  return new Date(year, month + 1, cell.date);
+}
+
+function getEventTimeRange(event: EventType, fallbackYear: number) {
+  const start = parseDate(event.startDate, fallbackYear);
+  const end = parseDate(event.endDate || event.startDate, fallbackYear) ?? start;
+
+  if (!start || !end) return null;
+
+  return { start, end };
+}
+
+function buildWeekEventRows(
+  weekCells: CalendarDayCell[],
+  events: EventType[],
+  year: number,
+  month: number,
+) {
+  const visible = weekCells.map((cell) => {
+    const date = getCellDate(cell, year, month);
+    return {
+      cell,
+      dateKey: formatDateKey(date.getFullYear(), date.getMonth(), date.getDate()),
+    };
+  });
+
+  const eventMap = new Map<string, EventType>();
+  visible.forEach(({ dateKey }) => {
+    events.forEach((event) => {
+      if (eventOverlapsDate(event, dateKey, year)) {
+        eventMap.set(event.id, event);
+      }
+    });
+  });
+
+  const weekEvents = sortEventsForCalendar(Array.from(eventMap.values()), year);
+  const rows: EventType[][] = [];
+
+  weekEvents.forEach((event) => {
+    const range = getEventTimeRange(event, year);
+    const startTime = range?.start.getTime() ?? 0;
+    const endTime = range?.end.getTime() ?? startTime;
+
+    let rowIndex = rows.findIndex((row) =>
+      row.every((placed) => {
+        const placedRange = getEventTimeRange(placed, year);
+        const placedStart = placedRange?.start.getTime() ?? 0;
+        const placedEnd = placedRange?.end.getTime() ?? placedStart;
+        return endTime < placedStart || startTime > placedEnd;
+      }),
+    );
+
+    if (rowIndex === -1) {
+      rows.push([event]);
+      rowIndex = rows.length - 1;
+    } else {
+      rows[rowIndex].push(event);
+    }
+  });
+
+  return visible.map(({ cell, dateKey }) => {
+    const rowEvents = rows.map((row) => row.find((event) => eventOverlapsDate(event, dateKey, year)) ?? null);
+
+    return {
+      cellKey: cell.key,
+      rowEvents,
+      overflowCount: rowEvents.slice(MAX_VISIBLE_EVENT_ROWS).filter(Boolean).length,
+    };
+  });
+}
+
+function buildEventForm(dateText: string, event?: EventType): EventFormState {
+  if (!event) {
+    return {
+      ...DEFAULT_EVENT_FORM,
+      startDate: dateText,
+      endDate: dateText,
+    };
+  }
+
+  return {
+    id: event.id,
+    title: event.title,
+    content: event.content ?? event.title,
+    startDate: event.startDate ?? dateText,
+    endDate: event.endDate ?? event.startDate ?? dateText,
+    color: event.color || "bg-hp-500",
+    isAllDay: event.isAllDay,
+    startTime: event.startTime || "09:00",
+    endTime: event.endTime || "10:00",
+    kind: event.kind || "general",
+  };
+}
+
+function getDisplayEventColor(event: EventType) {
+  return event.kind === "certificate" ? "bg-amber-500" : event.color;
+}
 
 export default function CalendarPageClient() {
   const { currentUser, events, setEvents, todos, setTodos } = useApp();
@@ -38,28 +250,23 @@ export default function CalendarPageClient() {
   const [calendarView, setCalendarView] = useState<"month" | "week">("month");
   const [selectedEvent, setSelectedEvent] = useState<EventType | null>(null);
   const [newTodoText, setNewTodoText] = useState("");
+  const [editingTodoId, setEditingTodoId] = useState<number | null>(null);
+  const [editingTodoText, setEditingTodoText] = useState("");
   const [calendarError, setCalendarError] = useState("");
+  const [calendarLoading, setCalendarLoading] = useState(false);
   const [savingEvent, setSavingEvent] = useState(false);
-
-  const [addEventModalOpen, setAddEventModalOpen] = useState(false);
-  const [eventTitle, setEventTitle] = useState("");
-  const [eventStartDate, setEventStartDate] = useState("");
-  const [eventEndDate, setEventEndDate] = useState("");
-  const [eventColor, setEventColor] = useState("bg-hp-500");
-  const [eventIsAllDay, setEventIsAllDay] = useState(true);
-  const [eventStartTime, setEventStartTime] = useState("09:00");
-  const [eventEndTime, setEventEndTime] = useState("10:00");
+  const [eventModalOpen, setEventModalOpen] = useState(false);
+  const [eventForm, setEventForm] = useState<EventFormState>(DEFAULT_EVENT_FORM);
 
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
   const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay();
   const prevMonthDays = new Date(currentYear, currentMonth, 0).getDate();
-  const selectedDateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(selectedDate).padStart(2, "0")}`;
+  const selectedDateKey = formatDateKey(currentYear, currentMonth, selectedDate);
 
   useEffect(() => {
     const now = new Date();
-    // Calendar month/day depends on browser time, so it must be applied after mount.
     setCurrentDate(now);
     setSelectedDate(now.getDate());
     setTodayInfo({
@@ -71,53 +278,103 @@ export default function CalendarPageClient() {
   }, []);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const onKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") inputRef.current?.focus();
       if (e.key === "Escape") inputRef.current?.blur();
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
   useEffect(() => {
     if (!currentUser) return;
+
     let cancelled = false;
 
     void (async () => {
       try {
-        const requests = Array.from({ length: daysInMonth }, (_, index) => {
-          const date = index + 1;
-          const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(date).padStart(2, "0")}`;
-          return listTodosByDate(currentUser.id, dateKey).then((items) => ({ dateKey, items }));
-        });
-
-        const results = await Promise.all(requests);
-        if (cancelled) return;
-
-        setTodos((prev) => {
-          const next = { ...prev };
-          results.forEach(({ dateKey, items }) => {
-            next[dateKey] = items;
-          });
-          return next;
-        });
+        setCalendarLoading(true);
+        setCalendarError("");
+        const loaded = await listCalendarEvents(currentUser.id);
+        if (!cancelled) setEvents(loaded);
       } catch (error) {
-        if (cancelled) return;
-        setCalendarError(error instanceof Error ? error.message : "할 일을 불러오지 못했습니다.");
+        if (!cancelled) {
+          setCalendarError(error instanceof Error ? error.message : "Failed to load calendar events.");
+        }
+      } finally {
+        if (!cancelled) setCalendarLoading(false);
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [currentUser, currentMonth, currentYear, daysInMonth, setTodos]);
+  }, [currentUser, setEvents]);
 
-  const syncTodoList = (dateKey: string, updater: (items: typeof todos[string]) => typeof todos[string]) => {
-    setTodos((prev) => ({
-      ...prev,
-      [dateKey]: updater(prev[dateKey] ?? []),
-    }));
+  useEffect(() => {
+    if (!currentUser) return;
+
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const todoItems = await listTodos(currentUser.id);
+        if (cancelled) return;
+
+        setTodos((prev) => {
+          const next = { ...prev };
+
+          for (let d = 1; d <= daysInMonth; d += 1) {
+            next[formatDateKey(currentYear, currentMonth, d)] = [];
+          }
+
+          todoItems.forEach((item) => {
+            if (!item.createdAt) return;
+
+            const itemDate = new Date(item.createdAt);
+            if (Number.isNaN(itemDate.getTime())) return;
+            if (itemDate.getFullYear() !== currentYear || itemDate.getMonth() !== currentMonth) return;
+
+            const key = formatDateKey(currentYear, currentMonth, itemDate.getDate());
+            next[key] = [...(next[key] ?? []), item];
+          });
+
+          return next;
+        });
+      } catch (error) {
+        if (!cancelled) {
+          setCalendarError(error instanceof Error ? error.message : "Failed to load todo items.");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentMonth, currentUser, currentYear, daysInMonth, setTodos]);
+
+  const syncTodoList = (
+    dateKey: string,
+    updater: (items: typeof todos[string]) => typeof todos[string],
+  ) => setTodos((prev) => ({ ...prev, [dateKey]: updater(prev[dateKey] ?? []) }));
+
+  const openCreateModal = () => {
+    setCalendarError("");
+    setEventForm(buildEventForm(selectedDateKey));
+    setEventModalOpen(true);
+  };
+
+  const openEditModal = (event: EventType) => {
+    setCalendarError("");
+    setSelectedEvent(event);
+    setEventForm(buildEventForm(selectedDateKey, event));
+    setEventModalOpen(true);
+  };
+
+  const closeEventModal = () => {
+    setEventModalOpen(false);
+    setEventForm(DEFAULT_EVENT_FORM);
   };
 
   const handleAddTodo = async (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -128,7 +385,7 @@ export default function CalendarPageClient() {
       syncTodoList(selectedDateKey, (items) => [...items, created]);
       setNewTodoText("");
     } catch (error) {
-      setCalendarError(error instanceof Error ? error.message : "할 일을 추가하지 못했습니다.");
+      setCalendarError(error instanceof Error ? error.message : "Failed to add the todo item.");
     }
   };
 
@@ -137,37 +394,11 @@ export default function CalendarPageClient() {
       setCalendarError("");
       await removeCalendarEvent(eventId);
       setEvents((prev) => prev.filter((event) => event.id !== eventId));
+      setSelectedEvent((prev) => (prev?.id === eventId ? null : prev));
     } catch (error) {
-      setCalendarError(error instanceof Error ? error.message : "일정을 삭제하지 못했습니다.");
+      setCalendarError(error instanceof Error ? error.message : "Failed to delete the event.");
     }
   };
-
-  const calendarDays = Array.from({ length: 42 }, (_, index) => {
-    const dayNumber = index - firstDayOfWeek + 1;
-
-    if (dayNumber < 1) {
-      return { key: `prev-${index}`, date: prevMonthDays + dayNumber, currentMonth: false };
-    }
-
-    if (dayNumber > daysInMonth) {
-      return { key: `next-${index}`, date: dayNumber - daysInMonth, currentMonth: false };
-    }
-
-    return { key: `current-${dayNumber}`, date: dayNumber, currentMonth: true };
-  });
-
-  const selectedEvents = events.filter(
-    (event) => event.month === currentMonth && selectedDate >= event.startDay && selectedDate <= event.endDay,
-  );
-
-  const getEventsForDate = (date: number) =>
-    events.filter(
-      (event) => event.month === currentMonth && date >= event.startDay && date <= event.endDay,
-    );
-
-  const getTodosForDate = (date: number) =>
-    todos[`${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(date).padStart(2, "0")}`] ?? [];
-  const selectedTodos = getTodosForDate(selectedDate);
 
   const handleToggleTodo = async (todoId: number) => {
     try {
@@ -176,7 +407,7 @@ export default function CalendarPageClient() {
         items.map((todo) => (todo.id === todoId ? updated : todo)),
       );
     } catch (error) {
-      setCalendarError(error instanceof Error ? error.message : "할 일 상태를 변경하지 못했습니다.");
+      setCalendarError(error instanceof Error ? error.message : "Failed to update the todo status.");
     }
   };
 
@@ -185,24 +416,319 @@ export default function CalendarPageClient() {
       await deleteTodoApi(todoId);
       syncTodoList(selectedDateKey, (items: TodoItem[]) => items.filter((todo) => todo.id !== todoId));
     } catch (error) {
-      setCalendarError(error instanceof Error ? error.message : "할 일을 삭제하지 못했습니다.");
+      setCalendarError(error instanceof Error ? error.message : "Failed to delete the todo item.");
     }
+  };
+
+  const startTodoEdit = (todo: TodoItem) => {
+    setCalendarError("");
+    setEditingTodoId(todo.id);
+    setEditingTodoText(todo.text);
+  };
+
+  const cancelTodoEdit = () => {
+    setEditingTodoId(null);
+    setEditingTodoText("");
+  };
+
+  const handleSubmitTodoEdit = async () => {
+    if (editingTodoId === null || !editingTodoText.trim()) return;
+
+    try {
+      const updated = await updateTodoContent(editingTodoId, editingTodoText.trim());
+      syncTodoList(selectedDateKey, (items: TodoItem[]) =>
+        items.map((todo) => (todo.id === editingTodoId ? updated : todo)),
+      );
+      cancelTodoEdit();
+    } catch (error) {
+      setCalendarError(error instanceof Error ? error.message : "Failed to update the todo item.");
+    }
+  };
+
+  const handleSubmitEvent = async () => {
+    if (!currentUser || !eventForm.title.trim() || !eventForm.startDate || !eventForm.endDate || savingEvent) {
+      return;
+    }
+
+    try {
+      setSavingEvent(true);
+      setCalendarError("");
+
+      const payload = {
+        title: eventForm.title.trim(),
+        content: eventForm.content.trim() || eventForm.title.trim(),
+        startDate: eventForm.startDate,
+        endDate: eventForm.endDate,
+        color: eventForm.color,
+        isAllDay: eventForm.isAllDay,
+        startTime: eventForm.startTime,
+        endTime: eventForm.endTime,
+        kind: eventForm.kind,
+      } as const;
+
+      const savedEvent = eventForm.id
+        ? await updateCalendarEvent({ calendarId: eventForm.id, ...payload })
+        : await createCalendarEvent({ userId: currentUser.id, ...payload });
+
+      setEvents((prev) =>
+        eventForm.id ? prev.map((event) => (event.id === eventForm.id ? savedEvent : event)) : [...prev, savedEvent],
+      );
+      setSelectedEvent((prev) => (prev?.id === savedEvent.id ? savedEvent : prev));
+
+      const nextDate = parseDate(savedEvent.startDate, currentYear) ?? new Date(savedEvent.startDate || selectedDateKey);
+      setCurrentDate(new Date(nextDate.getFullYear(), nextDate.getMonth(), 1));
+      setSelectedDate(nextDate.getDate());
+      closeEventModal();
+    } catch (error) {
+      setCalendarError(error instanceof Error ? error.message : "Failed to save the event.");
+    } finally {
+      setSavingEvent(false);
+    }
+  };
+
+  const calendarDays: CalendarDayCell[] = Array.from({ length: 42 }, (_, index) => {
+    const dayNumber = index - firstDayOfWeek + 1;
+
+    if (dayNumber < 1) {
+      return {
+        key: `prev-${index}`,
+        date: prevMonthDays + dayNumber,
+        currentMonth: false,
+      };
+    }
+
+    if (dayNumber > daysInMonth) {
+      return {
+        key: `next-${index}`,
+        date: dayNumber - daysInMonth,
+        currentMonth: false,
+      };
+    }
+
+    return {
+      key: `current-${dayNumber}`,
+      date: dayNumber,
+      currentMonth: true,
+    };
+  });
+
+  const weekLayoutByCellKey = new Map(
+    Array.from({ length: 6 }, (_, weekIndex) =>
+      buildWeekEventRows(
+        calendarDays.slice(weekIndex * 7, weekIndex * 7 + 7),
+        events,
+        currentYear,
+        currentMonth,
+      ),
+    )
+      .flat()
+      .map((item) => [item.cellKey, item] as const),
+  );
+
+  const selectedEvents = sortEventsForCalendar(
+    events.filter((event) => eventOverlapsDate(event, selectedDateKey, currentYear)),
+    currentYear,
+  );
+  const getTodosForDate = (date: number) => todos[formatDateKey(currentYear, currentMonth, date)] ?? [];
+  const selectedTodos = getTodosForDate(selectedDate);
+  const updateEventFormField =
+    (field: keyof EventFormState) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      setEventForm((prev) => ({ ...prev, [field]: e.target.value }));
+    };
+
+  const toggleEventAllDay = () => {
+    setEventForm((prev) => ({ ...prev, isAllDay: !prev.isAllDay }));
+  };
+
+  const handleCloseSelectedEvent = () => setSelectedEvent(null);
+
+  const handleEditSelectedEvent = () => {
+    if (!selectedEvent) return;
+
+    setSelectedEvent(null);
+    openEditModal(selectedEvent);
+  };
+
+  const handleDeleteSelectedEvent = () => {
+    if (!selectedEvent) return;
+
+    const eventId = selectedEvent.id;
+    setSelectedEvent(null);
+    void handleDeleteEvent(eventId);
+  };
+
+  const renderEventModal = () => {
+    if (!eventModalOpen) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="flex items-center justify-between border-b border-hp-100 p-5">
+            <h3 className="text-lg font-bold text-slate-800">
+              {eventForm.id ? "일정 수정" : "일정 추가"}
+            </h3>
+            <button onClick={closeEventModal} className="rounded-full p-1.5 hover:bg-slate-100">
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="space-y-4 p-5">
+            <input
+              type="text"
+              value={eventForm.title}
+              onChange={updateEventFormField("title")}
+              placeholder="일정 제목"
+              className="w-full border-b-2 border-hp-200 p-2 text-lg font-bold outline-none focus:border-hp-600"
+            />
+            <textarea
+              value={eventForm.content}
+              onChange={updateEventFormField("content")}
+              placeholder="일정 설명"
+              rows={3}
+              className="w-full rounded-xl border border-hp-100 p-3 outline-none focus:border-hp-300"
+            />
+            <div className="flex gap-3">
+              <input
+                type="date"
+                value={eventForm.startDate}
+                onChange={updateEventFormField("startDate")}
+                className="w-full rounded-xl border border-hp-100 p-2.5"
+              />
+              <input
+                type="date"
+                value={eventForm.endDate}
+                onChange={updateEventFormField("endDate")}
+                className="w-full rounded-xl border border-hp-100 p-2.5"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={toggleEventAllDay}
+                className="rounded-lg border border-hp-200 px-3 py-2 text-sm"
+              >
+                {eventForm.isAllDay ? "종일" : "시간 설정"}
+              </button>
+              {!eventForm.isAllDay && (
+                <>
+                  <input
+                    type="time"
+                    value={eventForm.startTime}
+                    onChange={updateEventFormField("startTime")}
+                    className="rounded-xl border border-hp-100 p-2.5"
+                  />
+                  <input
+                    type="time"
+                    value={eventForm.endTime}
+                    onChange={updateEventFormField("endTime")}
+                    className="rounded-xl border border-hp-100 p-2.5"
+                  />
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="flex gap-2 border-t border-hp-50 p-4">
+            <button
+              onClick={closeEventModal}
+              className="flex-1 rounded-xl border border-hp-200 bg-hp-50 px-4 py-2.5 font-bold text-hp-700 hover:bg-hp-100"
+            >
+              취소
+            </button>
+            <button
+              disabled={savingEvent}
+              onClick={() => void handleSubmitEvent()}
+              className="flex-1 rounded-xl bg-hp-600 px-4 py-2.5 font-bold text-white hover:bg-hp-700 disabled:opacity-60"
+            >
+              {savingEvent ? "저장 중..." : eventForm.id ? "수정" : "저장"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderSelectedEventModal = () => {
+    if (!selectedEvent) return null;
+
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        onClick={handleCloseSelectedEvent}
+      >
+        <div
+          className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className={`${getDisplayEventColor(selectedEvent)} p-5`}>
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="mb-1 text-xs font-bold text-white/70">
+                  {selectedEvent.isAllDay
+                    ? "종일"
+                    : `${selectedEvent.startTime} ~ ${selectedEvent.endTime}`}
+                </p>
+                <h3 className="text-xl font-bold leading-tight text-white">{selectedEvent.title}</h3>
+              </div>
+              <button onClick={handleCloseSelectedEvent} className="rounded-full bg-white/20 p-1.5">
+                <X size={18} className="text-white" />
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-3 p-5">
+            <div className="flex items-center gap-3 text-sm text-slate-600">
+              <CalendarIcon size={16} className="text-hp-500" />
+              <span className="font-medium">{formatEventRange(selectedEvent, currentYear)}</span>
+            </div>
+            {!selectedEvent.isAllDay && (
+              <div className="flex items-center gap-3 text-sm text-slate-600">
+                <Clock size={16} className="text-hp-500" />
+                <span className="font-medium">
+                  {selectedEvent.startTime} ~ {selectedEvent.endTime}
+                </span>
+              </div>
+            )}
+            {selectedEvent.content && (
+              <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
+                {selectedEvent.content}
+              </p>
+            )}
+          </div>
+
+          <div className="flex gap-2 px-5 pb-5">
+            <button
+              onClick={handleEditSelectedEvent}
+              className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-hp-200 py-2.5 text-sm font-bold text-hp-700 transition-colors hover:bg-hp-50"
+            >
+              <Pencil size={15} />
+              수정
+            </button>
+            <button
+              onClick={handleDeleteSelectedEvent}
+              className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-red-200 py-2.5 text-sm font-bold text-red-500 transition-colors hover:bg-red-50"
+            >
+              <Trash2 size={15} />
+              삭제
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   if (!mounted) return null;
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 h-full animate-in fade-in duration-500">
-      <div className="flex-1 bg-white rounded-2xl shadow-sm border border-hp-100 p-5 flex flex-col">
-        <div className="flex items-center justify-between mb-6">
+    <div className="animate-in fade-in flex h-full flex-col gap-4 duration-500 lg:flex-row">
+      <div className="flex flex-1 flex-col rounded-2xl border border-hp-100 bg-white p-5 shadow-sm">
+        <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h2 className="text-2xl font-bold text-slate-800">
-              {currentYear}년 {currentMonth + 1}월
-            </h2>
+            <h2 className="text-2xl font-bold text-slate-800">{currentYear}.{currentMonth + 1}</h2>
             <div className="flex gap-1">
               <button
                 onClick={() => setCurrentDate(new Date(currentYear, currentMonth - 1, 1))}
-                className="p-1.5 hover:bg-hp-50 rounded-lg transition-colors"
+                className="rounded-lg p-1.5 transition-colors hover:bg-hp-50"
               >
                 <ArrowRight size={20} className="rotate-180 text-slate-400" />
               </button>
@@ -212,72 +738,66 @@ export default function CalendarPageClient() {
                   setCurrentDate(now);
                   setSelectedDate(now.getDate());
                 }}
-                className="px-2 text-xs font-bold text-hp-600 hover:bg-hp-50 rounded-lg"
+                className="rounded-lg px-2 text-xs font-bold text-hp-600 hover:bg-hp-50"
               >
                 오늘
               </button>
               <button
                 onClick={() => setCurrentDate(new Date(currentYear, currentMonth + 1, 1))}
-                className="p-1.5 hover:bg-hp-50 rounded-lg transition-colors"
+                className="rounded-lg p-1.5 transition-colors hover:bg-hp-50"
               >
                 <ArrowRight size={20} className="text-slate-400" />
               </button>
             </div>
-            <div className="flex rounded-lg border border-hp-200 overflow-hidden text-xs font-bold">
+            <div className="flex overflow-hidden rounded-lg border border-hp-200 text-xs font-bold">
               <button
                 onClick={() => setCalendarView("month")}
                 className={`px-3 py-1.5 transition-colors ${
                   calendarView === "month" ? "bg-hp-600 text-white" : "text-hp-600 hover:bg-hp-50"
                 }`}
               >
-                월
+                 월간
               </button>
               <button
                 onClick={() => setCalendarView("week")}
-                className={`px-3 py-1.5 transition-colors border-l border-hp-200 ${
+                className={`border-l border-hp-200 px-3 py-1.5 transition-colors ${
                   calendarView === "week" ? "bg-hp-600 text-white" : "text-hp-600 hover:bg-hp-50"
                 }`}
               >
-                주
+                 주간
               </button>
             </div>
           </div>
           <button
-            onClick={() => {
-              setEventStartDate("");
-              setEventEndDate("");
-              setEventColor("bg-hp-500");
-              setEventIsAllDay(true);
-              setEventStartTime("09:00");
-              setEventEndTime("10:00");
-              setAddEventModalOpen(true);
-            }}
-            className="px-4 py-2 bg-hp-600 hover:bg-hp-700 text-white rounded-lg text-sm font-bold flex items-center gap-2"
+            onClick={openCreateModal}
+            className="flex items-center gap-2 rounded-lg bg-hp-600 px-4 py-2 text-sm font-bold text-white hover:bg-hp-700"
           >
-            <Plus size={16} /> 일정 추가
+            <Plus size={16} />
+            일정 추가
           </button>
         </div>
-
         {calendarError && <p className="mb-4 text-sm text-red-500">{calendarError}</p>}
-
         {calendarView === "week" ? (
           <div className="rounded-2xl border border-dashed border-hp-200 bg-hp-50/50 p-8 text-sm text-slate-500">
-            주간 보기는 준비 중입니다. 현재는 월간 보기에서 일정과 할 일을 확인할 수 있습니다.
+            주간 보기는 아직 지원되지 않습니다. 월간 보기에서 일정을 확인하고 할 일을 관리해 주세요.
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-7 rounded-t-2xl overflow-hidden border border-hp-100 border-b-0 bg-slate-50 text-xs font-bold text-slate-400">
+            <div className="grid grid-cols-7 overflow-hidden rounded-t-2xl border border-b-0 border-hp-100 bg-slate-50 text-xs font-bold text-slate-400">
               {WEEK_DAYS.map((day) => (
-                <div key={day} className="py-3 text-center border-r border-hp-100 last:border-r-0">
+                <div key={day} className="border-r border-hp-100 py-3 text-center last:border-r-0">
                   {day}
                 </div>
               ))}
             </div>
-
-            <div className="grid grid-cols-7 flex-1 auto-rows-fr min-h-[32rem] rounded-b-2xl overflow-hidden border border-hp-100">
+            <div className="grid min-h-[32rem] flex-1 auto-rows-fr grid-cols-7 overflow-hidden rounded-b-2xl border border-hp-100">
               {calendarDays.map((day, index) => {
-                const dayEvents = day.currentMonth ? getEventsForDate(day.date) : [];
-                const dayTodos = day.currentMonth ? todos[`${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day.date).padStart(2, "0")}`] ?? [] : [];
+                const cellDate = getCellDate(day, currentYear, currentMonth);
+                const cellDateKey = formatDateKey(cellDate.getFullYear(), cellDate.getMonth(), cellDate.getDate());
+                const weekLayout = weekLayoutByCellKey.get(day.key);
+                const dayEventRows = weekLayout?.rowEvents ?? [];
+                const overflowCount = weekLayout?.overflowCount ?? 0;
+                const dayTodos = day.currentMonth ? getTodosForDate(day.date) : [];
                 const dayCompletedTodos = dayTodos.filter((todo) => todo.done).length;
                 const dayPendingTodos = dayTodos.length - dayCompletedTodos;
                 const isSelected = day.currentMonth && day.date === selectedDate;
@@ -286,21 +806,20 @@ export default function CalendarPageClient() {
                   todayInfo?.year === currentYear &&
                   todayInfo?.month === currentMonth &&
                   todayInfo?.date === day.date;
-
                 return (
                   <button
                     key={day.key}
                     type="button"
                     onClick={() => {
-                      if (!day.currentMonth) return;
-                      setSelectedDate(day.date);
+                      setCurrentDate(new Date(cellDate.getFullYear(), cellDate.getMonth(), 1));
+                      setSelectedDate(cellDate.getDate());
                     }}
-                    className={`relative min-h-28 border-r border-b border-hp-100 p-3 text-left transition-colors ${
+                    className={`relative min-h-28 border-r border-b border-hp-100 p-2 text-left transition-colors ${
                       day.currentMonth
                         ? isSelected
                           ? "bg-hp-50"
                           : "bg-white hover:bg-hp-50/50"
-                        : "bg-slate-50 text-slate-300"
+                        : "bg-slate-50 text-slate-400 hover:bg-slate-100/80"
                     }`}
                     style={{
                       borderRightWidth: (index + 1) % 7 === 0 ? 0 : undefined,
@@ -308,7 +827,7 @@ export default function CalendarPageClient() {
                     }}
                   >
                     <span
-                      className={`absolute left-3 top-3 flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
+                      className={`absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold ${
                         isToday
                           ? "bg-hp-600 text-white"
                           : isSelected
@@ -321,32 +840,29 @@ export default function CalendarPageClient() {
                       {day.date}
                     </span>
                     {day.currentMonth && (dayCompletedTodos > 0 || dayPendingTodos > 0) && (
-                      <div className="absolute right-3 top-3 flex items-center gap-1.5 whitespace-nowrap">
+                      <div className="absolute right-2 top-2 flex items-center gap-0.5 whitespace-nowrap">
                         {dayCompletedTodos > 0 && (
                           <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
-                            ?? {dayCompletedTodos}
+                            완료 {dayCompletedTodos}
                           </span>
                         )}
                         {dayPendingTodos > 0 && (
                           <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
-                            ?? {dayPendingTodos}
+                            할 일 {dayPendingTodos}
                           </span>
                         )}
                       </div>
                     )}
-
-                    <div className="mt-11 space-y-1.5">
-                      {dayEvents.slice(0, 2).map((event) => (
-                        <div
-                          key={`${day.key}-${event.id}`}
-                          className={`truncate rounded-lg px-2 py-1 text-[11px] font-medium text-white ${event.color}`}
-                        >
-                          {event.title}
-                        </div>
-                      ))}
-                      {day.currentMonth && dayEvents.length > 2 && (
-                        <p className="text-[11px] font-medium text-slate-400">+{dayEvents.length - 2}? ???</p>
-                      )}
+                    <div className="mt-7 flex h-[calc(100%-1.75rem)] flex-col">
+                      <div className="grid grid-rows-2 gap-0.5">
+                        {dayEventRows.slice(0, MAX_VISIBLE_EVENT_ROWS).map((event, rowIndex) => {
+                          if (!event) return <div key={`${day.key}-empty-${rowIndex}`} className="h-5" />;
+                          const segment = getEventSegmentState(event, cellDateKey, currentYear);
+                          const isSingleDay = segment.startsToday && segment.endsToday;
+                          return <div key={`${day.key}-${event.id}`} className={`flex h-5 items-center overflow-hidden text-[10px] font-semibold text-white ${getDisplayEventColor(event)} ${day.currentMonth ? "" : "opacity-45"} ${isSingleDay ? "rounded-md" : segment.startsToday ? "-mr-3 rounded-l-md rounded-r-none pr-3" : segment.endsToday ? "-ml-3 rounded-l-none rounded-r-md pl-3" : "-mx-3 rounded-none px-3"}`}><span className={`truncate px-1 ${segment.showLabel ? "opacity-100" : "opacity-0"}`}>{event.title}</span></div>;
+                        })}
+                      </div>
+                      <div className="mt-auto flex min-h-4 items-end">{overflowCount > 0 && <p className={`text-[10px] font-medium leading-none ${day.currentMonth ? "text-slate-400" : "text-slate-300"}`}>+{overflowCount}개 더보기</p>}</div>
                     </div>
                   </button>
                 );
@@ -357,262 +873,41 @@ export default function CalendarPageClient() {
       </div>
 
       <Draggable nodeRef={draggableRef} handle=".drag-handle">
-        <div
-          ref={draggableRef}
-          className="w-full lg:w-80 bg-white rounded-2xl border border-hp-100 p-5 flex flex-col h-[calc(100vh-6rem)] relative overflow-hidden shadow-2xl z-20"
-        >
-          <div className="flex justify-between items-center mb-5 drag-handle cursor-move bg-hp-50 -m-5 p-5 border-b border-hp-100">
-            <div className="flex items-center gap-2">
-              <ListIcon size={18} className="text-slate-400" />
-              <h3 className="text-lg font-bold text-slate-800">
-                {currentMonth + 1}월 {selectedDate}일
-              </h3>
-            </div>
-            <span className="text-[10px] text-hp-600 font-bold border border-hp-200 rounded px-2 py-1 bg-hp-50">
-              포커스 모드
-            </span>
+        <div ref={draggableRef} className="relative z-20 flex h-[calc(100vh-6rem)] w-full flex-col overflow-hidden rounded-2xl border border-hp-100 bg-white p-5 shadow-2xl lg:w-80">
+          <div className="-m-5 drag-handle mb-5 flex cursor-move items-center justify-between border-b border-hp-100 bg-hp-50 p-5">
+            <div className="flex items-center gap-2"><ListIcon size={18} className="text-slate-400" /><h3 className="text-lg font-bold text-slate-800">{currentMonth + 1}.{selectedDate}</h3></div>
+             <span className="rounded border border-hp-200 bg-hp-50 px-2 py-1 text-[10px] font-bold text-hp-600">선택한 날짜</span>
           </div>
-
-          <div className="mt-5 flex-1 flex flex-col overflow-hidden">
-            {selectedEvents.map((event) => (
-              <div
-                key={event.id}
-                onClick={() => setSelectedEvent(event)}
-                className="mb-3 bg-white border border-hp-100 rounded-xl p-3.5 shadow-sm flex gap-3 group relative overflow-hidden cursor-pointer hover:border-hp-300 transition-colors"
-              >
-                <div className={`w-1.5 ${event.color} rounded-full`}></div>
-                <div className="flex-1">
-                  <p className="text-[10px] font-bold text-slate-400 mb-1">
-                    {event.isAllDay ? "종일 일정" : `${event.startTime} ~ ${event.endTime}`}
-                  </p>
-                  <p className="font-bold text-sm">{event.title}</p>
+          <div className="mt-5 flex flex-1 flex-col overflow-hidden">
+             {calendarLoading ? <div className="mb-4 rounded-xl border border-dashed border-hp-200 p-4 text-sm text-slate-500">일정을 불러오는 중입니다...</div> : selectedEvents.length === 0 ? <div className="mb-4 rounded-xl border border-dashed border-hp-200 p-4 text-sm text-slate-500">선택한 날짜에 등록된 일정이 없습니다.</div> : selectedEvents.map((event) => (
+              <div key={event.id} onClick={() => setSelectedEvent(event)} className="group relative mb-3 flex cursor-pointer gap-3 overflow-hidden rounded-xl border border-hp-100 bg-white p-3.5 shadow-sm transition-colors hover:border-hp-300">
+                <div className={`w-1.5 rounded-full ${getDisplayEventColor(event)}`}></div>
+                 <div className="flex-1"><p className="mb-1 text-[10px] font-bold text-slate-400">{event.isAllDay ? "종일" : `${event.startTime} ~ ${event.endTime}`}</p><p className="text-sm font-bold">{event.title}</p></div>
+                <div className="absolute right-3 top-3 flex gap-1 opacity-0 transition-all group-hover:opacity-100">
+                  <button onClick={(e) => { e.stopPropagation(); openEditModal(event); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-hp-600"><Pencil size={16} /></button>
+                  <button onClick={(e) => { e.stopPropagation(); void handleDeleteEvent(event.id); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-red-500"><Trash2 size={16} /></button>
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void handleDeleteEvent(event.id);
-                  }}
-                  className="absolute right-3 top-3 p-1.5 text-slate-400 hover:text-red-500 hover:bg-slate-100 opacity-0 group-hover:opacity-100 rounded-lg transition-all"
-                >
-                  <Trash2 size={16} />
-                </button>
               </div>
             ))}
-
-            <div className="flex-1 overflow-y-auto flex flex-col mt-2">
-              <p className="text-xs font-bold text-slate-500 mb-3">할 일</p>
-              <div className="space-y-2 mb-4 flex-1">
-                {selectedTodos.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60">
-                    <Zap size={32} className="mb-3" />
-                    <p className="text-sm font-medium">아직 할 일이 없습니다.</p>
+            <div className="mt-2 flex flex-1 flex-col overflow-y-auto">
+               <p className="mb-3 text-xs font-bold text-slate-500">할 일</p>
+              <div className="mb-4 flex-1 space-y-2">
+                 {selectedTodos.length === 0 ? <div className="flex h-full flex-col items-center justify-center text-slate-400 opacity-60"><Zap size={32} className="mb-3" /><p className="text-sm font-medium">이 날짜에 등록된 할 일이 없습니다.</p></div> : selectedTodos.map((todo) => (
+                  <div key={todo.id} className={`group flex items-start gap-3 rounded-xl border border-hp-100 bg-white p-3.5 shadow-sm ${todo.done ? "opacity-50" : ""}`}>
+                    <button onClick={() => handleToggleTodo(todo.id)} className="mt-0.5">{todo.done ? <CheckCircle2 size={20} className="text-slate-500" /> : <Circle size={20} className="text-slate-300" />}</button>
+                    <div className="min-w-0 flex-1">{editingTodoId === todo.id ? <input type="text" value={editingTodoText} onChange={(e) => setEditingTodoText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void handleSubmitTodoEdit(); } if (e.key === "Escape") cancelTodoEdit(); }} className="w-full rounded-lg border border-hp-200 px-2.5 py-1.5 text-sm font-medium outline-none focus:border-hp-500" autoFocus /> : <p className={`text-sm ${todo.done ? "line-through text-slate-500" : "font-bold"}`}>{todo.text}</p>}</div>
+                     <div className="flex items-center gap-1">{editingTodoId === todo.id ? <><button onClick={() => void handleSubmitTodoEdit()} className="rounded-md px-2 py-1 text-[11px] font-bold text-hp-600 hover:bg-hp-50">저장</button><button onClick={cancelTodoEdit} className="rounded-md px-2 py-1 text-[11px] font-bold text-slate-400 hover:bg-slate-100">취소</button></> : <><button onClick={() => startTodoEdit(todo)} className="text-slate-300 opacity-0 hover:text-hp-600 group-hover:opacity-100"><Pencil size={16} /></button><button onClick={() => handleDeleteTodo(todo.id)} className="text-slate-300 opacity-0 hover:text-red-500 group-hover:opacity-100"><Trash2 size={16} /></button></>}</div>
                   </div>
-                ) : (
-                  selectedTodos.map((todo) => (
-                    <div
-                      key={todo.id}
-                      className={`flex items-start gap-3 bg-white p-3.5 rounded-xl border border-hp-100 shadow-sm group ${
-                        todo.done ? "opacity-50" : ""
-                      }`}
-                    >
-                      <button onClick={() => handleToggleTodo(todo.id)} className="mt-0.5">
-                        {todo.done ? (
-                          <CheckCircle2 size={20} className="text-slate-500" />
-                        ) : (
-                          <Circle size={20} className="text-slate-300" />
-                        )}
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm ${todo.done ? "line-through text-slate-500" : "font-bold"}`}>
-                          {todo.text}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteTodo(todo.id)}
-                        className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  ))
-                )}
+                ))}
               </div>
-              <div className="mt-auto bg-hp-50 rounded-xl border-2 border-hp-200 flex items-center px-3 focus-within:border-hp-600 shadow-sm">
-                <Plus size={20} className="text-slate-400" />
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={newTodoText}
-                  onChange={(e) => setNewTodoText(e.target.value)}
-                  onKeyDown={handleAddTodo}
-                  placeholder="할 일을 입력하고 엔터를 누르세요"
-                  className="w-full py-4 px-2 text-sm outline-none font-bold placeholder:font-normal bg-transparent"
-                />
-              </div>
+               <div className="mt-auto flex items-center rounded-xl border-2 border-hp-200 bg-hp-50 px-3 shadow-sm focus-within:border-hp-600"><Plus size={20} className="text-slate-400" /><input ref={inputRef} type="text" value={newTodoText} onChange={(e) => setNewTodoText(e.target.value)} onKeyDown={handleAddTodo} placeholder="할 일을 입력하고 Enter를 누르세요" className="w-full bg-transparent px-2 py-4 text-sm font-bold outline-none placeholder:font-normal" /></div>
             </div>
           </div>
         </div>
       </Draggable>
 
-      {addEventModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="flex justify-between items-center p-5 border-b border-hp-100">
-              <h3 className="font-bold text-lg text-slate-800">일정 추가</h3>
-              <button onClick={() => setAddEventModalOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-full">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
-              <input
-                type="text"
-                value={eventTitle}
-                onChange={(e) => setEventTitle(e.target.value)}
-                placeholder="일정 제목"
-                className="w-full border-b-2 border-hp-200 focus:border-hp-600 p-2 outline-none text-lg font-bold"
-              />
-              <div className="flex gap-3">
-                <input
-                  type="date"
-                  value={eventStartDate}
-                  onChange={(e) => setEventStartDate(e.target.value)}
-                  className="w-full border border-hp-100 rounded-xl p-2.5"
-                />
-                <input
-                  type="date"
-                  value={eventEndDate}
-                  onChange={(e) => setEventEndDate(e.target.value)}
-                  className="w-full border border-hp-100 rounded-xl p-2.5"
-                />
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setEventIsAllDay((prev) => !prev)}
-                  className="px-3 py-2 rounded-lg border border-hp-200 text-sm"
-                >
-                  {eventIsAllDay ? "종일 일정" : "시간 지정"}
-                </button>
-                {!eventIsAllDay && (
-                  <>
-                    <input
-                      type="time"
-                      value={eventStartTime}
-                      onChange={(e) => setEventStartTime(e.target.value)}
-                      className="border border-hp-100 rounded-xl p-2.5"
-                    />
-                    <input
-                      type="time"
-                      value={eventEndTime}
-                      onChange={(e) => setEventEndTime(e.target.value)}
-                      className="border border-hp-100 rounded-xl p-2.5"
-                    />
-                  </>
-                )}
-              </div>
-            </div>
-            <div className="p-4 border-t border-hp-50 flex gap-2">
-              <button
-                onClick={() => setAddEventModalOpen(false)}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-hp-50 text-hp-700 border border-hp-200 hover:bg-hp-100 font-bold"
-              >
-                취소
-              </button>
-              <button
-                disabled={savingEvent}
-                onClick={async () => {
-                  if (!currentUser || !eventTitle || !eventStartDate || !eventEndDate || savingEvent) return;
-
-                  try {
-                    setSavingEvent(true);
-                    setCalendarError("");
-
-                    const createdEvent = await createCalendarEvent({
-                      userId: currentUser.id,
-                      title: eventTitle,
-                      startDate: eventStartDate,
-                      endDate: eventEndDate,
-                      color: eventColor,
-                      isAllDay: eventIsAllDay,
-                      startTime: eventIsAllDay ? undefined : eventStartTime,
-                      endTime: eventIsAllDay ? undefined : eventEndTime,
-                    });
-
-                    const [startYear, startMonth, startDay] = eventStartDate.split("-").map(Number);
-                    setEvents((prev) => [...prev, createdEvent]);
-                    setCurrentDate(new Date(startYear, startMonth - 1, 1));
-                    setSelectedDate(startDay);
-                    setAddEventModalOpen(false);
-                    setEventTitle("");
-                    setEventStartDate("");
-                    setEventEndDate("");
-                  } catch (error) {
-                    setCalendarError(error instanceof Error ? error.message : "일정을 저장하지 못했습니다.");
-                  } finally {
-                    setSavingEvent(false);
-                  }
-                }}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-hp-600 text-white font-bold hover:bg-hp-700 disabled:opacity-60"
-              >
-                {savingEvent ? "저장 중..." : "저장"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {selectedEvent && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setSelectedEvent(null)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className={`${selectedEvent.color} p-5`}>
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-white/70 text-xs font-bold mb-1">
-                    {selectedEvent.isAllDay ? "종일 일정" : `${selectedEvent.startTime} ~ ${selectedEvent.endTime}`}
-                  </p>
-                  <h3 className="text-white font-bold text-xl leading-tight">{selectedEvent.title}</h3>
-                </div>
-                <button onClick={() => setSelectedEvent(null)} className="p-1.5 bg-white/20 rounded-full">
-                  <X size={18} className="text-white" />
-                </button>
-              </div>
-            </div>
-            <div className="p-5 space-y-3">
-              <div className="flex items-center gap-3 text-sm text-slate-600">
-                <CalendarIcon size={16} className="text-hp-500" />
-                <span className="font-medium">
-                  {currentYear}.{selectedEvent.month + 1}.{selectedEvent.startDay}
-                  {selectedEvent.endDay !== selectedEvent.startDay ? ` - ${selectedEvent.endDay}` : ""}
-                </span>
-              </div>
-              {!selectedEvent.isAllDay && (
-                <div className="flex items-center gap-3 text-sm text-slate-600">
-                  <Clock size={16} className="text-hp-500" />
-                  <span className="font-medium">
-                    {selectedEvent.startTime} ~ {selectedEvent.endTime}
-                  </span>
-                </div>
-              )}
-            </div>
-            <div className="px-5 pb-5 flex gap-2">
-              <button
-                onClick={() => {
-                  void handleDeleteEvent(selectedEvent.id);
-                  setSelectedEvent(null);
-                }}
-                className="flex-1 py-2.5 rounded-xl border border-red-200 text-red-500 font-bold text-sm hover:bg-red-50 transition-colors flex items-center justify-center gap-1"
-              >
-                <Trash2 size={15} /> 삭제
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {renderEventModal()}
+      {renderSelectedEventModal()}
     </div>
   );
 }
