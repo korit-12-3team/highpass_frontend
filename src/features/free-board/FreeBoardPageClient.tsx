@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { format, isSameDay, isSameYear } from "date-fns";
 import { ArrowLeft, Eye, Heart, MessageCircle, Pencil, Trash2, X } from "lucide-react";
 import { BoardPost, useApp } from "@/lib/AppContext";
@@ -29,6 +30,9 @@ function getInitial(name: string) {
 }
 
 export default function FreeBoardPageClient() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { boardData, setBoardData, currentUser, setProfileModal, setWriteModalOpen, setWriteType } = useApp();
 
   const freePosts = useMemo(() => {
@@ -71,6 +75,32 @@ export default function FreeBoardPageClient() {
   const [inlineCommentDrafts, setInlineCommentDrafts] = useState<Record<string, string>>({});
   const [inlineCommentSubmittingPostId, setInlineCommentSubmittingPostId] = useState<string | null>(null);
   const [hydratedCommentPostIds, setHydratedCommentPostIds] = useState<string[]>([]);
+  const requestedPostId = searchParams.get("postId");
+  const returnTo = searchParams.get("returnTo");
+  const returnFrom = searchParams.get("from");
+  const returnTab = searchParams.get("tab");
+
+  const buildPostUrl = useCallback(
+    (postId: string, nextReturnTo?: string | null) => {
+      const params = new URLSearchParams();
+      params.set("postId", postId);
+      if (nextReturnTo) {
+        params.set("returnTo", nextReturnTo);
+      }
+      return `${pathname}?${params.toString()}`;
+    },
+    [pathname],
+  );
+
+  const buildListUrl = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("postId");
+    params.delete("returnTo");
+    params.delete("from");
+    params.delete("tab");
+    const nextQuery = params.toString();
+    return nextQuery ? `${pathname}?${nextQuery}` : pathname;
+  }, [pathname, searchParams]);
 
   const syncPostComments = (postId: string, comments: BoardPost["comments"]) => {
     setViewPost((prev) => (prev && prev.id === postId ? { ...prev, comments } : prev));
@@ -122,7 +152,11 @@ export default function FreeBoardPageClient() {
     };
   }, [freePosts, hydratedCommentPostIds, setBoardData]);
 
-  const openPost = (post: BoardPost) => {
+  const openPost = useCallback((post: BoardPost, options?: { syncUrl?: boolean }) => {
+    if (options?.syncUrl !== false) {
+      router.push(buildPostUrl(String(post.id), returnTo));
+    }
+
     setViewPost(post);
     setPostError("");
     setCommentError("");
@@ -143,7 +177,26 @@ export default function FreeBoardPageClient() {
         setPostError(e instanceof Error ? e.message : "게시글을 불러오지 못했습니다.");
       }
     })();
-  };
+  }, [buildPostUrl, currentUser?.id, returnTo, router, setBoardData]);
+
+  useEffect(() => {
+    if (!requestedPostId) {
+      if (viewPost) {
+        setViewPost(null);
+      }
+      return;
+    }
+
+    if (viewPost?.id === requestedPostId) return;
+
+    const matchedPost = freePosts.find((post) => post.id === requestedPostId);
+    if (!matchedPost) {
+      setViewPost(null);
+      return;
+    }
+
+    openPost(matchedPost, { syncUrl: false });
+  }, [freePosts, openPost, requestedPostId, viewPost]);
 
   const updatePostLocally = (postId: string, updater: (post: BoardPost) => BoardPost) => {
     setBoardData((prev) => prev.map((post) => (post.type === "free" && post.id === postId ? updater(post) : post)));
@@ -310,7 +363,20 @@ export default function FreeBoardPageClient() {
           <div className="sticky top-0 z-10 border-b border-hp-100 bg-white/90 backdrop-blur">
             <div className="flex items-center gap-3 px-4 py-3">
               <button
-                onClick={() => setViewPost(null)}
+                onClick={() => {
+                  setViewPost(null);
+                  if (returnTo) {
+                    router.push(decodeURIComponent(returnTo));
+                    return;
+                  }
+                  if (returnFrom === "mypage") {
+                    router.push(`/mypage${returnTab ? `?tab=${encodeURIComponent(returnTab)}` : ""}`);
+                    return;
+                  }
+                  if (requestedPostId) {
+                    router.replace(buildListUrl(), { scroll: false });
+                  }
+                }}
                 className="rounded-full p-2 transition hover:bg-slate-100"
                 aria-label="뒤로"
               >
@@ -355,6 +421,9 @@ export default function FreeBoardPageClient() {
                       await deleteBoard(String(viewPost.id));
                       setBoardData((prev) => prev.filter((post) => !(post.type === "free" && post.id === String(viewPost.id))));
                       setViewPost(null);
+                      if (requestedPostId) {
+                        router.replace(buildListUrl(), { scroll: false });
+                      }
                     } catch (e) {
                       setPostError(e instanceof Error ? e.message : "게시글 삭제에 실패했습니다.");
                     } finally {

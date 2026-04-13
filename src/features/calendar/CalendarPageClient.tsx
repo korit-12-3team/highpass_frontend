@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import Draggable from "react-draggable";
-import { ArrowRight, Calendar as CalendarIcon, CheckCircle2, Circle, Clock, List as ListIcon, Pencil, Plus, Trash2, X, Zap,} from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { ArrowRight, Calendar as CalendarIcon, CheckCircle2, Circle, Clock, GripVertical, Pencil, Plus, Trash2, X, Zap,} from "lucide-react";
 import { EventType, TodoItem, useApp } from "@/lib/AppContext";
 import {
   createCalendarEvent,
@@ -20,6 +20,7 @@ import {
 
 const WEEK_DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const MAX_VISIBLE_EVENT_ROWS = 2;
+const TODO_ORDER_STORAGE_PREFIX = "hp_todo_order_";
 type TodayInfo = {
   year: number;
   month: number;
@@ -54,6 +55,59 @@ const DEFAULT_EVENT_FORM: EventFormState = {
 
 const formatDateKey = (y: number, m: number, d: number) =>
   `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+
+function getTodoOrderStorageKey(userId: string) {
+  return `${TODO_ORDER_STORAGE_PREFIX}${userId}`;
+}
+
+function readTodoOrder(userId: string): Record<string, number[]> {
+  if (typeof window === "undefined") return {};
+
+  try {
+    const raw = window.localStorage.getItem(getTodoOrderStorageKey(userId));
+    if (!raw) return {};
+
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return Object.fromEntries(
+      Object.entries(parsed).map(([dateKey, ids]) => [
+        dateKey,
+        Array.isArray(ids) ? ids.map((id) => Number(id)).filter(Number.isFinite) : [],
+      ]),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function writeTodoOrder(userId: string, orderMap: Record<string, number[]>) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(getTodoOrderStorageKey(userId), JSON.stringify(orderMap));
+}
+
+function sortTodosByStoredOrder(items: TodoItem[], orderedIds: number[]) {
+  if (orderedIds.length === 0) return items;
+
+  const orderedIndex = new Map(orderedIds.map((id, index) => [id, index]));
+  return [...items].sort((a, b) => {
+    const left = orderedIndex.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+    const right = orderedIndex.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+    return left - right;
+  });
+}
+
+function reorderTodos(items: TodoItem[], sourceId: number, targetId: number) {
+  const sourceIndex = items.findIndex((todo) => todo.id === sourceId);
+  const targetIndex = items.findIndex((todo) => todo.id === targetId);
+
+  if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) {
+    return items;
+  }
+
+  const next = [...items];
+  const [moved] = next.splice(sourceIndex, 1);
+  next.splice(targetIndex, 0, moved);
+  return next;
+}
 
 function parseDate(dateText?: string, fallbackYear?: number) {
   if (!dateText) return null;
@@ -238,20 +292,50 @@ function getDisplayEventColor(event: EventType) {
   return event.kind === "certificate" ? "bg-amber-500" : event.color;
 }
 
+function parseCalendarMonthParams(yearValue: string | null, monthValue: string | null) {
+  if (!yearValue || !monthValue) return null;
+
+  const year = Number(yearValue);
+  const month = Number(monthValue);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) return null;
+
+  return new Date(year, month - 1, 1);
+}
+
+function getMonthKey(date: Date) {
+  return `${date.getFullYear()}-${date.getMonth()}`;
+}
+
 export default function CalendarPageClient() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { currentUser, events, setEvents, todos, setTodos } = useApp();
   const inputRef = useRef<HTMLInputElement>(null);
-  const draggableRef = useRef<HTMLDivElement>(null);
+  const monthInputRef = useRef<HTMLInputElement>(null);
+  const requestedYear = searchParams.get("year");
+  const requestedMonth = searchParams.get("month");
+  const searchParamsString = searchParams.toString();
+  const initialCalendarDate = parseCalendarMonthParams(requestedYear, requestedMonth);
 
   const [mounted, setMounted] = useState(false);
   const [todayInfo, setTodayInfo] = useState<TodayInfo | null>(null);
-  const [currentDate, setCurrentDate] = useState(() => new Date(2000, 0, 1));
-  const [selectedDate, setSelectedDate] = useState(1);
+  const [currentDate, setCurrentDate] = useState(() => {
+    const now = new Date();
+    return initialCalendarDate ?? new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const now = new Date();
+    const date = initialCalendarDate ?? new Date(now.getFullYear(), now.getMonth(), 1);
+    return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() ? now.getDate() : 1;
+  });
   const [calendarView, setCalendarView] = useState<"month" | "week">("month");
   const [selectedEvent, setSelectedEvent] = useState<EventType | null>(null);
   const [newTodoText, setNewTodoText] = useState("");
   const [editingTodoId, setEditingTodoId] = useState<number | null>(null);
   const [editingTodoText, setEditingTodoText] = useState("");
+  const [draggedTodoId, setDraggedTodoId] = useState<number | null>(null);
+  const [dropTargetTodoId, setDropTargetTodoId] = useState<number | null>(null);
   const [calendarError, setCalendarError] = useState("");
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [savingEvent, setSavingEvent] = useState(false);
@@ -260,6 +344,7 @@ export default function CalendarPageClient() {
 
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
+  const currentMonthInputValue = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}`;
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
   const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay();
   const prevMonthDays = new Date(currentYear, currentMonth, 0).getDate();
@@ -267,8 +352,6 @@ export default function CalendarPageClient() {
 
   useEffect(() => {
     const now = new Date();
-    setCurrentDate(now);
-    setSelectedDate(now.getDate());
     setTodayInfo({
       year: now.getFullYear(),
       month: now.getMonth(),
@@ -276,6 +359,75 @@ export default function CalendarPageClient() {
     });
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    const now = new Date();
+    const parsed = parseCalendarMonthParams(requestedYear, requestedMonth);
+    const nextDate = parsed ?? new Date(now.getFullYear(), now.getMonth(), 1);
+    const nextMonthKey = getMonthKey(nextDate);
+    let monthChanged = false;
+
+    setCurrentDate((prev) => {
+      if (getMonthKey(prev) === nextMonthKey) {
+        return prev;
+      }
+
+      monthChanged = true;
+      return nextDate;
+    });
+
+    if (monthChanged) {
+      setSelectedDate(
+        nextDate.getFullYear() === now.getFullYear() && nextDate.getMonth() === now.getMonth()
+          ? now.getDate()
+          : 1,
+      );
+    }
+  }, [mounted, requestedMonth, requestedYear]);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    const params = new URLSearchParams(searchParamsString);
+    params.set("year", String(currentYear));
+    params.set("month", String(currentMonth + 1).padStart(2, "0"));
+
+    const nextQuery = params.toString();
+    const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+    const currentUrl = searchParamsString ? `${pathname}?${searchParamsString}` : pathname;
+
+    if (nextUrl !== currentUrl) {
+      router.replace(nextUrl, { scroll: false });
+    }
+  }, [currentMonth, currentYear, mounted, pathname, router, searchParamsString]);
+
+  const moveToMonth = (date: Date, nextSelectedDate?: number) => {
+    setCurrentDate(new Date(date.getFullYear(), date.getMonth(), 1));
+    if (typeof nextSelectedDate === "number") {
+      setSelectedDate(nextSelectedDate);
+      return;
+    }
+
+    const now = new Date();
+    setSelectedDate(
+      date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() ? now.getDate() : 1,
+    );
+  };
+
+  const openMonthPicker = () => {
+    const picker = monthInputRef.current;
+    if (!picker) return;
+
+    if ("showPicker" in picker) {
+      picker.showPicker();
+      return;
+    }
+
+    picker.focus();
+    picker.click();
+  };
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -324,6 +476,7 @@ export default function CalendarPageClient() {
 
         setTodos((prev) => {
           const next = { ...prev };
+          const storedOrder = readTodoOrder(currentUser.id);
 
           for (let d = 1; d <= daysInMonth; d += 1) {
             next[formatDateKey(currentYear, currentMonth, d)] = [];
@@ -339,6 +492,11 @@ export default function CalendarPageClient() {
             const key = formatDateKey(currentYear, currentMonth, itemDate.getDate());
             next[key] = [...(next[key] ?? []), item];
           });
+
+          for (let d = 1; d <= daysInMonth; d += 1) {
+            const key = formatDateKey(currentYear, currentMonth, d);
+            next[key] = sortTodosByStoredOrder(next[key] ?? [], storedOrder[key] ?? []);
+          }
 
           return next;
         });
@@ -357,7 +515,58 @@ export default function CalendarPageClient() {
   const syncTodoList = (
     dateKey: string,
     updater: (items: typeof todos[string]) => typeof todos[string],
-  ) => setTodos((prev) => ({ ...prev, [dateKey]: updater(prev[dateKey] ?? []) }));
+  ) =>
+    setTodos((prev) => {
+      const nextItems = updater(prev[dateKey] ?? []);
+
+      if (currentUser) {
+        const nextOrder = readTodoOrder(currentUser.id);
+        nextOrder[dateKey] = nextItems.map((todo) => todo.id);
+        writeTodoOrder(currentUser.id, nextOrder);
+      }
+
+      return { ...prev, [dateKey]: nextItems };
+    });
+
+  const resetTodoDragState = () => {
+    setDraggedTodoId(null);
+    setDropTargetTodoId(null);
+  };
+
+  const handleTodoDragStart = (event: React.DragEvent<HTMLDivElement>, todoId: number) => {
+    if (editingTodoId === todoId) {
+      event.preventDefault();
+      return;
+    }
+
+    setDraggedTodoId(todoId);
+    setDropTargetTodoId(todoId);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(todoId));
+  };
+
+  const handleTodoDragOver = (event: React.DragEvent<HTMLDivElement>, todoId: number) => {
+    if (draggedTodoId === null || draggedTodoId === todoId) return;
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    if (dropTargetTodoId !== todoId) {
+      setDropTargetTodoId(todoId);
+    }
+  };
+
+  const handleTodoDrop = (event: React.DragEvent<HTMLDivElement>, todoId: number) => {
+    event.preventDefault();
+
+    const sourceId = draggedTodoId ?? Number(event.dataTransfer.getData("text/plain"));
+    if (!Number.isFinite(sourceId) || sourceId === todoId) {
+      resetTodoDragState();
+      return;
+    }
+
+    syncTodoList(selectedDateKey, (items: TodoItem[]) => reorderTodos(items, sourceId, todoId));
+    resetTodoDragState();
+  };
 
   const openCreateModal = () => {
     setCalendarError("");
@@ -564,14 +773,6 @@ export default function CalendarPageClient() {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
         <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
-          <div className="flex items-center justify-between border-b border-hp-100 p-5">
-            <h3 className="text-lg font-bold text-slate-800">
-              {eventForm.id ? "일정 수정" : "일정 추가"}
-            </h3>
-            <button onClick={closeEventModal} className="rounded-full p-1.5 hover:bg-slate-100">
-              <X size={20} />
-            </button>
-          </div>
 
           <div className="space-y-4 p-5">
             <input
@@ -724,10 +925,37 @@ export default function CalendarPageClient() {
       <div className="flex flex-1 flex-col rounded-2xl border border-hp-100 bg-white p-5 shadow-sm">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h2 className="text-2xl font-bold text-slate-800">{currentYear}.{currentMonth + 1}</h2>
-            <div className="flex gap-1">
+            <div className="w-[210px] shrink-0">
               <button
-                onClick={() => setCurrentDate(new Date(currentYear, currentMonth - 1, 1))}
+                type="button"
+                onClick={openMonthPicker}
+                className="flex w-full items-center rounded-lg px-2 py-1 text-left text-2xl font-bold tabular-nums text-slate-800 transition-colors hover:bg-hp-50"
+              >
+                {currentYear}년 {currentMonth + 1}월 {selectedDate}일
+              </button>
+              <input
+                ref={monthInputRef}
+                type="month"
+                value={currentMonthInputValue}
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  if (!nextValue) return;
+
+                  const [yearText, monthText] = nextValue.split("-");
+                  const nextYear = Number(yearText);
+                  const nextMonth = Number(monthText);
+
+                  if (!Number.isFinite(nextYear) || !Number.isFinite(nextMonth)) return;
+                  moveToMonth(new Date(nextYear, nextMonth - 1, 1));
+                }}
+                className="sr-only"
+                tabIndex={-1}
+                aria-hidden="true"
+              />
+            </div>
+            <div className="flex shrink-0 gap-1">
+              <button
+                onClick={() => moveToMonth(new Date(currentYear, currentMonth - 1, 1))}
                 className="rounded-lg p-1.5 transition-colors hover:bg-hp-50"
               >
                 <ArrowRight size={20} className="rotate-180 text-slate-400" />
@@ -735,28 +963,27 @@ export default function CalendarPageClient() {
               <button
                 onClick={() => {
                   const now = new Date();
-                  setCurrentDate(now);
-                  setSelectedDate(now.getDate());
+                  moveToMonth(now, now.getDate());
                 }}
                 className="rounded-lg px-2 text-xs font-bold text-hp-600 hover:bg-hp-50"
               >
                 오늘
               </button>
               <button
-                onClick={() => setCurrentDate(new Date(currentYear, currentMonth + 1, 1))}
+                onClick={() => moveToMonth(new Date(currentYear, currentMonth + 1, 1))}
                 className="rounded-lg p-1.5 transition-colors hover:bg-hp-50"
               >
                 <ArrowRight size={20} className="text-slate-400" />
               </button>
             </div>
-            <div className="flex overflow-hidden rounded-lg border border-hp-200 text-xs font-bold">
+            <div className="flex shrink-0 overflow-hidden rounded-lg border border-hp-200 text-xs font-bold">
               <button
                 onClick={() => setCalendarView("month")}
                 className={`px-3 py-1.5 transition-colors ${
                   calendarView === "month" ? "bg-hp-600 text-white" : "text-hp-600 hover:bg-hp-50"
                 }`}
               >
-                 월간
+                월간
               </button>
               <button
                 onClick={() => setCalendarView("week")}
@@ -764,7 +991,7 @@ export default function CalendarPageClient() {
                   calendarView === "week" ? "bg-hp-600 text-white" : "text-hp-600 hover:bg-hp-50"
                 }`}
               >
-                 주간
+                주간
               </button>
             </div>
           </div>
@@ -862,7 +1089,7 @@ export default function CalendarPageClient() {
                           return <div key={`${day.key}-${event.id}`} className={`flex h-5 items-center overflow-hidden text-[10px] font-semibold text-white ${getDisplayEventColor(event)} ${day.currentMonth ? "" : "opacity-45"} ${isSingleDay ? "rounded-md" : segment.startsToday ? "-mr-3 rounded-l-md rounded-r-none pr-3" : segment.endsToday ? "-ml-3 rounded-l-none rounded-r-md pl-3" : "-mx-3 rounded-none px-3"}`}><span className={`truncate px-1 ${segment.showLabel ? "opacity-100" : "opacity-0"}`}>{event.title}</span></div>;
                         })}
                       </div>
-                      <div className="mt-auto flex min-h-4 items-end">{overflowCount > 0 && <p className={`text-[10px] font-medium leading-none ${day.currentMonth ? "text-slate-400" : "text-slate-300"}`}>+{overflowCount}개 더보기</p>}</div>
+                      <div className="mt-auto flex min-h-4 items-end">{overflowCount > 0 && <p className={`text-[10px] font-medium leading-none ${day.currentMonth ? "text-slate-400" : "text-slate-300"}`}>+ {overflowCount}개</p>}</div>
                     </div>
                   </button>
                 );
@@ -872,39 +1099,92 @@ export default function CalendarPageClient() {
         )}
       </div>
 
-      <Draggable nodeRef={draggableRef} handle=".drag-handle">
-        <div ref={draggableRef} className="relative z-20 flex h-[calc(100vh-6rem)] w-full flex-col overflow-hidden rounded-2xl border border-hp-100 bg-white p-5 shadow-2xl lg:w-80">
-          <div className="-m-5 drag-handle mb-5 flex cursor-move items-center justify-between border-b border-hp-100 bg-hp-50 p-5">
-            <div className="flex items-center gap-2"><ListIcon size={18} className="text-slate-400" /><h3 className="text-lg font-bold text-slate-800">{currentMonth + 1}.{selectedDate}</h3></div>
-             <span className="rounded border border-hp-200 bg-hp-50 px-2 py-1 text-[10px] font-bold text-hp-600">선택한 날짜</span>
+      <aside className="relative z-20 flex h-[calc(100vh-4rem)] w-full flex-col overflow-hidden rounded-2xl border border-hp-100 bg-white p-5 shadow-2xl lg:w-80">
+          <div className="-m-5 mb-3 border-b border-hp-100 bg-gradient-to-r from-hp-50 via-white to-white px-5 py-4">
+            <h3 className="mt-1 text-lg font-black text-slate-900">일정 및 할 일</h3>
           </div>
-          <div className="mt-5 flex flex-1 flex-col overflow-hidden">
-             {calendarLoading ? <div className="mb-4 rounded-xl border border-dashed border-hp-200 p-4 text-sm text-slate-500">일정을 불러오는 중입니다...</div> : selectedEvents.length === 0 ? <div className="mb-4 rounded-xl border border-dashed border-hp-200 p-4 text-sm text-slate-500">선택한 날짜에 등록된 일정이 없습니다.</div> : selectedEvents.map((event) => (
-              <div key={event.id} onClick={() => setSelectedEvent(event)} className="group relative mb-3 flex cursor-pointer gap-3 overflow-hidden rounded-xl border border-hp-100 bg-white p-3.5 shadow-sm transition-colors hover:border-hp-300">
-                <div className={`w-1.5 rounded-full ${getDisplayEventColor(event)}`}></div>
-                 <div className="flex-1"><p className="mb-1 text-[10px] font-bold text-slate-400">{event.isAllDay ? "종일" : `${event.startTime} ~ ${event.endTime}`}</p><p className="text-sm font-bold">{event.title}</p></div>
-                <div className="absolute right-3 top-3 flex gap-1 opacity-0 transition-all group-hover:opacity-100">
-                  <button onClick={(e) => { e.stopPropagation(); openEditModal(event); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-hp-600"><Pencil size={16} /></button>
-                  <button onClick={(e) => { e.stopPropagation(); void handleDeleteEvent(event.id); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-red-500"><Trash2 size={16} /></button>
-                </div>
-              </div>
+          <div className="mt-2 flex flex-1 flex-col overflow-hidden">
+            <div className="mb-2 flex items-center justify-between px-1">
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Events</p>
+              <span className="rounded-full bg-hp-100 px-2.5 py-1 text-[11px] font-bold text-hp-700">{selectedEvents.length}</span>
+            </div>
+            <div className="max-h-[38%] overflow-y-auto rounded-2xl bg-slate-50/80 p-2 pr-1">
+            {calendarLoading ? <div className="mb-4 rounded-xl border border-dashed border-hp-200 p-4 text-sm text-slate-500">
+              일정을 불러오는 중입니다...
+              </div> : selectedEvents.length === 0 ? 
+                <div className="mb-4 rounded-xl border border-dashed border-hp-200 p-4 text-sm text-slate-500">
+                  선택한 날짜에 등록된 일정이 없습니다.
+                  </div> : selectedEvents.map((event) => (
+                    <div key={event.id} onClick={() => setSelectedEvent(event)} className="group relative mb-3 flex cursor-pointer gap-3 overflow-hidden rounded-xl border border-hp-100 bg-white p-3.5 shadow-sm transition-colors hover:border-hp-300">
+                      <div className={`w-1.5 rounded-full ${getDisplayEventColor(event)}`}></div>
+                      <div className="flex-1">
+                        <p className="mb-1 text-[10px] font-bold text-slate-400">
+                          {event.isAllDay ? "종일" : `${event.startTime} ~ ${event.endTime}`}
+                        </p>
+                        <p className="text-sm font-bold">{event.title}</p>
+                      </div>
+                      <div className="absolute right-3 top-3 flex gap-1 opacity-0 transition-all group-hover:opacity-100">
+                        <button onClick={(e) => { e.stopPropagation(); openEditModal(event); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-hp-600"><Pencil size={16} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); void handleDeleteEvent(event.id); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-red-500"><Trash2 size={16} /></button>
+                      </div>
+                    </div>
             ))}
-            <div className="mt-2 flex flex-1 flex-col overflow-y-auto">
-               <p className="mb-3 text-xs font-bold text-slate-500">할 일</p>
-              <div className="mb-4 flex-1 space-y-2">
-                 {selectedTodos.length === 0 ? <div className="flex h-full flex-col items-center justify-center text-slate-400 opacity-60"><Zap size={32} className="mb-3" /><p className="text-sm font-medium">이 날짜에 등록된 할 일이 없습니다.</p></div> : selectedTodos.map((todo) => (
-                  <div key={todo.id} className={`group flex items-start gap-3 rounded-xl border border-hp-100 bg-white p-3.5 shadow-sm ${todo.done ? "opacity-50" : ""}`}>
-                    <button onClick={() => handleToggleTodo(todo.id)} className="mt-0.5">{todo.done ? <CheckCircle2 size={20} className="text-slate-500" /> : <Circle size={20} className="text-slate-300" />}</button>
-                    <div className="min-w-0 flex-1">{editingTodoId === todo.id ? <input type="text" value={editingTodoText} onChange={(e) => setEditingTodoText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void handleSubmitTodoEdit(); } if (e.key === "Escape") cancelTodoEdit(); }} className="w-full rounded-lg border border-hp-200 px-2.5 py-1.5 text-sm font-medium outline-none focus:border-hp-500" autoFocus /> : <p className={`text-sm ${todo.done ? "line-through text-slate-500" : "font-bold"}`}>{todo.text}</p>}</div>
-                     <div className="flex items-center gap-1">{editingTodoId === todo.id ? <><button onClick={() => void handleSubmitTodoEdit()} className="rounded-md px-2 py-1 text-[11px] font-bold text-hp-600 hover:bg-hp-50">저장</button><button onClick={cancelTodoEdit} className="rounded-md px-2 py-1 text-[11px] font-bold text-slate-400 hover:bg-slate-100">취소</button></> : <><button onClick={() => startTodoEdit(todo)} className="text-slate-300 opacity-0 hover:text-hp-600 group-hover:opacity-100"><Pencil size={16} /></button><button onClick={() => handleDeleteTodo(todo.id)} className="text-slate-300 opacity-0 hover:text-red-500 group-hover:opacity-100"><Trash2 size={16} /></button></>}</div>
+            </div>
+            <div className="mt-3 flex flex-1 flex-col overflow-hidden">
+              <div className="mb-2 flex items-center justify-between px-1">
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Todos</p>
+                <span className="rounded-full bg-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700">{selectedTodos.length}</span>
+              </div>
+              <div className="mb-4 flex-1 overflow-y-auto rounded-2xl bg-slate-50/80 p-2 pr-1">
+                <div className="space-y-2">
+                {selectedTodos.length === 0 ? <div className="flex h-full flex-col items-center justify-center text-slate-400 opacity-60"><Zap size={32} className="mb-3" /><p className="text-sm font-medium">이 날짜에 등록된 할 일이 없습니다.</p></div> : selectedTodos.map((todo) => (
+                  <div
+                    key={todo.id}
+                    draggable={editingTodoId !== todo.id}
+                    onDragStart={(event) => handleTodoDragStart(event, todo.id)}
+                    onDragOver={(event) => handleTodoDragOver(event, todo.id)}
+                    onDrop={(event) => handleTodoDrop(event, todo.id)}
+                    onDragEnd={resetTodoDragState}
+                    className={`group flex items-start gap-3 rounded-xl border border-hp-100 bg-white p-3.5 shadow-sm transition ${todo.done ? "opacity-50" : ""} ${draggedTodoId === todo.id ? "scale-[0.98] border-hp-300 opacity-70" : ""} ${dropTargetTodoId === todo.id && draggedTodoId !== todo.id ? "border-hp-500 ring-2 ring-hp-100" : ""}`}
+                  >
+                    <div className={`mt-0.5 cursor-grab text-slate-300 active:cursor-grabbing ${editingTodoId === todo.id ? "pointer-events-none opacity-30" : "hover:text-hp-500"}`} aria-hidden="true">
+                      <GripVertical size={18} />
+                    </div>
+                    <button onClick={() => handleToggleTodo(todo.id)} className="mt-0.5">
+                      {todo.done ? <CheckCircle2 size={20} className="text-slate-500" /> : <Circle size={20} className="text-slate-300" />}
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      {editingTodoId === todo.id ? <input type="text" value={editingTodoText} onChange={(e) => setEditingTodoText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void handleSubmitTodoEdit(); } if (e.key === "Escape") cancelTodoEdit(); }} className="w-full rounded-lg border border-hp-200 px-2.5 py-1.5 text-sm font-medium outline-none focus:border-hp-500" autoFocus /> : <p className={`text-sm ${todo.done ? "line-through text-slate-500" : "font-bold"}`}>{todo.text}</p>}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {editingTodoId === todo.id ? 
+                      <>
+                        <button onClick={() => void handleSubmitTodoEdit()} className="rounded-md px-2 py-1 text-[11px] font-bold text-hp-600 hover:bg-hp-50">
+                          저장
+                        </button>
+                        <button onClick={cancelTodoEdit} className="rounded-md px-2 py-1 text-[11px] font-bold text-slate-400 hover:bg-slate-100">
+                          취소
+                        </button>
+                      </> : 
+                      <>
+                        <button onClick={() => startTodoEdit(todo)} className="text-slate-300 opacity-0 hover:text-hp-600 group-hover:opacity-100">
+                          <Pencil size={16} />
+                        </button>
+                        <button onClick={() => handleDeleteTodo(todo.id)} className="text-slate-300 opacity-0 hover:text-red-500 group-hover:opacity-100">
+                          <Trash2 size={16} /></button>
+                      </>}
+                    </div>
                   </div>
                 ))}
+                </div>
               </div>
-               <div className="mt-auto flex items-center rounded-xl border-2 border-hp-200 bg-hp-50 px-3 shadow-sm focus-within:border-hp-600"><Plus size={20} className="text-slate-400" /><input ref={inputRef} type="text" value={newTodoText} onChange={(e) => setNewTodoText(e.target.value)} onKeyDown={handleAddTodo} placeholder="할 일을 입력하고 Enter를 누르세요" className="w-full bg-transparent px-2 py-4 text-sm font-bold outline-none placeholder:font-normal" /></div>
+              <div className="mt-auto flex items-center rounded-xl border-2 border-hp-200 bg-hp-50 px-3 shadow-sm focus-within:border-hp-600">
+                <Plus size={20} className="text-slate-400" />
+                <input ref={inputRef} type="text" value={newTodoText} onChange={(e) => setNewTodoText(e.target.value)} onKeyDown={handleAddTodo} placeholder="할 일을 입력하고 Enter를 누르세요" className="w-full bg-transparent px-2 py-4 text-sm font-bold outline-none placeholder:font-normal" />
+              </div>
             </div>
           </div>
-        </div>
-      </Draggable>
+      </aside>
 
       {renderEventModal()}
       {renderSelectedEventModal()}

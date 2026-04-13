@@ -28,7 +28,7 @@ export interface UserProfile {
   password?: string;
   nickname: string;
   name: string;
-  ageGroup: string;
+  ageRange: string;
   gender: string;
   location: string;
   profileImage?: string | null;
@@ -130,16 +130,16 @@ interface AppContextType {
   setEditProfileOpen: React.Dispatch<React.SetStateAction<boolean>>;
   editNickname: string;
   setEditNickname: React.Dispatch<React.SetStateAction<string>>;
-  editAgeGroup: string;
-  setEditAgeGroup: React.Dispatch<React.SetStateAction<string>>;
+  editAgeRange: string;
+  setEditAgeRange: React.Dispatch<React.SetStateAction<string>>;
   editGender: string;
   setEditGender: React.Dispatch<React.SetStateAction<string>>;
   editLocation: string;
   setEditLocation: React.Dispatch<React.SetStateAction<string>>;
-  editSido: string;
-  setEditSido: React.Dispatch<React.SetStateAction<string>>;
-  editSigungu: string;
-  setEditSigungu: React.Dispatch<React.SetStateAction<string>>;
+  editSiDo: string;
+  setEditSiDo: React.Dispatch<React.SetStateAction<string>>;
+  editGunGu: string;
+  setEditGunGu: React.Dispatch<React.SetStateAction<string>>;
 
   writeModalOpen: boolean;
   setWriteModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -176,11 +176,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [profileModal, setProfileModal] = useState<string | null>(null);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [editNickname, setEditNickname] = useState("");
-  const [editAgeGroup, setEditAgeGroup] = useState("");
+  const [editAgeRange, setEditAgeRange] = useState("");
   const [editGender, setEditGender] = useState("");
   const [editLocation, setEditLocation] = useState("");
-  const [editSido, setEditSido] = useState("");
-  const [editSigungu, setEditSigungu] = useState("");
+  const [editSiDo, setEditSiDo] = useState("");
+  const [editGunGu, setEditGunGu] = useState("");
 
   const [writeModalOpen, setWriteModalOpen] = useState(false);
   const [writeType, setWriteType] = useState<"study" | "free">("study");
@@ -330,16 +330,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setEditProfileOpen,
     editNickname,
     setEditNickname,
-    editAgeGroup,
-    setEditAgeGroup,
+    editAgeRange,
+    setEditAgeRange,
     editGender,
     setEditGender,
     editLocation,
     setEditLocation,
-    editSido,
-    setEditSido,
-    editSigungu,
-    setEditSigungu,
+    editSiDo,
+    setEditSiDo,
+    editGunGu,
+    setEditGunGu,
     writeModalOpen,
     setWriteModalOpen,
     writeType,

@@ -14,8 +14,8 @@ declare global {
   }
 
   interface DaumPostcodeData {
-    sido: string;       // 시/도 (예: 서울, 경기, 부산)
-    sigungu: string;    // 시/군/구 (예: 강남구, 수원시)
+    siDo: string;       // 시/도 (예: 서울, 경기, 부산)
+    gunGu: string;    // 시/군/구 (예: 강남구, 수원시)
     roadAddress: string;
     jibunAddress: string;
     bname: string;

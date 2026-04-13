@@ -7,7 +7,6 @@ import MainSidebar from "@/components/layout/MainSidebar";
 import ProfileModal from "@/components/profile/ProfileModal";
 import WritePostModal from "@/components/post/WritePostModal";
 import { SearchPlace, UserProfile, useApp } from "@/lib/AppContext";
-import { REGION_DATA } from "@/lib/constants";
 import { updateUserProfile } from "@/lib/profile";
 import { getUserProfile } from "@/lib/users";
 
@@ -26,20 +25,13 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     setActiveChatRoomId,
     profileModal,
     setProfileModal,
-    editProfileOpen,
     setEditProfileOpen,
     editNickname,
-    setEditNickname,
-    editAgeGroup,
-    setEditAgeGroup,
+    editAgeRange,
     editGender,
-    setEditGender,
-    editLocation,
     setEditLocation,
-    editSido,
-    setEditSido,
-    editSigungu,
-    setEditSigungu,
+    editSiDo,
+    editGunGu,
     writeModalOpen,
     setWriteModalOpen,
     writeType,
@@ -68,7 +60,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const [profileRemote, setProfileRemote] = useState<UserProfile | null>(null);
   const [profileRemoteLoading, setProfileRemoteLoading] = useState(false);
   const [profileRemoteError, setProfileRemoteError] = useState("");
-  const [profileSaveLoading, setProfileSaveLoading] = useState(false);
+  const [, setProfileSaveLoading] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState("");
 
   useEffect(() => {
@@ -83,7 +75,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         id: profileId,
         nickname: "사용자",
         name: "사용자",
-        ageGroup: "미등록",
+        ageRange: "미등록",
         gender: "미등록",
         location: "미등록",
       };
@@ -97,7 +89,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         id: boardProfile.authorId,
         nickname: boardProfile.author,
         name: boardProfile.author,
-        ageGroup: "미등록",
+        ageRange: "미등록",
         gender: "미등록",
         location: boardProfile.location || "미등록",
       };
@@ -109,7 +101,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         id: chatProfile.partnerId,
         nickname: chatProfile.partnerNickname,
         name: chatProfile.partnerNickname,
-        ageGroup: "미등록",
+        ageRange: "미등록",
         gender: "미등록",
         location: "미등록",
       };
@@ -119,7 +111,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       id: profileId,
       nickname: "알 수 없음",
       name: "알 수 없음",
-      ageGroup: "미등록",
+      ageRange: "미등록",
       gender: "미등록",
       location: "미등록",
     };
@@ -166,18 +158,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     profileModal && profileRemote && profileRemote.id === baseProfile.id ? profileRemote : baseProfile;
 
   const openEditProfile = () => {
-    const [initialSido = "", initialSigungu = ""] = (currentUser.location || "").split(" ").filter(Boolean);
-    const normalizedSigungu =
-      initialSido && (REGION_DATA[initialSido] || []).includes(initialSigungu) ? initialSigungu : "";
-
-    setEditNickname(currentUser.nickname);
-    setEditAgeGroup(currentUser.ageGroup);
-    setEditGender(currentUser.gender);
-    setEditSido(initialSido);
-    setEditSigungu(normalizedSigungu);
-    setEditLocation([initialSido, normalizedSigungu].filter(Boolean).join(" ").trim() || currentUser.location);
+    setProfileModal(null);
+    setEditProfileOpen(false);
     setProfileSaveError("");
-    setEditProfileOpen(true);
+    router.push("/mypage");
   };
 
   const resetWriteForm = () => {
@@ -241,21 +225,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         saveError={profileSaveError}
         isOpen={!!profileModal}
         isCurrentUser={profile.id === currentUser.id}
-        editProfileOpen={editProfileOpen}
-        isSaving={profileSaveLoading}
-        setEditProfileOpen={setEditProfileOpen}
-        editNickname={editNickname}
-        setEditNickname={setEditNickname}
-        editAgeGroup={editAgeGroup}
-        setEditAgeGroup={setEditAgeGroup}
-        editGender={editGender}
-        setEditGender={setEditGender}
-        editLocation={editLocation}
-        setEditLocation={setEditLocation}
-        editSido={editSido}
-        setEditSido={setEditSido}
-        editSigungu={editSigungu}
-        setEditSigungu={setEditSigungu}
         onOpenEdit={openEditProfile}
         onClose={() => {
           setProfileModal(null);
@@ -266,10 +235,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           if (!currentUser) return;
 
           const nickname = editNickname.trim();
-          const ageRange = editAgeGroup.trim();
+          const ageRange = editAgeRange.trim();
           const gender = editGender.trim();
-          const siDo = editSido.trim();
-          const gunGu = editSigungu.trim();
+          const siDo = editSiDo.trim();
+          const gunGu = editGunGu.trim();
 
           if (!nickname || !ageRange || !gender || !siDo || !gunGu) {
             setProfileSaveError("닉네임, 연령대, 성별, 지역을 모두 입력해 주세요.");

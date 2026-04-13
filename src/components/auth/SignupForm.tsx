@@ -22,16 +22,6 @@ type SignupApiResponse = {
   data?: unknown;
 };
 
-type LoginApiResponse = {
-  id?: string | number;
-  userId?: string | number;
-  email?: string;
-  nickname?: string;
-  redirectUrl?: string;
-  message?: string;
-  data?: unknown;
-};
-
 function unwrapAuthPayload(payload: unknown): unknown {
   if (!payload || typeof payload !== "object") return payload;
   if ("data" in (payload as Record<string, unknown>)) return (payload as Record<string, unknown>).data;
@@ -60,7 +50,7 @@ function extractNumericUserId(payload: unknown): string | null {
   return null;
 }
 
-function mapSignupResponseToUser(payload: unknown, fallback: { email: string; nickname: string; ageGroup: string; gender: string; location: string }): UserProfile {
+function mapSignupResponseToUser(payload: unknown, fallback: { email: string; nickname: string; ageRange: string; gender: string; location: string }): UserProfile {
   const unwrapped = unwrapAuthPayload(payload);
   const userId = extractNumericUserId(unwrapped);
 
@@ -72,34 +62,8 @@ function mapSignupResponseToUser(payload: unknown, fallback: { email: string; ni
     email: typeof p.email === "string" ? p.email : fallback.email,
     nickname: typeof p.nickname === "string" ? p.nickname : fallback.nickname,
     name: typeof p.nickname === "string" ? p.nickname : fallback.nickname,
-    ageGroup: fallback.ageGroup,
+    ageRange: fallback.ageRange,
     gender: fallback.gender,
-    location: fallback.location,
-    profileImage: null,
-    loginType: "local",
-  };
-}
-
-function mapLoginResponseToUser(payload: unknown, fallback: { email: string; nickname: string; location: string }): UserProfile {
-  const unwrapped = unwrapAuthPayload(payload);
-  const userId = extractNumericUserId(unwrapped);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const p = (unwrapped && typeof unwrapped === "object" ? (unwrapped as any) : {}) as any;
-
-  const nickname =
-    typeof p.nickname === "string"
-      ? p.nickname
-      : typeof p.email === "string"
-        ? String(p.email).split("@")[0]
-        : fallback.nickname;
-
-  return {
-    id: userId ?? "",
-    email: typeof p.email === "string" ? p.email : fallback.email,
-    nickname: nickname || fallback.nickname,
-    name: nickname || fallback.nickname,
-    ageGroup: "미등록",
-    gender: "미등록",
     location: fallback.location,
     profileImage: null,
     loginType: "local",
@@ -114,10 +78,10 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [nickname, setNickname] = useState("");
-  const [ageGroup, setAgeGroup] = useState("");
+  const [ageRange, setAgeRange] = useState("");
   const [gender, setGender] = useState("");
-  const [sido, setSido] = useState("");
-  const [sigungu, setSigungu] = useState("");
+  const [siDo, setSiDo] = useState("");
+  const [gunGu, setGunGu] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -159,10 +123,10 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
           email,
           password,
           nickname,
-          ageRange: ageGroup,
+          ageRange,
           gender,
-          siDo: sido,
-          gunGu: sigungu,
+          siDo,
+          gunGu,
         }),
       });
 
@@ -178,11 +142,11 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
         return;
       }
 
-      const location = `${sido} ${sigungu}`.trim();
+      const location = `${siDo} ${gunGu}`.trim();
       const user = mapSignupResponseToUser(payload, {
         email,
         nickname,
-        ageGroup,
+        ageRange,
         gender,
         location,
       });
@@ -241,10 +205,10 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
 
         <div className="grid grid-cols-2 gap-2">
           <select
-            value={sido}
+            value={siDo}
             onChange={(e) => {
-              setSido(e.target.value);
-              setSigungu("");
+              setSiDo(e.target.value);
+              setGunGu("");
             }}
             className="appearance-none rounded-xl border border-hp-200 bg-hp-50 px-3 py-3 text-slate-800 outline-none focus:border-hp-500"
             required
@@ -257,14 +221,14 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
             ))}
           </select>
           <select
-            value={sigungu}
-            onChange={(e) => setSigungu(e.target.value)}
-            disabled={!sido}
+            value={gunGu}
+            onChange={(e) => setGunGu(e.target.value)}
+            disabled={!siDo}
             className="appearance-none rounded-xl border border-hp-200 bg-hp-50 px-3 py-3 text-slate-800 outline-none focus:border-hp-500 disabled:opacity-40"
             required
           >
             <option value="">군/구 선택</option>
-            {(REGION_DATA[sido] || []).map((region) => (
+            {(REGION_DATA[siDo] || []).map((region) => (
               <option key={region} value={region}>
                 {region}
               </option>
@@ -279,9 +243,9 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
               <button
                 type="button"
                 key={item}
-                onClick={() => setAgeGroup(item)}
+                onClick={() => setAgeRange(item)}
                 className={`rounded-lg py-2 text-sm font-medium transition-colors ${
-                  ageGroup === item
+                  ageRange === item
                     ? "bg-hp-600 text-white"
                     : "border border-hp-200 bg-white text-slate-600 hover:border-hp-400"
                 }`}
@@ -295,7 +259,7 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
         <div>
           <p className="mb-2 text-xs text-slate-600">성별</p>
           <div className="grid grid-cols-2 gap-1.5">
-            {["M", "F"].map((item) => (
+            {["남", "여"].map((item) => (
               <button
                 type="button"
                 key={item}
@@ -325,10 +289,10 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
             isPasswordMismatch ||
             !email ||
             !nickname ||
-            !ageGroup ||
+            !ageRange ||
             !gender ||
-            !sido ||
-            !sigungu ||
+            !siDo ||
+            !gunGu ||
             (!isSocialSignup && !password)
           }
           className="w-full rounded-xl bg-hp-600 py-3.5 font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"

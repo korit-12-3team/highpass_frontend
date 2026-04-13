@@ -9,16 +9,14 @@ type UserApiRecord = {
   email?: unknown;
   nickname?: unknown;
   name?: unknown;
-  ageGroup?: unknown;
   ageRange?: unknown;
   gender?: unknown;
   location?: unknown;
   siDo?: unknown;
-  sido?: unknown;
   gunGu?: unknown;
-  sigungu?: unknown;
   profileImage?: unknown;
   profileImageUrl?: unknown;
+  loginType?: unknown;
 };
 
 function safeString(value: unknown, fallback = "") {
@@ -36,12 +34,12 @@ export function mapApiRecordToUserProfile(record: UserApiRecord): UserProfile {
   const nickname = safeString(record.nickname, "");
   const name = safeString(record.name, nickname || "사용자");
   const email = typeof record.email === "string" ? record.email : undefined;
-  const ageGroup = safeString(record.ageGroup ?? record.ageRange, "미등록");
+  const ageRange = safeString(record.ageRange, "미등록");
   const gender = safeString(record.gender, "미등록");
 
   const location =
     safeString(record.location, "") ||
-    `${safeString(record.siDo ?? record.sido, "")} ${safeString(record.gunGu ?? record.sigungu, "")}`.trim() ||
+    `${safeString(record.siDo, "")} ${safeString(record.gunGu, "")}`.trim() ||
     "미등록";
 
   const profileImage =
@@ -56,17 +54,18 @@ export function mapApiRecordToUserProfile(record: UserApiRecord): UserProfile {
     email,
     nickname: nickname || "사용자",
     name,
-    ageGroup,
+    ageRange,
     gender,
     location,
     profileImage,
-    loginType: "local",
+    loginType: safeString(record.loginType, "local"),
   };
 }
 
 export async function updateUserProfile(
   userId: string,
   input: {
+    currentPassword: string;
     nickname: string;
     ageRange: string;
     gender: string;
@@ -74,10 +73,22 @@ export async function updateUserProfile(
     gunGu: string;
   },
 ): Promise<UserProfile> {
-  const response = await http.put(`/api/users/${encodeURIComponent(userId)}`, input);
+  const response = await http.patch(`/api/users/${encodeURIComponent(userId)}`, input);
   const payload = unwrapData(response.data);
+
   if (!payload || typeof payload !== "object") {
     throw new Error("프로필 수정 응답이 비어 있습니다.");
   }
+
   return mapApiRecordToUserProfile(payload as UserApiRecord);
+}
+
+export async function updateUserPassword(
+  userId: string,
+  input: {
+    currentPassword: string;
+    newPassword: string;
+  },
+): Promise<void> {
+  await http.patch(`/api/users/${encodeURIComponent(userId)}/password`, input);
 }

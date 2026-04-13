@@ -5,7 +5,7 @@ import { http } from "@/lib/http";
 export type CertificateSchedule = {
   id: string;
   certificateName: string;
-  year: number;
+  examYear: number;
   round: number;
   writtenApplyStart?: string;
   writtenApplyEnd?: string;
@@ -17,9 +17,18 @@ export type CertificateSchedule = {
   practicalResultDate?: string;
 };
 
+export type CertificateSyncResult = {
+  fetchedCount: number;
+  createdCount: number;
+  updatedCount: number;
+  totalCount: number;
+  message: string;
+};
+
 type CertificateApiRecord = {
   id?: unknown;
   certificateName?: unknown;
+  examYear?: unknown;
   year?: unknown;
   round?: unknown;
   writtenApplyStart?: unknown;
@@ -55,7 +64,7 @@ function mapRecord(record: CertificateApiRecord): CertificateSchedule {
   return {
     id: safeString(record.id, String(Date.now())),
     certificateName: safeString(record.certificateName, "자격증"),
-    year: safeNumber(record.year),
+    examYear: safeNumber(record.examYear ?? record.year),
     round: safeNumber(record.round),
     writtenApplyStart: optionalDate(record.writtenApplyStart),
     writtenApplyEnd: optionalDate(record.writtenApplyEnd),
@@ -73,4 +82,17 @@ export async function listCertificateSchedules(): Promise<CertificateSchedule[]>
   const payload = unwrapData(response.data);
   if (!Array.isArray(payload)) return [];
   return payload.map((item) => mapRecord(item as CertificateApiRecord));
+}
+
+export async function syncCertificateSchedules(): Promise<CertificateSyncResult> {
+  const response = await http.post("/api/certificates/admin/sync");
+  const payload = unwrapData(response.data) as Partial<CertificateSyncResult> | undefined;
+
+  return {
+    fetchedCount: safeNumber(payload?.fetchedCount),
+    createdCount: safeNumber(payload?.createdCount),
+    updatedCount: safeNumber(payload?.updatedCount),
+    totalCount: safeNumber(payload?.totalCount),
+    message: safeString(payload?.message, "자격증 일정 동기화가 완료되었습니다."),
+  };
 }

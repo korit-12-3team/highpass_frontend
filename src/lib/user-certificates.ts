@@ -7,7 +7,7 @@ export type UserCertificateRecord = {
   id?: number | string;
   certificateScheduleId?: number | string;
   certificateName?: string;
-  year?: number;
+  examYear?: number;
   round?: number;
   writtenApplyStart?: string;
   writtenApplyEnd?: string;
@@ -23,6 +23,7 @@ type UserCertificateApiRecord = {
   id?: unknown;
   certificateScheduleId?: unknown;
   certificateName?: unknown;
+  examYear?: unknown;
   year?: unknown;
   round?: unknown;
   writtenApplyStart?: unknown;
@@ -53,7 +54,7 @@ function mapRecord(record: UserCertificateApiRecord): UserCertificateRecord {
     id: record.id == null ? undefined : safeString(record.id),
     certificateScheduleId: record.certificateScheduleId == null ? undefined : safeString(record.certificateScheduleId),
     certificateName: safeString(record.certificateName, ""),
-    year: safeNumber(record.year),
+    examYear: safeNumber(record.examYear ?? record.year),
     round: safeNumber(record.round),
     writtenApplyStart: optionalDate(record.writtenApplyStart),
     writtenApplyEnd: optionalDate(record.writtenApplyEnd),

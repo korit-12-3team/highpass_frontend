@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { format, isSameDay, isSameYear } from "date-fns";
 import { ArrowLeft, Eye, Heart, MapPin, MessageCircle, Pencil, Trash2, X, Zap } from "lucide-react";
 import KakaoMap from "@/components/KakaoMap";
@@ -26,7 +27,13 @@ function getInitial(name: string) {
 }
 
 export default function StudyPageClient() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { boardData, setBoardData, currentUser, setProfileModal, setWriteModalOpen, setWriteType } = useApp();
+  const requestedCertFilter = searchParams.get("cert") ?? "";
+  const requestedLocationSiDo = searchParams.get("siDo") ?? "";
+  const requestedLocationGunGu = searchParams.get("gunGu") ?? "";
 
   const studyPosts = useMemo(() => {
     const getTime = (value?: string) => {
@@ -56,18 +63,91 @@ export default function StudyPageClient() {
   const [activeCommentId, setActiveCommentId] = useState<number | null>(null);
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editingCommentText, setEditingCommentText] = useState("");
-  const [certFilter, setCertFilter] = useState("");
-  const [locationFilterSido, setLocationFilterSido] = useState("");
-  const [locationFilterSigungu, setLocationFilterSigungu] = useState("");
+  const [certFilter, setCertFilter] = useState(requestedCertFilter);
+  const [locationFilterSiDo, setLocationFilterSiDo] = useState(requestedLocationSiDo);
+  const [locationFilterGunGu, setLocationFilterGunGu] = useState(requestedLocationGunGu);
+  const [hydratedCommentPostIds, setHydratedCommentPostIds] = useState<string[]>([]);
+  const requestedPostId = searchParams.get("postId");
+  const returnTo = searchParams.get("returnTo");
+  const returnFrom = searchParams.get("from");
+  const returnTab = searchParams.get("tab");
+
+  const buildPostUrl = useCallback(
+    (postId: string, nextReturnTo?: string | null) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("postId", postId);
+      if (nextReturnTo) {
+        params.set("returnTo", nextReturnTo);
+      } else {
+        params.delete("returnTo");
+      }
+      return `${pathname}?${params.toString()}`;
+    },
+    [pathname, searchParams],
+  );
+
+  const buildListUrl = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("postId");
+    params.delete("returnTo");
+    params.delete("from");
+    params.delete("tab");
+    const nextQuery = params.toString();
+    return nextQuery ? `${pathname}?${nextQuery}` : pathname;
+  }, [pathname, searchParams]);
+
+  useEffect(() => {
+    setCertFilter(requestedCertFilter);
+  }, [requestedCertFilter]);
+
+  useEffect(() => {
+    setLocationFilterSiDo(requestedLocationSiDo);
+  }, [requestedLocationSiDo]);
+
+  useEffect(() => {
+    setLocationFilterGunGu(requestedLocationGunGu);
+  }, [requestedLocationGunGu]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (certFilter) {
+      params.set("cert", certFilter);
+    } else {
+      params.delete("cert");
+    }
+
+    if (locationFilterSiDo) {
+      params.set("siDo", locationFilterSiDo);
+    } else {
+      params.delete("siDo");
+      params.delete("gunGu");
+    }
+
+    if (locationFilterSiDo && locationFilterGunGu) {
+      params.set("gunGu", locationFilterGunGu);
+    } else {
+      params.delete("gunGu");
+    }
+
+    const nextQuery = params.toString();
+    const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+    const currentQuery = searchParams.toString();
+    const currentUrl = currentQuery ? `${pathname}?${currentQuery}` : pathname;
+
+    if (nextUrl !== currentUrl) {
+      router.replace(nextUrl, { scroll: false });
+    }
+  }, [certFilter, locationFilterGunGu, locationFilterSiDo, pathname, router, searchParams]);
 
   const filteredPosts = useMemo(() => {
     return studyPosts.filter((post) => {
       if (certFilter && post.cert !== certFilter) return false;
-      if (locationFilterSigungu && !post.location?.includes(locationFilterSigungu)) return false;
-      if (locationFilterSido && !locationFilterSigungu && !post.location?.includes(locationFilterSido)) return false;
+      if (locationFilterGunGu && !post.location?.includes(locationFilterGunGu)) return false;
+      if (locationFilterSiDo && !locationFilterGunGu && !post.location?.includes(locationFilterSiDo)) return false;
       return true;
     });
-  }, [certFilter, locationFilterSido, locationFilterSigungu, studyPosts]);
+  }, [certFilter, locationFilterSiDo, locationFilterGunGu, studyPosts]);
 
   const syncPostComments = (postId: string, comments: BoardPost["comments"]) => {
     setViewPost((prev) => (prev && prev.id === postId ? { ...prev, comments } : prev));
@@ -79,7 +159,51 @@ export default function StudyPageClient() {
     syncPostComments(postId, comments);
   };
 
-  const openPost = (post: BoardPost) => {
+  useEffect(() => {
+    const targetPostIds = studyPosts
+      .map((post) => post.id)
+      .filter((postId) => !hydratedCommentPostIds.includes(postId));
+
+    if (targetPostIds.length === 0) return;
+
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const loaded = await Promise.all(
+          targetPostIds.map(async (postId) => ({
+            postId,
+            comments: await listComments("STUDY", postId),
+          })),
+        );
+
+        if (cancelled) return;
+
+        setBoardData((prev) =>
+          prev.map((post) => {
+            if (post.type !== "study") return post;
+            const matched = loaded.find((item) => item.postId === post.id);
+            return matched ? { ...post, comments: matched.comments } : post;
+          }),
+        );
+        setHydratedCommentPostIds((prev) => [...prev, ...targetPostIds.filter((postId) => !prev.includes(postId))]);
+      } catch {
+        if (!cancelled) {
+          setHydratedCommentPostIds((prev) => [...prev, ...targetPostIds.filter((postId) => !prev.includes(postId))]);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hydratedCommentPostIds, setBoardData, studyPosts]);
+
+  const openPost = useCallback((post: BoardPost, options?: { syncUrl?: boolean }) => {
+    if (options?.syncUrl !== false) {
+      router.push(buildPostUrl(String(post.id), returnTo));
+    }
+
     setViewPost(post);
     setCommentError("");
     setEditingCommentId(null);
@@ -96,7 +220,26 @@ export default function StudyPageClient() {
         // Keep current modal data if refresh fails.
       }
     })();
-  };
+  }, [buildPostUrl, currentUser?.id, returnTo, router, setBoardData]);
+
+  useEffect(() => {
+    if (!requestedPostId) {
+      if (viewPost) {
+        setViewPost(null);
+      }
+      return;
+    }
+
+    if (viewPost?.id === requestedPostId) return;
+
+    const matchedPost = studyPosts.find((post) => post.id === requestedPostId);
+    if (!matchedPost) {
+      setViewPost(null);
+      return;
+    }
+
+    openPost(matchedPost, { syncUrl: false });
+  }, [openPost, requestedPostId, studyPosts, viewPost]);
 
   const updatePostLocally = (postId: string, updater: (post: BoardPost) => BoardPost) => {
     setBoardData((prev) => prev.map((post) => (post.type === "study" && post.id === postId ? updater(post) : post)));
@@ -222,7 +365,24 @@ export default function StudyPageClient() {
         <div className="overflow-hidden rounded-[28px] border border-hp-100 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
           <div className="sticky top-0 z-10 border-b border-hp-100 bg-white/90 backdrop-blur">
             <div className="flex items-center gap-3 px-4 py-3">
-              <button onClick={() => setViewPost(null)} className="rounded-full p-2 transition hover:bg-slate-100" aria-label="뒤로">
+              <button
+                onClick={() => {
+                  setViewPost(null);
+                  if (returnTo) {
+                    router.push(decodeURIComponent(returnTo));
+                    return;
+                  }
+                  if (returnFrom === "mypage") {
+                    router.push(`/mypage${returnTab ? `?tab=${encodeURIComponent(returnTab)}` : ""}`);
+                    return;
+                  }
+                  if (requestedPostId) {
+                    router.replace(buildListUrl(), { scroll: false });
+                  }
+                }}
+                className="rounded-full p-2 transition hover:bg-slate-100"
+                aria-label="뒤로"
+              >
                 <ArrowLeft size={20} />
               </button>
               <div className="text-sm font-semibold text-slate-700">스터디 모집</div>
@@ -442,39 +602,39 @@ export default function StudyPageClient() {
           ))}
         </select>
         <select
-          value={locationFilterSido}
+          value={locationFilterSiDo}
           onChange={(e) => {
-            setLocationFilterSido(e.target.value);
-            setLocationFilterSigungu("");
+            setLocationFilterSiDo(e.target.value);
+            setLocationFilterGunGu("");
           }}
           className="rounded-xl border bg-white px-3 py-2.5 text-sm outline-none focus:border-hp-500"
         >
           <option value="">전체 지역</option>
-          {Object.keys(REGION_DATA).map((sido) => (
-            <option key={sido} value={sido}>
-              {sido}
+          {Object.keys(REGION_DATA).map((siDo) => (
+            <option key={siDo} value={siDo}>
+              {siDo}
             </option>
           ))}
         </select>
         <select
-          value={locationFilterSigungu}
-          onChange={(e) => setLocationFilterSigungu(e.target.value)}
-          disabled={!locationFilterSido}
+          value={locationFilterGunGu}
+          onChange={(e) => setLocationFilterGunGu(e.target.value)}
+          disabled={!locationFilterSiDo}
           className="rounded-xl border bg-white px-3 py-2.5 text-sm outline-none focus:border-hp-500 disabled:opacity-40"
         >
           <option value="">전체 구/군</option>
-          {(REGION_DATA[locationFilterSido] || []).map((sigungu) => (
-            <option key={sigungu} value={sigungu}>
-              {sigungu}
+          {(REGION_DATA[locationFilterSiDo] || []).map((gunGu) => (
+            <option key={gunGu} value={gunGu}>
+              {gunGu}
             </option>
           ))}
         </select>
-        {(certFilter || locationFilterSido) && (
+        {(certFilter || locationFilterSiDo) && (
           <button
             onClick={() => {
               setCertFilter("");
-              setLocationFilterSido("");
-              setLocationFilterSigungu("");
+              setLocationFilterSiDo("");
+              setLocationFilterGunGu("");
             }}
             className="rounded-xl border px-3 py-2 text-xs text-slate-500 transition hover:bg-slate-50"
           >
@@ -518,7 +678,7 @@ export default function StudyPageClient() {
                     {post.cert && <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{post.cert}</span>}
                   </div>
                   <h3 className="text-xl font-bold leading-tight text-slate-950">{post.title}</h3>
-                  <p className="mt-3 line-clamp-4 text-[15px] leading-7 text-slate-700">{post.content}</p>
+                  <p className="mt-3 whitespace-pre-wrap break-words text-[15px] leading-7 text-slate-700">{post.content}</p>
                 </div>
               </button>
 

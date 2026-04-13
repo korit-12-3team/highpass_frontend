@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import AuthShell from "@/components/auth/AuthShell";
 import { useApp, UserProfile } from "@/lib/AppContext";
 import { API_BASE_URL } from "@/lib/config";
+import { getUserProfile } from "@/lib/users";
 
 type LoginApiResponse = {
   id?: string | number;
@@ -26,7 +27,7 @@ function mapLoginResponseToUser(payload: LoginApiResponse): UserProfile {
     email: payload.email,
     nickname,
     name: nickname,
-    ageGroup: "미등록",
+    ageRange: "미등록",
     gender: "미등록",
     location: "미등록",
     profileImage: null,
@@ -77,7 +78,11 @@ export default function LoginForm() {
         return;
       }
 
-      const user = mapLoginResponseToUser(payload ?? {});
+      const baseUser = mapLoginResponseToUser(payload ?? {});
+      const user =
+        baseUser.id && /^\d+$/.test(String(baseUser.id).trim())
+          ? ((await getUserProfile(baseUser.id)) ?? baseUser)
+          : baseUser;
       if (!/^\d+$/.test(String(user.id).trim())) {
         setError('로그인에 성공했지만 서버가 숫자 "userId"를 내려주지 않았습니다.');
         return;
