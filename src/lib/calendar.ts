@@ -1,5 +1,3 @@
-"use client";
-
 import { EventType } from "@/lib/AppContext";
 import { fetchWithAuth } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/config";

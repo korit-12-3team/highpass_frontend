@@ -5,95 +5,7 @@ import { clearAuthSession, loadAuthSession, logoutSession, saveAuthSession, subs
 import { createBoard, listBoards } from "@/lib/boards";
 import { isPostLiked } from "@/lib/likes";
 import { createStudy, listStudies } from "@/lib/study-api";
-
-export interface EventType {
-  id: string;
-  title: string;
-  content?: string;
-  month: number;
-  startDay: number;
-  endDay: number;
-  startDate?: string;
-  endDate?: string;
-  color: string;
-  isAllDay: boolean;
-  startTime?: string;
-  endTime?: string;
-  kind?: "general" | "certificate";
-}
-
-export interface UserProfile {
-  id: string;
-  email?: string;
-  password?: string;
-  nickname: string;
-  name: string;
-  ageRange: string;
-  gender: string;
-  location: string;
-  profileImage?: string | null;
-  loginType?: string;
-}
-
-export interface PostComment {
-  id: number;
-  author: string;
-  text: string;
-  createdAt?: string;
-}
-
-export interface BoardPost {
-  id: string;
-  type: "study" | "free";
-  title: string;
-  content: string;
-  author: string;
-  location?: string;
-  lat?: number;
-  lng?: number;
-  views: number;
-  likes: number;
-  scraps: number;
-  comments: PostComment[];
-  authorId: string;
-  createdAt: string;
-  cert: string | null;
-  likedByUser?: boolean;
-}
-
-export interface ChatMessage {
-  id: number;
-  senderId: string;
-  text: string;
-  createdAt: string;
-}
-
-export interface ChatRoom {
-  id: string;
-  partnerId: string;
-  partnerNickname: string;
-  messages: ChatMessage[];
-}
-
-export interface SearchPlace {
-  id: string;
-  name: string;
-  address: string;
-  phone?: string;
-  category?: string;
-  lat: number;
-  lng: number;
-}
-
-export type TodoItem = {
-  id: number;
-  text: string;
-  done: boolean;
-  createdAt: string;
-  completedAt?: string;
-};
-
-export type TodoMap = Record<string, TodoItem[]>;
+import type { BoardPost, ChatRoom, EventType, SearchPlace, TodoMap, UserProfile } from "@/lib/types";
 
 function dedupeBoardPosts(posts: BoardPost[]) {
   const map = new Map<string, BoardPost>();
@@ -126,20 +38,6 @@ interface AppContextType {
 
   profileModal: string | null;
   setProfileModal: React.Dispatch<React.SetStateAction<string | null>>;
-  editProfileOpen: boolean;
-  setEditProfileOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  editNickname: string;
-  setEditNickname: React.Dispatch<React.SetStateAction<string>>;
-  editAgeRange: string;
-  setEditAgeRange: React.Dispatch<React.SetStateAction<string>>;
-  editGender: string;
-  setEditGender: React.Dispatch<React.SetStateAction<string>>;
-  editLocation: string;
-  setEditLocation: React.Dispatch<React.SetStateAction<string>>;
-  editSiDo: string;
-  setEditSiDo: React.Dispatch<React.SetStateAction<string>>;
-  editGunGu: string;
-  setEditGunGu: React.Dispatch<React.SetStateAction<string>>;
 
   writeModalOpen: boolean;
   setWriteModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -174,13 +72,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [activeChatRoomId, setActiveChatRoomId] = useState<string | null>(null);
 
   const [profileModal, setProfileModal] = useState<string | null>(null);
-  const [editProfileOpen, setEditProfileOpen] = useState(false);
-  const [editNickname, setEditNickname] = useState("");
-  const [editAgeRange, setEditAgeRange] = useState("");
-  const [editGender, setEditGender] = useState("");
-  const [editLocation, setEditLocation] = useState("");
-  const [editSiDo, setEditSiDo] = useState("");
-  const [editGunGu, setEditGunGu] = useState("");
 
   const [writeModalOpen, setWriteModalOpen] = useState(false);
   const [writeType, setWriteType] = useState<"study" | "free">("study");
@@ -205,8 +96,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Hydrate auth from browser storage only after mount to keep SSR and first client render identical.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentUser(loadAuthSession()?.user ?? null);
     setAuthReady(true);
   }, []);
@@ -270,6 +159,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const submitPost = useCallback(async () => {
     if (!currentUser) return false;
     if (!postContent.trim() && !postTitle.trim()) return false;
+
     const numericUserId = String(currentUser.id).trim();
     if (!/^\d+$/.test(numericUserId)) {
       throw new Error(`Board POST requires numeric userId. Current user id: "${currentUser.id}"`);
@@ -305,63 +195,53 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     setBoardData((prev) => dedupeBoardPosts([created, ...prev]));
     return true;
-  }, [currentUser, postContent, postTitle, postCert, postCertCategory, selectedPlace, setBoardData, writeType]);
+  }, [currentUser, postContent, postTitle, postCert, postCertCategory, selectedPlace, writeType]);
 
-  const value: AppContextType = {
-    currentUser,
-    isAuthenticated: !!currentUser,
-    authReady,
-    handleAuthSuccess,
-    logout,
-    setCurrentUser,
-    boardData,
-    setBoardData,
-    events,
-    setEvents,
-    todos,
-    setTodos,
-    chatRooms,
-    setChatRooms,
-    activeChatRoomId,
-    setActiveChatRoomId,
-    profileModal,
-    setProfileModal,
-    editProfileOpen,
-    setEditProfileOpen,
-    editNickname,
-    setEditNickname,
-    editAgeRange,
-    setEditAgeRange,
-    editGender,
-    setEditGender,
-    editLocation,
-    setEditLocation,
-    editSiDo,
-    setEditSiDo,
-    editGunGu,
-    setEditGunGu,
-    writeModalOpen,
-    setWriteModalOpen,
-    writeType,
-    setWriteType,
-    postTitle,
-    setPostTitle,
-    postContent,
-    setPostContent,
-    postCert,
-    setPostCert,
-    postCertCategory,
-    setPostCertCategory,
-    selectedPlace,
-    setSelectedPlace,
-    searchKeyword,
-    setSearchKeyword,
-    searchResults,
-    setSearchResults,
-    submitPost,
-  };
-
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider
+      value={{
+        currentUser,
+        isAuthenticated: !!currentUser,
+        authReady,
+        handleAuthSuccess,
+        logout,
+        setCurrentUser,
+        boardData,
+        setBoardData,
+        events,
+        setEvents,
+        todos,
+        setTodos,
+        chatRooms,
+        setChatRooms,
+        activeChatRoomId,
+        setActiveChatRoomId,
+        profileModal,
+        setProfileModal,
+        writeModalOpen,
+        setWriteModalOpen,
+        writeType,
+        setWriteType,
+        postTitle,
+        setPostTitle,
+        postContent,
+        setPostContent,
+        postCert,
+        setPostCert,
+        postCertCategory,
+        setPostCertCategory,
+        selectedPlace,
+        setSelectedPlace,
+        searchKeyword,
+        setSearchKeyword,
+        searchResults,
+        setSearchResults,
+        submitPost,
+      }}
+    >
+      {children}
+    </AppContext.Provider>
+  );
 }
 
 export function useApp() {
@@ -369,3 +249,15 @@ export function useApp() {
   if (!ctx) throw new Error("useApp must be used within AppProvider");
   return ctx;
 }
+
+export type {
+  BoardPost,
+  ChatMessage,
+  ChatRoom,
+  EventType,
+  PostComment,
+  SearchPlace,
+  TodoItem,
+  TodoMap,
+  UserProfile,
+} from "@/lib/types";

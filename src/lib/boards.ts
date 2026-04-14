@@ -1,5 +1,3 @@
-"use client";
-
 import type { BoardPost, PostComment } from "@/lib/AppContext";
 import { http } from "@/lib/http";
 

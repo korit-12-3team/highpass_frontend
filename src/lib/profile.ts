@@ -1,9 +1,10 @@
-"use client";
-
-import type { UserProfile } from "@/lib/AppContext";
 import { http } from "@/lib/http";
+import type { UserProfile } from "@/lib/types";
 
-type UserApiRecord = {
+export const AGE_RANGE_OPTIONS = ["10대", "20대", "30대", "40대", "50대+"];
+export const GENDER_OPTIONS = ["남성", "여성"];
+
+export type UserApiRecord = {
   id?: string | number;
   userId?: string | number;
   email?: unknown;
@@ -23,25 +24,34 @@ function safeString(value: unknown, fallback = "") {
   return typeof value === "string" ? value : value == null ? fallback : String(value);
 }
 
-function unwrapData(payload: unknown) {
+export function unwrapData(payload: unknown) {
   if (!payload || typeof payload !== "object") return payload;
   if (!("data" in payload)) return payload;
   return (payload as { data?: unknown }).data;
 }
 
+function buildLocation(siDo?: unknown, gunGu?: unknown, location?: unknown) {
+  return safeString(location, "") || `${safeString(siDo, "")} ${safeString(gunGu, "")}`.trim();
+}
+
+export function createUserProfile(input: Partial<UserProfile> & Pick<UserProfile, "id" | "nickname">): UserProfile {
+  const nickname = safeString(input.nickname, "사용자");
+
+  return {
+    id: safeString(input.id),
+    email: typeof input.email === "string" ? input.email : undefined,
+    nickname,
+    name: safeString(input.name, nickname),
+    ageRange: safeString(input.ageRange),
+    gender: safeString(input.gender),
+    location: safeString(input.location),
+    profileImage:
+      typeof input.profileImage === "string" || input.profileImage === null ? input.profileImage : null,
+    loginType: safeString(input.loginType, "local"),
+  };
+}
+
 export function mapApiRecordToUserProfile(record: UserApiRecord): UserProfile {
-  const id = record.userId ?? record.id ?? "";
-  const nickname = safeString(record.nickname, "");
-  const name = safeString(record.name, nickname || "사용자");
-  const email = typeof record.email === "string" ? record.email : undefined;
-  const ageRange = safeString(record.ageRange, "미등록");
-  const gender = safeString(record.gender, "미등록");
-
-  const location =
-    safeString(record.location, "") ||
-    `${safeString(record.siDo, "")} ${safeString(record.gunGu, "")}`.trim() ||
-    "미등록";
-
   const profileImage =
     typeof record.profileImage === "string"
       ? record.profileImage
@@ -49,17 +59,24 @@ export function mapApiRecordToUserProfile(record: UserApiRecord): UserProfile {
         ? record.profileImageUrl
         : null;
 
-  return {
-    id: safeString(id),
-    email,
-    nickname: nickname || "사용자",
-    name,
-    ageRange,
-    gender,
-    location,
+  return createUserProfile({
+    id: safeString(record.userId ?? record.id ?? ""),
+    email: typeof record.email === "string" ? record.email : undefined,
+    nickname: safeString(record.nickname),
+    name: safeString(record.name),
+    ageRange: safeString(record.ageRange),
+    gender: safeString(record.gender),
+    location: buildLocation(record.siDo, record.gunGu, record.location),
     profileImage,
     loginType: safeString(record.loginType, "local"),
-  };
+  });
+}
+
+export async function getUserProfile(userId: string): Promise<UserProfile | null> {
+  const response = await http.get(`/api/users/${encodeURIComponent(userId)}`);
+  const payload = unwrapData(response.data);
+  if (!payload || typeof payload !== "object") return null;
+  return mapApiRecordToUserProfile(payload as UserApiRecord);
 }
 
 export async function updateUserProfile(

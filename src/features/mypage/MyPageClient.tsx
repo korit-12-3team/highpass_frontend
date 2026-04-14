@@ -17,8 +17,7 @@ import {
 import { useApp, type BoardPost, type PostComment } from "@/lib/AppContext";
 import { listComments } from "@/lib/comments";
 import { REGION_DATA } from "@/lib/constants";
-import { updateUserPassword, updateUserProfile } from "@/lib/profile";
-import { getUserProfile } from "@/lib/users";
+import { getUserProfile, updateUserPassword, updateUserProfile } from "@/lib/profile";
 
 type MyPageTab = "profile" | "posts" | "comments" | "likes";
 
@@ -35,7 +34,7 @@ const TAB_ITEMS: { id: MyPageTab; label: string; icon: React.ReactNode }[] = [
 ];
 
 const AGE_RANGE_OPTIONS = ["10대", "20대", "30대", "40대", "50대+"];
-const GENDER_OPTIONS = ["남성", "여성"];
+const GENDER_OPTIONS = ["남", "여"];
 
 function inferRegionFromLocation(location?: string) {
   const normalized = (location || "").trim();
@@ -99,6 +98,96 @@ function EmptyState({
       </div>
       <p className="mt-4 text-base font-bold text-slate-800">{title}</p>
       <p className="mt-2 text-sm text-slate-500">{description}</p>
+      {/*
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
+          <div className="w-full max-w-md rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.24)]">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">VERIFY</p>
+              <h3 className="mt-2 text-2xl font-black text-slate-950">비밀번호 확인</h3>
+              <p className="mt-2 text-sm text-slate-500">현재 비밀번호가 맞으면 기존 회원정보 카드가 바로 입력창으로 바뀝니다.</p>
+            </div>
+
+            <div className="mt-5">
+              <input
+                type="password"
+                value={profilePasswordDraft}
+                onChange={(event) => setProfilePasswordDraft(event.target.value)}
+                placeholder="현재 비밀번호"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-hp-500"
+              />
+            </div>
+
+            {profileSaveError ? <p className="mt-3 text-sm font-semibold text-red-500">{profileSaveError}</p> : null}
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setProfilePasswordModalOpen(false);
+                  setProfilePasswordDraft("");
+                  setProfileSaveError("");
+                }}
+                className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmProfileEdit()}
+                disabled={profilePasswordChecking}
+                className="rounded-full bg-hp-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-hp-700 disabled:opacity-60"
+              >
+                {profilePasswordChecking ? "확인 중..." : "확인"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+      {profilePasswordModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
+          <div className="w-full max-w-md rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.24)]">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">VERIFY</p>
+              <h3 className="mt-2 text-2xl font-black text-slate-950">비밀번호 확인</h3>
+              <p className="mt-2 text-sm text-slate-500">현재 비밀번호가 맞으면 기존 회원정보 카드가 바로 입력창으로 바뀝니다.</p>
+            </div>
+
+            <div className="mt-5">
+              <input
+                type="password"
+                value={profilePasswordDraft}
+                onChange={(event) => setProfilePasswordDraft(event.target.value)}
+                placeholder="현재 비밀번호"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-hp-500"
+              />
+            </div>
+
+            {profileSaveError ? <p className="mt-3 text-sm font-semibold text-red-500">{profileSaveError}</p> : null}
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setProfilePasswordModalOpen(false);
+                  setProfilePasswordDraft("");
+                  setProfileSaveError("");
+                }}
+                className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmProfileEdit()}
+                disabled={profilePasswordChecking}
+                className="rounded-full bg-hp-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-hp-700 disabled:opacity-60"
+              >
+                {profilePasswordChecking ? "확인 중..." : "확인"}
+              </button>
+            </div>
+          </div>
+        </div>
+      */}
     </div>
   );
 }
@@ -107,17 +196,19 @@ function InfoField({
   label,
   value,
   icon,
+  children,
 }: {
   label: string;
   value: string;
   icon?: React.ReactNode;
+  children?: React.ReactNode;
 }) {
   return (
     <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-5">
       <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">{label}</p>
       <div className="mt-3 flex items-center gap-2">
         {icon ? <span className="text-hp-600">{icon}</span> : null}
-        <p className="text-base font-bold text-slate-900">{value}</p>
+        {children ?? <p className="text-base font-bold text-slate-900">{value}</p>}
       </div>
     </div>
   );
@@ -225,6 +316,9 @@ export default function MyPageClient() {
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [profileUser, setProfileUser] = useState(currentUser);
   const [profileEditOpen, setProfileEditOpen] = useState(false);
+  const [profilePasswordModalOpen, setProfilePasswordModalOpen] = useState(false);
+  const [profilePasswordDraft, setProfilePasswordDraft] = useState("");
+  const [profilePasswordChecking, setProfilePasswordChecking] = useState(false);
   const [editNickname, setEditNickname] = useState("");
   const [editAgeRange, setEditAgeRange] = useState("");
   const [editGender, setEditGender] = useState("");
@@ -390,12 +484,13 @@ export default function MyPageClient() {
     setProfileSaveSuccess("");
     setPasswordSaveError("");
     setPasswordSaveSuccess("");
+    setProfilePasswordDraft("");
   };
 
   const openBoardPost = (post: BoardPost) => {
     const boardPath = post.type === "study" ? "/study" : "/free";
     const returnTo = activeTab === "profile" ? pathname : `${pathname}?tab=${encodeURIComponent(activeTab)}`;
-    router.push(`${boardPath}?postId=${encodeURIComponent(post.id)}&returnTo=${encodeURIComponent(returnTo)}`);
+    router.push(`${boardPath}/${encodeURIComponent(post.id)}?returnTo=${encodeURIComponent(returnTo)}`);
   };
 
   const saveProfile = async () => {
@@ -407,6 +502,8 @@ export default function MyPageClient() {
     const gender = editGender.trim();
     const siDo = editSiDo.trim();
     const gunGu = editGunGu.trim();
+    const nextPassword = newPassword.trim();
+    const confirmPassword = newPasswordConfirm.trim();
 
     if (!password) {
       setProfileSaveError("현재 비밀번호를 입력해 주세요.");
@@ -416,6 +513,12 @@ export default function MyPageClient() {
 
     if (!nickname || !ageRange || !gender || !siDo || !gunGu) {
       setProfileSaveError("닉네임, 연령대, 성별, 지역을 모두 입력해 주세요.");
+      setProfileSaveSuccess("");
+      return;
+    }
+
+    if ((nextPassword || confirmPassword) && nextPassword !== confirmPassword) {
+      setProfileSaveError("?덈줈??鍮꾨?踰덊샇媛 ?쇱튂?섏? ?딆뒿?덈떎.");
       setProfileSaveSuccess("");
       return;
     }
@@ -434,14 +537,61 @@ export default function MyPageClient() {
         gunGu,
       });
 
+      if (nextPassword) {
+        await updateUserPassword(currentUser.id, {
+          currentPassword: password,
+          newPassword: nextPassword,
+        });
+      }
+
       setCurrentUser((prev) => (prev ? { ...prev, ...updated, name: updated.name || prev.name } : prev));
       setProfileUser(updated);
+      setProfileEditOpen(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setNewPasswordConfirm("");
       setProfileSaveSuccess("회원정보가 업데이트되었습니다.");
     } catch (error) {
       setProfileSaveError(error instanceof Error ? error.message : "회원정보 수정에 실패했습니다.");
       setProfileSaveSuccess("");
     } finally {
       setProfileSaving(false);
+    }
+  };
+
+  const confirmProfileEdit = async () => {
+    if (!currentUser || !displayUser) return;
+
+    const password = profilePasswordDraft.trim();
+    if (!password) {
+      setProfileSaveError("?꾩옱 鍮꾨?踰덊샇瑜??낅젰??二쇱꽭??");
+      return;
+    }
+
+    const currentRegion = inferRegionFromLocation(displayUser.location);
+
+    try {
+      setProfilePasswordChecking(true);
+      setProfileSaveError("");
+      setProfileSaveSuccess("");
+
+      await updateUserProfile(currentUser.id, {
+        currentPassword: password,
+        nickname: displayUser.nickname,
+        ageRange: displayUser.ageRange,
+        gender: displayUser.gender,
+        siDo: currentRegion.siDo,
+        gunGu: currentRegion.gunGu,
+      });
+
+      setCurrentPassword(password);
+      setProfilePasswordDraft("");
+      setProfilePasswordModalOpen(false);
+      setProfileEditOpen(true);
+    } catch (error) {
+      setProfileSaveError(error instanceof Error ? error.message : "?꾩옱 鍮꾨?踰덊샇瑜??뺤씤?섏? 紐삵뻽?듬땲??");
+    } finally {
+      setProfilePasswordChecking(false);
     }
   };
 
@@ -453,13 +603,13 @@ export default function MyPageClient() {
     const confirmPassword = newPasswordConfirm.trim();
 
     if (!password || !nextPassword || !confirmPassword) {
-      setPasswordSaveError("현재 비밀번호와 새 비밀번호를 모두 입력해 주세요.");
+      setPasswordSaveError("현재 비밀번호와 새로운 비밀번호를 모두 입력해 주세요.");
       setPasswordSaveSuccess("");
       return;
     }
 
     if (nextPassword !== confirmPassword) {
-      setPasswordSaveError("새 비밀번호 확인이 일치하지 않습니다.");
+      setPasswordSaveError("새로운 비밀번호가 일치하지 않습니다.");
       setPasswordSaveSuccess("");
       return;
     }
@@ -477,7 +627,7 @@ export default function MyPageClient() {
       setCurrentPassword("");
       setNewPassword("");
       setNewPasswordConfirm("");
-      setPasswordSaveSuccess("비밀번호가 변경되었습니다. 다시 입력 후 다른 수정도 진행할 수 있습니다.");
+      setPasswordSaveSuccess("비밀번호가 변경되었습니다.");
       setProfileSaveSuccess("");
     } catch (error) {
       setPasswordSaveError(error instanceof Error ? error.message : "비밀번호 변경에 실패했습니다.");
@@ -487,7 +637,7 @@ export default function MyPageClient() {
     }
   };
 
-  const accountTypeLabel = displayUser?.loginType === "local" ? "일반 회원" : "소셜 로그인";
+  const accountTypeLabel = displayUser?.loginType === "local" ? "일반 회원" : "소셜 회원";
 
   return (
     <div className="mx-auto max-w-6xl animate-in fade-in space-y-6 duration-500">
@@ -495,12 +645,11 @@ export default function MyPageClient() {
         <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-18 w-18 shrink-0 items-center justify-center rounded-[24px] bg-slate-900 px-6 py-5 text-3xl font-black text-white">
-              {displayUser?.nickname?.substring(0, 1) || "U"}
+              {displayUser?.nickname?.substring(0, 1)}
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-400">MY PAGE</p>
-              <h2 className="mt-2 truncate text-3xl font-black text-slate-950">{displayUser?.nickname || "사용자"}</h2>
-              <p className="mt-2 text-sm text-slate-500">{displayUser?.email || "이메일 미등록"}</p>
+              <h2 className="mt-2 truncate text-3xl font-black text-slate-950">{displayUser?.nickname}</h2>
+              <p className="mt-2 text-sm text-slate-500">{displayUser?.email}</p>
             </div>
           </div>
 
@@ -550,12 +699,11 @@ export default function MyPageClient() {
           <div className="rounded-[28px] border border-slate-200 bg-slate-50/80 p-6">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
-                <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-400">ACCOUNT OVERVIEW</p>
-                <h4 className="mt-3 text-2xl font-black text-slate-950">{displayUser?.nickname || "사용자"}</h4>
+                <h4 className="mt-3 text-2xl font-black text-slate-950">{displayUser?.nickname}</h4>
                 <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-500">
                   <span className="inline-flex items-center gap-2">
                     <Mail size={15} className="text-hp-600" />
-                    {displayUser?.email || "이메일 미등록"}
+                    {displayUser?.email}
                   </span>
                   <span className="inline-flex items-center gap-2">
                     <ShieldCheck size={15} className="text-hp-600" />
@@ -569,10 +717,11 @@ export default function MyPageClient() {
                 onClick={() => {
                   if (profileEditOpen) {
                     resetEditFields();
+                    setProfilePasswordModalOpen(false);
                     setProfileEditOpen(false);
                   } else {
                     resetEditFields();
-                    setProfileEditOpen(true);
+                    setProfilePasswordModalOpen(true);
                   }
                 }}
                 className={`rounded-full px-4 py-2 text-sm font-bold transition ${
@@ -586,31 +735,156 @@ export default function MyPageClient() {
             </div>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <InfoField label="닉네임" value={displayUser?.nickname || "미등록"} icon={<UserRound size={16} />} />
+              <InfoField label="닉네임" value={displayUser?.nickname || "미등록"} icon={<UserRound size={16} />}>
+                {profileEditOpen ? (
+                  <input
+                    value={editNickname}
+                    onChange={(event) => setEditNickname(event.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-hp-500"
+                  />
+                ) : null}
+              </InfoField>
               <InfoField label="이메일" value={displayUser?.email || "미등록"} icon={<Mail size={16} />} />
-              <InfoField label="성별" value={displayUser?.gender || "미등록"} icon={<UserRound size={16} />} />
-              <InfoField label="연령대" value={displayUser?.ageRange || "미등록"} icon={<Settings size={16} />} />
-              <InfoField label="시 / 도" value={regionFromProfile.siDo || "미등록"} icon={<MapPin size={16} />} />
-              <InfoField label="구 / 군" value={regionFromProfile.gunGu || "미등록"} icon={<MapPin size={16} />} />
-            </div>
-
-            <div className="mt-4 rounded-[22px] border border-slate-200 bg-white p-5">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">LOCATION</p>
-              <p className="mt-3 text-base font-bold text-slate-900">{displayUser?.location || "미등록"}</p>
+              <InfoField label="성별" value={displayUser?.gender || "미등록"} icon={<UserRound size={16} />}>
+                {profileEditOpen ? (
+                  <select
+                    value={editGender}
+                    onChange={(event) => setEditGender(event.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-hp-500"
+                  >
+                    <option value="">성별 선택</option>
+                    {GENDER_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+              </InfoField>
+              <InfoField label="연령대" value={displayUser?.ageRange || "미등록"} icon={<Settings size={16} />}>
+                {profileEditOpen ? (
+                  <select
+                    value={editAgeRange}
+                    onChange={(event) => setEditAgeRange(event.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-hp-500"
+                  >
+                    <option value="">연령대 선택</option>
+                    {AGE_RANGE_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+              </InfoField>
+              <InfoField label="시 / 도" value={regionFromProfile.siDo || "미등록"} icon={<MapPin size={16} />}>
+                {profileEditOpen ? (
+                  <select
+                    value={editSiDo}
+                    onChange={(event) => {
+                      setEditSiDo(event.target.value);
+                      setEditGunGu("");
+                    }}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-hp-500"
+                  >
+                    <option value="">시 / 도 선택</option>
+                    {Object.keys(REGION_DATA).map((siDo) => (
+                      <option key={siDo} value={siDo}>
+                        {siDo}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+              </InfoField>
+              <InfoField label="구 / 군" value={regionFromProfile.gunGu || "미등록"} icon={<MapPin size={16} />}>
+                {profileEditOpen ? (
+                  <select
+                    value={editGunGu}
+                    onChange={(event) => setEditGunGu(event.target.value)}
+                    disabled={!editSiDo}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-hp-500 disabled:opacity-40"
+                  >
+                    <option value="">구 / 군 선택</option>
+                    {(REGION_DATA[editSiDo] || []).map((gunGu) => (
+                      <option key={gunGu} value={gunGu}>
+                        {gunGu}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+              </InfoField>
             </div>
           </div>
 
           {profileEditOpen ? (
+            <div className="mt-6 rounded-[24px] border border-hp-200 bg-hp-50/70 p-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-sm font-bold text-slate-900">위 카드에서 바로 회원정보를 수정할 수 있습니다.</p>
+                  <p className="mt-1 text-sm text-slate-500">수정이 끝나면 저장 버튼을 눌러 반영하세요.</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetEditFields();
+                      setProfileEditOpen(false);
+                    }}
+                    className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100"
+                  >
+                    수정 취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void saveProfile()}
+                    disabled={profileSaving}
+                    className="rounded-full bg-hp-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-hp-700 disabled:opacity-60"
+                  >
+                    {profileSaving ? "저장 중..." : "정보 저장"}
+                  </button>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <div className="rounded-[20px] border border-slate-200 bg-white p-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">New Password</p>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    placeholder="새 비밀번호"
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-hp-500"
+                  />
+                </div>
+                <div className="rounded-[20px] border border-slate-200 bg-white p-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Confirm Password</p>
+                  <input
+                    type="password"
+                    value={newPasswordConfirm}
+                    onChange={(event) => setNewPasswordConfirm(event.target.value)}
+                    placeholder="새 비밀번호 확인"
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-hp-500"
+                  />
+                </div>
+              </div>
+              {profileSaveError ? <p className="mt-3 text-sm font-semibold text-red-500">{profileSaveError}</p> : null}
+              {profileSaveSuccess ? <p className="mt-3 text-sm font-semibold text-emerald-600">{profileSaveSuccess}</p> : null}
+            </div>
+          ) : profileSaveSuccess ? (
+            <p className="mt-6 text-sm font-semibold text-emerald-600">{profileSaveSuccess}</p>
+          ) : profileSaveError ? (
+            <p className="mt-6 text-sm font-semibold text-red-500">{profileSaveError}</p>
+          ) : null}
+
+          {false ? (
             <div className="mt-6 grid gap-6 xl:grid-cols-[1.3fr_1fr]">
               <div className="space-y-4 rounded-[28px] border border-slate-200 bg-white p-6">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">PROFILE EDIT</p>
                   <h4 className="mt-2 text-xl font-black text-slate-950">프로필 수정</h4>
                   <p className="mt-2 text-sm text-slate-500">현재 비밀번호를 입력한 뒤 닉네임, 연령대, 성별, 지역을 수정할 수 있습니다.</p>
                 </div>
 
                 <div className="rounded-[22px] border border-amber-200 bg-amber-50 p-5">
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-700">Current Password</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-700">비밀번호 확인</p>
                   <input
                     type="password"
                     value={currentPassword}
@@ -784,6 +1058,78 @@ export default function MyPageClient() {
               </div>
             </div>
           ) : null}
+
+          {false ? (
+          <div className="mt-6">
+            <div className="space-y-4 rounded-[28px] border border-slate-200 bg-white p-6">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">SECURITY</p>
+                <h4 className="mt-2 text-xl font-black text-slate-950">비밀번호 변경</h4>
+                <p className="mt-2 text-sm text-slate-500">현재 비밀번호 확인 후 새 비밀번호로 변경할 수 있습니다.</p>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Current Password</p>
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(event) => setCurrentPassword(event.target.value)}
+                    placeholder="현재 비밀번호"
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-hp-500"
+                  />
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">New Password</p>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    placeholder="새 비밀번호"
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-hp-500"
+                  />
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Confirm Password</p>
+                  <input
+                    type="password"
+                    value={newPasswordConfirm}
+                    onChange={(event) => setNewPasswordConfirm(event.target.value)}
+                    placeholder="새 비밀번호 확인"
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-hp-500"
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 text-hp-600">
+                    <KeyRound size={16} />
+                  </span>
+                  <div className="text-sm text-slate-500">
+                    <p>현재 비밀번호가 확인되면 새 비밀번호로 변경됩니다.</p>
+                    <p className="mt-1">회원정보 수정과 비밀번호 변경은 각각 저장 버튼을 눌러야 반영됩니다.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-slate-200 bg-slate-50 p-4">
+                <div>
+                  {passwordSaveError ? <p className="text-sm font-semibold text-red-500">{passwordSaveError}</p> : null}
+                  {passwordSaveSuccess ? <p className="text-sm font-semibold text-emerald-600">{passwordSaveSuccess}</p> : null}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void savePassword()}
+                  disabled={passwordSaving}
+                  className="rounded-full bg-slate-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-60"
+                >
+                  {passwordSaving ? "변경 중..." : "비밀번호 변경"}
+                </button>
+              </div>
+            </div>
+          </div>
+          ) : null}
         </SectionCard>
       ) : null}
 
@@ -809,6 +1155,52 @@ export default function MyPageClient() {
         <SectionCard title="좋아요한 게시물" description="좋아요를 누른 게시물을 다시 모아봅니다.">
           <PostList posts={likedPosts} onOpenPost={openBoardPost} />
         </SectionCard>
+      ) : null}
+
+      {profilePasswordModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
+          <div className="w-full max-w-md rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.24)]">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">VERIFY</p>
+              <h3 className="mt-2 text-2xl font-black text-slate-950">비밀번호 확인</h3>
+              <p className="mt-2 text-sm text-slate-500">현재 비밀번호가 맞으면 기존 회원정보 카드가 바로 입력창으로 바뀝니다.</p>
+            </div>
+
+            <div className="mt-5">
+              <input
+                type="password"
+                value={profilePasswordDraft}
+                onChange={(event) => setProfilePasswordDraft(event.target.value)}
+                placeholder="현재 비밀번호"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-hp-500"
+              />
+            </div>
+
+            {profileSaveError ? <p className="mt-3 text-sm font-semibold text-red-500">{profileSaveError}</p> : null}
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setProfilePasswordModalOpen(false);
+                  setProfilePasswordDraft("");
+                  setProfileSaveError("");
+                }}
+                className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmProfileEdit()}
+                disabled={profilePasswordChecking}
+                className="rounded-full bg-hp-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-hp-700 disabled:opacity-60"
+              >
+                {profilePasswordChecking ? "확인 중..." : "확인"}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );

@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Calendar as CalendarIcon, CheckCircle2, ClipboardPenLine, RefreshCw, Search, X } from "lucide-react";
 import { useApp } from "@/lib/AppContext";
 import { createCalendarEvent } from "@/lib/calendar";
-import { listCertificateSchedules, syncCertificateSchedules, type CertificateSchedule } from "@/lib/certificates";
-import { saveUserCertificate } from "@/lib/user-certificates";
+import { listCertificateSchedules, saveUserCertificate, syncCertificateSchedules, type CertificateSchedule } from "@/lib/certificates";
 
 type CertScheduleType = "written" | "practical";
 type ScheduleTab = "upcoming" | "past";
@@ -300,7 +299,7 @@ export default function SearchPageClient() {
               <input
                 value={searchKeyword}
                 onChange={(event) => setSearchKeyword(event.target.value)}
-                placeholder="자격증명 검색"
+                placeholder="자격증 검색"
                 className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
               />
             </div>
@@ -358,7 +357,6 @@ export default function SearchPageClient() {
               <div className="flex flex-col gap-3 border-b border-hp-100 bg-hp-50 px-5 py-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700">{item.examYear}년</span>
                     <span className="rounded-full bg-hp-100 px-2 py-1 text-xs font-bold text-hp-700">
                       {item.round > 0 ? `${item.round}회차` : "정기 일정"}
                     </span>
@@ -384,7 +382,7 @@ export default function SearchPageClient() {
                   className="inline-flex items-center gap-2 rounded-lg bg-hp-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-hp-700"
                 >
                   <CalendarIcon size={16} />
-                  캘린더 추가
+                  일정 추가
                 </button>
               </div>
 
@@ -413,12 +411,12 @@ export default function SearchPageClient() {
                       </div>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-500">시험</p>
-                      <p className="font-semibold">{item.writtenExamDate || "미정"}</p>
+                      <p className="text-xs text-slate-500">시험일</p>
+                      <p className="font-semibold">{item.writtenExamDate || "없음"}</p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-500">합격 발표</p>
-                      <p className="font-semibold">{item.writtenResultDate || "미정"}</p>
+                      <p className="font-semibold">{item.writtenResultDate || "없음"}</p>
                     </div>
                   </div>
                 </div>
@@ -447,12 +445,12 @@ export default function SearchPageClient() {
                       </div>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-500">시험</p>
-                      <p className="font-semibold">{item.practicalExamDate || "미정"}</p>
+                      <p className="text-xs text-slate-500">시험일</p>
+                      <p className="font-semibold">{item.practicalExamDate || "없음"}</p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-500">합격 발표</p>
-                      <p className="font-semibold">{item.practicalResultDate || "미정"}</p>
+                      <p className="font-semibold">{item.practicalResultDate || "없음"}</p>
                     </div>
                   </div>
                 </div>
@@ -467,10 +465,7 @@ export default function SearchPageClient() {
           <div className="flex w-full max-w-sm flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
             <div className="flex items-center justify-between border-b p-5">
               <h3 className="font-bold">
-                <span className="block text-xs font-normal text-slate-400">
-                  {certModalOpen.examYear}년 {certModalOpen.round > 0 ? `${certModalOpen.round}회차` : "정기 일정"}
-                </span>
-                캘린더에 추가
+                일정 추가
               </h3>
               <button
                 onClick={() => {
@@ -486,7 +481,7 @@ export default function SearchPageClient() {
             <div className="space-y-3 p-4">
               {calendarError && <p className="text-sm text-red-500">{calendarError}</p>}
 
-              <label className="block text-sm font-bold text-hp-700">자격증명</label>
+              <label className="block text-sm font-bold text-hp-700">일정 제목</label>
               <div className="rounded-lg border bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
                 {certModalOpen.certificateName}
               </div>

@@ -5,34 +5,39 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import AuthShell from "@/components/auth/AuthShell";
-import { useApp, UserProfile } from "@/lib/AppContext";
+import { useApp } from "@/lib/AppContext";
 import { API_BASE_URL } from "@/lib/config";
-import { getUserProfile } from "@/lib/users";
+import { createUserProfile } from "@/lib/profile";
 
 type LoginApiResponse = {
   id?: string | number;
   userId?: string | number;
   email?: string;
   nickname?: string;
+  ageRange?: string;
+  gender?: string;
+  siDo?: string;
+  gunGu?: string;
   redirectUrl?: string;
   message?: string;
 };
 
-function mapLoginResponseToUser(payload: LoginApiResponse): UserProfile {
-  const numericUserId = payload.userId ?? payload.id;
+function mapLoginResponseToUser(payload: LoginApiResponse) {
+  const id = payload.userId ?? payload.id ?? "";
   const nickname = payload.nickname || (payload.email ? payload.email.split("@")[0] : "me");
+  const location = [payload.siDo, payload.gunGu].filter(Boolean).join(" ");
 
-  return {
-    id: numericUserId == null ? "" : String(numericUserId),
+  return createUserProfile({
+    id: String(id),
     email: payload.email,
     nickname,
     name: nickname,
-    ageRange: "미등록",
-    gender: "미등록",
-    location: "미등록",
+    ageRange: payload.ageRange,
+    gender: payload.gender,
+    location,
     profileImage: null,
     loginType: "local",
-  };
+  });
 }
 
 export default function LoginForm() {
@@ -78,44 +83,25 @@ export default function LoginForm() {
         return;
       }
 
-      const baseUser = mapLoginResponseToUser(payload ?? {});
-      const user =
-        baseUser.id && /^\d+$/.test(String(baseUser.id).trim())
-          ? ((await getUserProfile(baseUser.id)) ?? baseUser)
-          : baseUser;
-      if (!/^\d+$/.test(String(user.id).trim())) {
-        setError('로그인에 성공했지만 서버가 숫자 "userId"를 내려주지 않았습니다.');
-        return;
-      }
-
+      const user = mapLoginResponseToUser(payload ?? {});
       handleAuthSuccess(user);
       router.replace(payload?.redirectUrl || "/calendar");
     } catch {
-      setError("서버에 연결할 수 없습니다. API 주소 또는 서버 상태를 확인해주세요.");
+      setError("서버에 연결할 수 없습니다. API 주소 또는 서버 상태를 확인해 주세요.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleLogin = () => {
-    setGoogleLoading(true);
-    window.location.href = `${API_BASE_URL}/oauth2/authorization/google`;
-  };
-
-  const handleKakaoLogin = () => {
-    setKakaoLoading(true);
-    window.location.href = `${API_BASE_URL}/oauth2/authorization/kakao`;
-  };
-
   return (
-    <AuthShell title="로그인" subtitle="계정으로 로그인하세요">
+    <AuthShell title="로그인" subtitle="계정으로 로그인해 주세요">
       <form onSubmit={handleLocalLogin} className="space-y-4">
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="이메일"
-          className="w-full bg-hp-50 border border-hp-200 rounded-xl px-4 py-3 text-slate-800 outline-none focus:border-hp-500"
+          className="w-full rounded-xl border border-hp-200 bg-hp-50 px-4 py-3 text-slate-800 outline-none focus:border-hp-500"
           required
         />
         <input
@@ -123,35 +109,38 @@ export default function LoginForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="비밀번호"
-          className="w-full bg-hp-50 border border-hp-200 rounded-xl px-4 py-3 text-slate-800 outline-none focus:border-hp-500"
+          className="w-full rounded-xl border border-hp-200 bg-hp-50 px-4 py-3 text-slate-800 outline-none focus:border-hp-500"
           required
         />
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error ? <p className="text-sm text-red-500">{error}</p> : null}
 
-        <button type="submit" className="w-full bg-hp-600 text-white font-bold py-3.5 rounded-xl">
+        <button type="submit" className="w-full rounded-xl bg-hp-600 py-3.5 font-bold text-white">
           {loading ? "..." : "로그인"}
         </button>
       </form>
 
       <div className="mt-6">
-        <div className="relative flex items-center py-2 mb-4">
+        <div className="relative mb-4 flex items-center py-2">
           <div className="flex-grow border-t border-hp-200"></div>
-          <span className="flex-shrink-0 mx-4 text-hp-400 text-xs font-medium">또는</span>
+          <span className="mx-4 flex-shrink-0 text-xs font-medium text-hp-400">또는</span>
           <div className="flex-grow border-t border-hp-200"></div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={handleGoogleLogin}
+            onClick={() => {
+              setGoogleLoading(true);
+              window.location.href = `${API_BASE_URL}/oauth2/authorization/google`;
+            }}
             disabled={googleLoading}
-            className="flex items-center justify-center gap-2 bg-white text-slate-800 hover:bg-hp-50 border border-hp-100 font-bold py-2.5 rounded-xl text-sm transition-colors disabled:opacity-60"
+            className="flex items-center justify-center gap-2 rounded-xl border border-hp-100 bg-white py-2.5 text-sm font-bold text-slate-800 transition-colors hover:bg-hp-50 disabled:opacity-60"
           >
             {googleLoading ? (
               <Loader2 size={18} className="animate-spin" />
             ) : (
-              <svg viewBox="0 0 24 24" className="w-5 h-5" xmlns="http://www.w3.org/2000/svg">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" xmlns="http://www.w3.org/2000/svg">
                 <path
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                   fill="#4285F4"
@@ -175,14 +164,17 @@ export default function LoginForm() {
 
           <button
             type="button"
-            onClick={handleKakaoLogin}
+            onClick={() => {
+              setKakaoLoading(true);
+              window.location.href = `${API_BASE_URL}/oauth2/authorization/kakao`;
+            }}
             disabled={kakaoLoading}
-            className="flex items-center justify-center gap-2 bg-[#FEE500] hover:bg-[#FDD800] disabled:opacity-60 text-black font-bold py-2.5 rounded-xl text-sm transition-colors"
+            className="flex items-center justify-center gap-2 rounded-xl bg-[#FEE500] py-2.5 text-sm font-bold text-black transition-colors hover:bg-[#FDD800] disabled:opacity-60"
           >
             {kakaoLoading ? (
               <Loader2 size={18} className="animate-spin" />
             ) : (
-              <svg viewBox="0 0 32 32" className="w-5 h-5 fill-current" xmlns="http://www.w3.org/2000/svg">
+              <svg viewBox="0 0 32 32" className="h-5 w-5 fill-current" xmlns="http://www.w3.org/2000/svg">
                 <path d="M16 4.64c-6.96 0-12.64 4.48-12.64 10.08 0 3.52 2.32 6.64 5.76 8.48l-1.52 5.44c-.16.48.32.88.72.64l6.32-4.24c.48.08 1.04.08 1.52.08 6.96 0 12.64-4.48 12.64-10.08S22.96 4.64 16 4.64z" />
               </svg>
             )}

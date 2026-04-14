@@ -1,14 +1,12 @@
 "use client";
 
 import { MapPin, MessageSquare, User2, Users, X } from "lucide-react";
-import { UserProfile } from "@/lib/AppContext";
+import type { UserProfile } from "@/lib/types";
 
 interface ProfileModalProps {
-  currentUser: UserProfile;
   profile: UserProfile;
   loading?: boolean;
   error?: string;
-  saveError?: string;
   isOpen: boolean;
   isCurrentUser: boolean;
   onOpenEdit: () => void;
@@ -16,18 +14,16 @@ interface ProfileModalProps {
   onStartChat: () => void;
 }
 
-export default function ProfileModal(props: ProfileModalProps) {
-  const {
-    profile,
-    loading,
-    error,
-    isOpen,
-    isCurrentUser,
-    onOpenEdit,
-    onClose,
-    onStartChat,
-  } = props;
-
+export default function ProfileModal({
+  profile,
+  loading,
+  error,
+  isOpen,
+  isCurrentUser,
+  onOpenEdit,
+  onClose,
+  onStartChat,
+}: ProfileModalProps) {
   if (!isOpen) return null;
 
   return (
@@ -45,7 +41,7 @@ export default function ProfileModal(props: ProfileModalProps) {
 
         <div className="relative px-6 pb-6 text-center">
           <div className="absolute left-1/2 top-0 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-4 border-hp-100 bg-white text-2xl font-bold text-hp-600 shadow-sm">
-            {profile.nickname?.substring(0, 1) || "U"}
+            {profile.nickname.substring(0, 1) || "U"}
           </div>
 
           {(loading || error) && (
@@ -54,33 +50,42 @@ export default function ProfileModal(props: ProfileModalProps) {
               {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
             </div>
           )}
+
           <div className="flex flex-col items-center pt-14">
             <h3 className="flex items-center gap-2 text-xl font-bold">
               {profile.nickname}
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-normal text-slate-500">
-                {profile.name}
-              </span>
+              {profile.name && profile.name !== profile.nickname ? (
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-normal text-slate-500">
+                  {profile.name}
+                </span>
+              ) : null}
             </h3>
 
             <div className="mt-4 flex w-full flex-col gap-2 text-sm text-slate-600">
-              {profile.email && (
+              {profile.email ? (
                 <p className="flex items-center gap-2">
                   <User2 size={16} />
                   {profile.email}
                 </p>
-              )}
-              <p className="flex items-center gap-2">
-                <Users size={16} />
-                {profile.ageRange}
-              </p>
-              <p className="flex items-center gap-2">
-                <Users size={16} />
-                {profile.gender}
-              </p>
-              <p className="flex items-center gap-2">
-                <MapPin size={16} />
-                {profile.location}
-              </p>
+              ) : null}
+              {profile.ageRange ? (
+                <p className="flex items-center gap-2">
+                  <Users size={16} />
+                  {profile.ageRange}
+                </p>
+              ) : null}
+              {profile.gender ? (
+                <p className="flex items-center gap-2">
+                  <Users size={16} />
+                  {profile.gender}
+                </p>
+              ) : null}
+              {profile.location ? (
+                <p className="flex items-center gap-2">
+                  <MapPin size={16} />
+                  {profile.location}
+                </p>
+              ) : null}
             </div>
 
             {isCurrentUser ? (

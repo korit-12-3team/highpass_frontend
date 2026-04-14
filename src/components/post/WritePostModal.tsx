@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { usePathname } from "next/navigation";
 import { Loader2, X } from "lucide-react";
 import KakaoMap from "@/components/KakaoMap";
 import { CERT_DATA } from "@/lib/constants";
@@ -65,6 +64,8 @@ export default function WritePostModal(props: WritePostModalProps) {
 
   if (!isOpen) return null;
 
+  const isCustomCert = postCertCategory === "기타";
+  const certOptions = postCertCategory && !isCustomCert ? CERT_DATA[postCertCategory] || [] : [];
   const canSubmit = Boolean(postTitle.trim() || postContent.trim());
 
   return (
@@ -84,68 +85,88 @@ export default function WritePostModal(props: WritePostModalProps) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-5">
-          {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
+          {error ? <p className="mb-4 text-sm text-red-500">{error}</p> : null}
+
           <label className="mb-1 block text-sm font-bold">제목</label>
           <input
             type="text"
             value={postTitle}
             onChange={(e) => setPostTitle(e.target.value)}
             className="mb-4 w-full rounded-lg border p-3 font-medium outline-none focus:border-hp-500"
-            placeholder="제목을 입력하세요"
+            placeholder="제목을 입력해 주세요"
             disabled={saving}
           />
-          {writeType === "study" && (
-            <>
-              <label className="mb-1 block text-sm font-bold">자격증</label>
-              <div
-                className={`mb-4 grid ${postCertCategory === "Other" ? "grid-cols-1" : "grid-cols-2"} gap-2`}
-              >
-                <select
-                  value={postCertCategory}
-                  onChange={(e) => {
-                    setPostCertCategory(e.target.value);
-                    setPostCert("");
-                  }}
-                  className="appearance-none rounded-lg border p-3 font-medium outline-none focus:border-hp-500"
-                  disabled={saving}
-                >
-                  <option value="">--- 선택 ---</option>
-                  {Object.keys(CERT_DATA).map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                  <option value="Other">기타</option>
-                </select>
-                {postCertCategory !== "Other" && (
+
+          {writeType === "study" ? (
+            <div className="mb-4 space-y-2">
+              <label className="block text-sm font-bold">자격증</label>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <p className="mb-1 text-xs font-semibold text-slate-500">분류</p>
                   <select
-                    value={postCert}
-                    onChange={(e) => setPostCert(e.target.value)}
-                    disabled={saving || !postCertCategory}
-                    className="appearance-none rounded-lg border p-3 font-medium outline-none focus:border-hp-500 disabled:opacity-40"
+                    value={postCertCategory}
+                    onChange={(e) => {
+                      setPostCertCategory(e.target.value);
+                      setPostCert("");
+                    }}
+                    className={`w-full appearance-none rounded-lg border p-3 outline-none focus:border-hp-500 ${
+                      isCustomCert ? "font-bold text-slate-900" : "font-medium"
+                    }`}
+                    disabled={saving}
                   >
-                    <option value=""></option>
-                    {(CERT_DATA[postCertCategory] || []).map((certificate) => (
-                      <option key={certificate} value={certificate}>
-                        {certificate}
+                    <option value="">분류 선택</option>
+                    {Object.keys(CERT_DATA).map((category) => (
+                      <option key={category} value={category}>
+                        {category}
                       </option>
                     ))}
                   </select>
-                )}
+                </div>
+
+                <div>
+                  <p className="mb-1 text-xs font-semibold text-slate-500">
+                    {isCustomCert ? "자격증명 직접 입력" : "자격증 종류"}
+                  </p>
+                  {isCustomCert ? (
+                    <input
+                      type="text"
+                      value={postCert}
+                      onChange={(e) => setPostCert(e.target.value)}
+                      disabled={saving}
+                      placeholder="예: 한국사, 컴퓨터활용능력 1급"
+                      className="w-full rounded-lg border p-3 font-medium outline-none focus:border-hp-500"
+                    />
+                  ) : (
+                    <select
+                      value={postCert}
+                      onChange={(e) => setPostCert(e.target.value)}
+                      disabled={saving || !postCertCategory}
+                      className="w-full appearance-none rounded-lg border p-3 font-medium outline-none focus:border-hp-500 disabled:opacity-40"
+                    >
+                      <option value="">{postCertCategory ? "자격증 선택" : "먼저 분류를 선택해 주세요"}</option>
+                      {certOptions.map((certificate) => (
+                        <option key={certificate} value={certificate}>
+                          {certificate}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
               </div>
-            </>
-          )}
+            </div>
+          ) : null}
+
           <label className="mb-1 block text-sm font-bold">내용</label>
           <textarea
             rows={6}
             value={postContent}
             onChange={(e) => setPostContent(e.target.value)}
             className="mb-4 w-full resize-none rounded-lg border p-3 font-medium outline-none focus:border-hp-500"
-            placeholder="내용을 작성하세요"
+            placeholder="내용을 작성해 주세요"
             disabled={saving}
           />
 
-          {writeType === "study" && (
+          {writeType === "study" ? (
             <div className="mt-4 rounded-xl border border-hp-700 bg-hp-900 p-4 text-white shadow-xl">
               <label className="mb-3 block text-sm font-bold text-slate-300">스터디 장소</label>
               <div className="mb-4 flex gap-2">
@@ -157,7 +178,7 @@ export default function WritePostModal(props: WritePostModalProps) {
                     if (e.key === "Enter") searchPlacesOnKakao();
                   }}
                   className="flex-1 rounded-lg border border-hp-600 bg-hp-800 p-2.5 text-sm text-white outline-none placeholder:text-hp-400"
-                  placeholder="장소 검색 (예시: 신림 카페)"
+                  placeholder="장소 검색 (예시: 강남 카페)"
                   disabled={saving}
                 />
                 <button
@@ -170,7 +191,7 @@ export default function WritePostModal(props: WritePostModalProps) {
                 </button>
               </div>
 
-              {searchResults.length > 0 && (
+              {searchResults.length > 0 ? (
                 <div className="flex h-72 flex-col gap-4 md:flex-row">
                   <div className="w-full space-y-2 overflow-y-auto pr-2 md:w-1/2">
                     {searchResults.map((result) => (
@@ -185,7 +206,7 @@ export default function WritePostModal(props: WritePostModalProps) {
                       >
                         <h4 className="truncate text-base font-bold">{result.name}</h4>
                         <p className="mt-1 truncate text-xs text-slate-400">{result.address}</p>
-                        {result.phone && <p className="mt-1 font-mono text-xs text-slate-500">{result.phone}</p>}
+                        {result.phone ? <p className="mt-1 font-mono text-xs text-slate-500">{result.phone}</p> : null}
                       </div>
                     ))}
                   </div>
@@ -197,7 +218,7 @@ export default function WritePostModal(props: WritePostModalProps) {
                         로딩 중...
                       </div>
                     ) : errorKakao ? (
-                      <div className="p-4 text-center text-xs text-red-400">카카오맵을 불러오지 못했습니다.</div>
+                      <div className="p-4 text-center text-xs text-red-400">카카오 지도를 불러오지 못했습니다.</div>
                     ) : (
                       <KakaoMap
                         apiKey="894423a9ffcffb29a1e5d50427ded82e"
@@ -216,15 +237,15 @@ export default function WritePostModal(props: WritePostModalProps) {
                     )}
                   </div>
                 </div>
-              )}
+              ) : null}
 
-              {selectedPlace && (
+              {selectedPlace ? (
                 <div className="mt-4 rounded-lg border border-hp-800/50 bg-hp-900/30 p-3">
                   <p className="text-sm font-bold text-hp-300">선택한 장소: {selectedPlace.name}</p>
                 </div>
-              )}
+              ) : null}
             </div>
-          )}
+          ) : null}
         </div>
 
         <div className="flex justify-end gap-3 border-t bg-hp-50 p-5">

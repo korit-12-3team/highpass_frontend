@@ -6,9 +6,9 @@ import { useKakaoLoader } from "react-kakao-maps-sdk";
 import MainSidebar from "@/components/layout/MainSidebar";
 import ProfileModal from "@/components/profile/ProfileModal";
 import WritePostModal from "@/components/post/WritePostModal";
-import { SearchPlace, UserProfile, useApp } from "@/lib/AppContext";
-import { updateUserProfile } from "@/lib/profile";
-import { getUserProfile } from "@/lib/users";
+import { useApp } from "@/lib/AppContext";
+import { createUserProfile, getUserProfile } from "@/lib/profile";
+import type { SearchPlace, UserProfile } from "@/lib/types";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -18,20 +18,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     isAuthenticated,
     authReady,
     logout,
-    setCurrentUser,
     boardData,
     chatRooms,
     setChatRooms,
     setActiveChatRoomId,
     profileModal,
     setProfileModal,
-    setEditProfileOpen,
-    editNickname,
-    editAgeRange,
-    editGender,
-    setEditLocation,
-    editSiDo,
-    editGunGu,
     writeModalOpen,
     setWriteModalOpen,
     writeType,
@@ -60,70 +52,16 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const [profileRemote, setProfileRemote] = useState<UserProfile | null>(null);
   const [profileRemoteLoading, setProfileRemoteLoading] = useState(false);
   const [profileRemoteError, setProfileRemoteError] = useState("");
-  const [, setProfileSaveLoading] = useState(false);
-  const [profileSaveError, setProfileSaveError] = useState("");
 
   useEffect(() => {
     if (authReady && !isAuthenticated) router.replace("/login");
   }, [authReady, isAuthenticated, router]);
 
-  const ready = authReady && isAuthenticated && !!currentUser;
-
-  const getProfileById = (profileId: string): UserProfile => {
-    if (!currentUser) {
-      return {
-        id: profileId,
-        nickname: "사용자",
-        name: "사용자",
-        ageRange: "미등록",
-        gender: "미등록",
-        location: "미등록",
-      };
-    }
-
-    if (profileId === currentUser.id) return currentUser;
-
-    const boardProfile = boardData.find((post) => post.authorId === profileId);
-    if (boardProfile) {
-      return {
-        id: boardProfile.authorId,
-        nickname: boardProfile.author,
-        name: boardProfile.author,
-        ageRange: "미등록",
-        gender: "미등록",
-        location: boardProfile.location || "미등록",
-      };
-    }
-
-    const chatProfile = chatRooms.find((room) => room.partnerId === profileId);
-    if (chatProfile) {
-      return {
-        id: chatProfile.partnerId,
-        nickname: chatProfile.partnerNickname,
-        name: chatProfile.partnerNickname,
-        ageRange: "미등록",
-        gender: "미등록",
-        location: "미등록",
-      };
-    }
-
-    return {
-      id: profileId,
-      nickname: "알 수 없음",
-      name: "알 수 없음",
-      ageRange: "미등록",
-      gender: "미등록",
-      location: "미등록",
-    };
-  };
-
   useEffect(() => {
-    if (!currentUser) return;
     if (!profileModal) {
       setProfileRemote(null);
       setProfileRemoteError("");
       setProfileRemoteLoading(false);
-      setProfileSaveError("");
       return;
     }
 
@@ -131,38 +69,59 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     setProfileRemoteLoading(true);
     setProfileRemoteError("");
 
-    (async () => {
+    void (async () => {
       try {
         const fetched = await getUserProfile(profileModal);
-        if (cancelled) return;
-        setProfileRemote(fetched);
-      } catch (e) {
-        if (cancelled) return;
-        setProfileRemote(null);
-        setProfileRemoteError(e instanceof Error ? e.message : "프로필을 불러오지 못했습니다.");
+        if (!cancelled) {
+          setProfileRemote(fetched);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setProfileRemote(null);
+          setProfileRemoteError(error instanceof Error ? error.message : "프로필을 불러오지 못했습니다.");
+        }
       } finally {
-        if (cancelled) return;
-        setProfileRemoteLoading(false);
+        if (!cancelled) {
+          setProfileRemoteLoading(false);
+        }
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [profileModal, currentUser]);
+  }, [profileModal]);
 
+  const ready = authReady && isAuthenticated && !!currentUser;
   if (!ready || !currentUser) return null;
 
-  const baseProfile = profileModal ? getProfileById(profileModal) : currentUser;
-  const profile =
-    profileModal && profileRemote && profileRemote.id === baseProfile.id ? profileRemote : baseProfile;
+  const getProfileById = (profileId: string) => {
+    if (profileId === currentUser.id) return currentUser;
 
-  const openEditProfile = () => {
-    setProfileModal(null);
-    setEditProfileOpen(false);
-    setProfileSaveError("");
-    router.push("/mypage");
+    const boardProfile = boardData.find((post) => post.authorId === profileId);
+    if (boardProfile) {
+      return createUserProfile({
+        id: boardProfile.authorId,
+        nickname: boardProfile.author,
+        name: boardProfile.author,
+        location: boardProfile.location ?? "",
+      });
+    }
+
+    const chatProfile = chatRooms.find((room) => room.partnerId === profileId);
+    if (chatProfile) {
+      return createUserProfile({
+        id: chatProfile.partnerId,
+        nickname: chatProfile.partnerNickname,
+        name: chatProfile.partnerNickname,
+      });
+    }
+
+    return createUserProfile({ id: profileId, nickname: "사용자" });
   };
+
+  const baseProfile = profileModal ? getProfileById(profileModal) : currentUser;
+  const profile = profileModal && profileRemote?.id === baseProfile.id ? profileRemote : baseProfile;
 
   const resetWriteForm = () => {
     setWriteModalOpen(false);
@@ -218,64 +177,16 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <main className="relative flex-1 overflow-y-auto p-4 md:p-8">{children}</main>
 
       <ProfileModal
-        currentUser={currentUser}
         profile={profile}
         loading={profileRemoteLoading}
         error={profileRemoteError}
-        saveError={profileSaveError}
         isOpen={!!profileModal}
         isCurrentUser={profile.id === currentUser.id}
-        onOpenEdit={openEditProfile}
-        onClose={() => {
+        onOpenEdit={() => {
           setProfileModal(null);
-          setEditProfileOpen(false);
-          setProfileSaveError("");
+          router.push("/mypage");
         }}
-        onSaveProfile={async () => {
-          if (!currentUser) return;
-
-          const nickname = editNickname.trim();
-          const ageRange = editAgeRange.trim();
-          const gender = editGender.trim();
-          const siDo = editSiDo.trim();
-          const gunGu = editGunGu.trim();
-
-          if (!nickname || !ageRange || !gender || !siDo || !gunGu) {
-            setProfileSaveError("닉네임, 연령대, 성별, 지역을 모두 입력해 주세요.");
-            return;
-          }
-
-          setProfileSaveLoading(true);
-          setProfileSaveError("");
-
-          try {
-            const updated = await updateUserProfile(currentUser.id, {
-              nickname,
-              ageRange,
-              gender,
-              siDo,
-              gunGu,
-            });
-
-            setCurrentUser((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    ...updated,
-                    name: prev.name,
-                  }
-                : prev,
-            );
-            setProfileRemote(updated);
-            setEditLocation(updated.location);
-            setEditProfileOpen(false);
-            setProfileModal(null);
-          } catch (e) {
-            setProfileSaveError(e instanceof Error ? e.message : "프로필 수정에 실패했습니다.");
-          } finally {
-            setProfileSaveLoading(false);
-          }
-        }}
+        onClose={() => setProfileModal(null)}
         onStartChat={() => {
           const existing = chatRooms.find((room) => room.partnerId === profile.id);
           if (existing) {
@@ -291,8 +202,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             setActiveChatRoomId(newRoom.id);
           }
           setProfileModal(null);
-          setEditProfileOpen(false);
-          setProfileSaveError("");
           router.push("/chat");
         }}
       />

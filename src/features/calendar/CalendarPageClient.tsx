@@ -417,10 +417,10 @@ export default function CalendarPageClient() {
   };
 
   const openMonthPicker = () => {
-    const picker = monthInputRef.current;
+    const picker = monthInputRef.current as (HTMLInputElement & { showPicker?: () => void }) | null;
     if (!picker) return;
 
-    if ("showPicker" in picker) {
+    if (typeof picker.showPicker === "function") {
       picker.showPicker();
       return;
     }

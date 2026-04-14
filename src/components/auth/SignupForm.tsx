@@ -4,9 +4,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AuthShell from "@/components/auth/AuthShell";
-import { useApp, UserProfile } from "@/lib/AppContext";
+import { useApp } from "@/lib/AppContext";
 import { API_BASE_URL } from "@/lib/config";
 import { REGION_DATA } from "@/lib/constants";
+import { AGE_RANGE_OPTIONS, GENDER_OPTIONS, createUserProfile } from "@/lib/profile";
 
 interface SignupFormProps {
   isSocialSignup: boolean;
@@ -17,57 +18,30 @@ type SignupApiResponse = {
   userId?: string | number;
   email?: string;
   nickname?: string;
+  ageRange?: string;
+  gender?: string;
+  siDo?: string;
+  gunGu?: string;
   redirectUrl?: string;
   message?: string;
-  data?: unknown;
 };
 
-function unwrapAuthPayload(payload: unknown): unknown {
-  if (!payload || typeof payload !== "object") return payload;
-  if ("data" in (payload as Record<string, unknown>)) return (payload as Record<string, unknown>).data;
-  return payload;
-}
+function mapSignupResponseToUser(payload: SignupApiResponse) {
+  const id = payload.userId ?? payload.id ?? "";
+  const nickname = payload.nickname || (payload.email ? payload.email.split("@")[0] : "me");
+  const location = [payload.siDo, payload.gunGu].filter(Boolean).join(" ");
 
-function extractNumericUserId(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object") return null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const p = payload as any;
-  const candidates = [
-    p.userId,
-    p.id,
-    p.user_id,
-    p.memberId,
-    p.data?.userId,
-    p.data?.id,
-    p.data?.user?.id,
-  ];
-
-  for (const c of candidates) {
-    if (c == null) continue;
-    const s = String(c).trim();
-    if (/^\d+$/.test(s)) return s;
-  }
-  return null;
-}
-
-function mapSignupResponseToUser(payload: unknown, fallback: { email: string; nickname: string; ageRange: string; gender: string; location: string }): UserProfile {
-  const unwrapped = unwrapAuthPayload(payload);
-  const userId = extractNumericUserId(unwrapped);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const p = (unwrapped && typeof unwrapped === "object" ? (unwrapped as any) : {}) as any;
-
-  return {
-    id: userId ?? "",
-    email: typeof p.email === "string" ? p.email : fallback.email,
-    nickname: typeof p.nickname === "string" ? p.nickname : fallback.nickname,
-    name: typeof p.nickname === "string" ? p.nickname : fallback.nickname,
-    ageRange: fallback.ageRange,
-    gender: fallback.gender,
-    location: fallback.location,
+  return createUserProfile({
+    id: String(id),
+    email: payload.email,
+    nickname,
+    name: nickname,
+    ageRange: payload.ageRange,
+    gender: payload.gender,
+    location,
     profileImage: null,
     loginType: "local",
-  };
+  });
 }
 
 export default function SignupForm({ isSocialSignup }: SignupFormProps) {
@@ -103,14 +77,13 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
       return;
     }
 
-    setLoading(true);
-    setError("");
-
     if (isSocialSignup) {
-      setLoading(false);
       setError("소셜 회원가입은 아직 준비 중입니다.");
       return;
     }
+
+    setLoading(true);
+    setError("");
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
@@ -142,26 +115,17 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
         return;
       }
 
-      const location = `${siDo} ${gunGu}`.trim();
-      const user = mapSignupResponseToUser(payload, {
-        email,
-        nickname,
-        ageRange,
-        gender,
-        location,
-      });
-
-      handleAuthSuccess(user);
+      handleAuthSuccess(mapSignupResponseToUser(payload ?? {}));
       router.replace(payload?.redirectUrl || "/calendar");
     } catch {
-      setError("서버에 연결할 수 없습니다. API 주소 또는 서버 상태를 확인해주세요.");
+      setError("서버에 연결할 수 없습니다. API 주소 또는 서버 상태를 확인해 주세요.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <AuthShell title="회원가입" subtitle={isSocialSignup ? "소셜 회원가입" : "계정을 생성하세요"}>
+    <AuthShell title="회원가입" subtitle={isSocialSignup ? "소셜 회원가입" : "계정을 생성해 주세요"}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           type="email"
@@ -173,7 +137,7 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
           required
         />
 
-        {!isSocialSignup && (
+        {!isSocialSignup ? (
           <>
             <input
               type="password"
@@ -192,7 +156,7 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
               required
             />
           </>
-        )}
+        ) : null}
 
         <input
           type="text"
@@ -227,7 +191,7 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
             className="appearance-none rounded-xl border border-hp-200 bg-hp-50 px-3 py-3 text-slate-800 outline-none focus:border-hp-500 disabled:opacity-40"
             required
           >
-            <option value="">군/구 선택</option>
+            <option value="">구/군 선택</option>
             {(REGION_DATA[siDo] || []).map((region) => (
               <option key={region} value={region}>
                 {region}
@@ -239,15 +203,13 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
         <div>
           <p className="mb-2 text-xs text-slate-600">연령대</p>
           <div className="grid grid-cols-5 gap-1.5">
-            {["10대", "20대", "30대", "40대", "50대+"].map((item) => (
+            {AGE_RANGE_OPTIONS.map((item) => (
               <button
                 type="button"
                 key={item}
                 onClick={() => setAgeRange(item)}
                 className={`rounded-lg py-2 text-sm font-medium transition-colors ${
-                  ageRange === item
-                    ? "bg-hp-600 text-white"
-                    : "border border-hp-200 bg-white text-slate-600 hover:border-hp-400"
+                  ageRange === item ? "bg-hp-600 text-white" : "border border-hp-200 bg-white text-slate-600 hover:border-hp-400"
                 }`}
               >
                 {item}
@@ -259,15 +221,13 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
         <div>
           <p className="mb-2 text-xs text-slate-600">성별</p>
           <div className="grid grid-cols-2 gap-1.5">
-            {["남", "여"].map((item) => (
+            {GENDER_OPTIONS.map((item) => (
               <button
                 type="button"
                 key={item}
                 onClick={() => setGender(item)}
                 className={`rounded-lg py-2 text-sm font-medium transition-colors ${
-                  gender === item
-                    ? "bg-hp-600 text-white"
-                    : "border border-hp-200 bg-white text-slate-600 hover:border-hp-400"
+                  gender === item ? "bg-hp-600 text-white" : "border border-hp-200 bg-white text-slate-600 hover:border-hp-400"
                 }`}
               >
                 {item}
@@ -276,11 +236,9 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
           </div>
         </div>
 
-        <div className="min-h-5">
-          {(error || isPasswordMismatch) && (
-            <p className="text-sm text-red-500">{isPasswordMismatch ? "비밀번호가 일치하지 않습니다." : error}</p>
-          )}
-        </div>
+        {(error || isPasswordMismatch) ? (
+          <p className="text-sm text-red-500">{isPasswordMismatch ? "비밀번호가 일치하지 않습니다." : error}</p>
+        ) : null}
 
         <button
           type="submit"

@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import {
   Calendar as CalendarIcon,
   MessageCircle,
@@ -46,7 +45,7 @@ export default function MainSidebar({
     <aside className="relative z-10 hidden w-64 flex-col bg-hp-900 shadow-xl md:flex">
       <div className="border-b border-hp-800 p-6">
         <h1 className="flex items-center gap-2 text-2xl font-black text-white">
-          <Zap size={28} className="fill-hp-600 text-hp-600" /> HighPass
+          <Zap size={28} className="fill-hp-600 text-hp-600" /> HIGHPASS
         </h1>
       </div>
 
