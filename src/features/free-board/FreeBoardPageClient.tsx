@@ -7,6 +7,7 @@ import { useApp } from "@/lib/AppContext";
 import { createComment, listComments } from "@/lib/comments";
 import { saveLikedPost, toggleBoardLike } from "@/lib/likes";
 import { formatBoardCreatedAt, getInitial } from "@/features/boards/detail-utils";
+import { createPostViewRef } from "@/lib/post-view-session";
 
 export default function FreeBoardPageClient() {
   const router = useRouter();
@@ -138,7 +139,8 @@ export default function FreeBoardPageClient() {
   const openPost = (postId: string) => {
     const currentQuery = searchParams.toString();
     const returnTo = currentQuery ? `${pathname}?${currentQuery}` : pathname;
-    router.push(`/free/${encodeURIComponent(postId)}?returnTo=${encodeURIComponent(returnTo)}`);
+    const ref = createPostViewRef("free", postId);
+    router.push(`/free/post?ref=${encodeURIComponent(ref)}&returnTo=${encodeURIComponent(returnTo)}`);
   };
 
   return (
@@ -155,7 +157,7 @@ export default function FreeBoardPageClient() {
                 setWriteType("free");
                 setWriteModalOpen(true);
               }}
-              className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+              className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-md"
             >
               새 게시물
             </button>
@@ -174,12 +176,12 @@ export default function FreeBoardPageClient() {
           {freePosts.map((post) => (
             <article
               key={`free-${post.id}`}
-              className="overflow-hidden rounded-[28px] border border-hp-100 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]"
+              className="overflow-hidden rounded-[28px] border border-hp-100 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:border-hp-200 hover:shadow-[0_28px_90px_rgba(15,23,42,0.12)]"
             >
-              <div className="flex items-center gap-3 border-b border-hp-100 px-4 py-3">
+              <div className="flex items-center gap-3 border-b border-hp-100 bg-gradient-to-r from-white to-hp-50/40 px-4 py-3">
                 <button
                   onClick={() => setProfileModal(post.authorId)}
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-hp-100 p-[2px]"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-hp-100 p-[2px] transition hover:scale-105 hover:bg-hp-200"
                   title="프로필 보기"
                 >
                   <span className="flex h-full w-full items-center justify-center rounded-full bg-white text-xs font-bold text-hp-700">
@@ -189,7 +191,7 @@ export default function FreeBoardPageClient() {
 
                 <div className="min-w-0 flex-1">
                   <button
-                    className="block truncate text-left text-sm font-semibold text-slate-900 hover:underline"
+                    className="block truncate text-left text-sm font-semibold text-slate-900 transition hover:text-hp-700 hover:underline"
                     onClick={() => setProfileModal(post.authorId)}
                   >
                     {post.author}
@@ -198,9 +200,11 @@ export default function FreeBoardPageClient() {
                 </div>
               </div>
 
-              <button onClick={() => openPost(post.id)} className="block w-full text-left">
-                <div className="border-b border-hp-100 bg-gradient-to-br from-white via-hp-50/30 to-white px-5 py-6">
-                  {post.title ? <h3 className="text-xl font-bold leading-tight text-slate-950">{post.title}</h3> : null}
+              <button onClick={() => openPost(post.id)} className="group block w-full text-left">
+                <div className="border-b border-hp-100 bg-gradient-to-br from-white via-hp-50/30 to-white px-5 py-6 transition group-hover:from-hp-50/50 group-hover:via-white group-hover:to-hp-50/20">
+                  {post.title ? (
+                    <h3 className="text-xl font-bold leading-tight text-slate-950 transition group-hover:text-hp-800">{post.title}</h3>
+                  ) : null}
                   <p className={`text-[15px] leading-7 text-slate-700 ${post.title ? "mt-3" : ""}`}>{post.content}</p>
                 </div>
               </button>
@@ -211,7 +215,7 @@ export default function FreeBoardPageClient() {
                     onClick={() => void handleToggleLike(post.id)}
                     disabled={likeSubmittingPostId === post.id}
                     className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold transition ${
-                      post.likedByUser ? "bg-red-50 text-red-500" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      post.likedByUser ? "bg-red-50 text-red-500 shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900"
                     } disabled:opacity-50`}
                   >
                     <Heart size={16} className={post.likedByUser ? "fill-current" : ""} />
@@ -223,7 +227,7 @@ export default function FreeBoardPageClient() {
                   </span>
                   <button
                     onClick={() => openPost(post.id)}
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-slate-800"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-hp-700"
                   >
                     <MessageCircle size={16} />
                     댓글 {post.comments?.length || 0}
@@ -242,7 +246,7 @@ export default function FreeBoardPageClient() {
                   </div>
                 )}
 
-                <div className="mt-4 flex items-center gap-3 rounded-2xl border border-black/10 bg-slate-50 px-4 py-3">
+                <div className="mt-4 flex items-center gap-3 rounded-2xl border border-black/10 bg-slate-50 px-4 py-3 transition focus-within:border-hp-300 focus-within:bg-white focus-within:shadow-sm">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[11px] font-bold text-white">
                     {getInitial(currentUser?.nickname || "U")}
                   </div>
@@ -261,7 +265,7 @@ export default function FreeBoardPageClient() {
                   <button
                     onClick={() => void submitInlineComment(post.id)}
                     disabled={inlineCommentSubmittingPostId === post.id || !(inlineCommentDrafts[post.id] || "").trim()}
-                    className="text-sm font-semibold text-hp-600 disabled:text-slate-300"
+                    className="text-sm font-semibold text-hp-600 transition hover:text-hp-700 disabled:text-slate-300"
                   >
                     등록
                   </button>

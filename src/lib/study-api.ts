@@ -122,3 +122,40 @@ export async function createStudy(input: {
 
   return mapStudyRecordToBoardPost(responsePayload as StudyApiRecord);
 }
+
+export async function updateStudy(
+  studyId: string,
+  input: {
+    title: string;
+    content: string;
+    cert?: string | null;
+    locationName?: string;
+    address?: string;
+    latitude?: number;
+    longitude?: number;
+    placeId?: string;
+  },
+): Promise<BoardPost> {
+  const payload = {
+    title: input.title,
+    content: input.content,
+    cert: input.cert ?? null,
+    locationName: input.locationName ?? input.address ?? "",
+    address: input.address ?? input.locationName ?? "",
+    latitude: input.latitude ?? 0,
+    longitude: input.longitude ?? 0,
+    placeId: input.placeId ?? "LOCAL_PLACE",
+  };
+
+  const response = await http.patch(`/api/study/${encodeURIComponent(studyId)}`, payload);
+  const responsePayload = unwrapData(response.data);
+  if (!responsePayload || typeof responsePayload !== "object") {
+    throw new Error("스터디 게시글 수정 응답이 비어 있습니다.");
+  }
+
+  return mapStudyRecordToBoardPost(responsePayload as StudyApiRecord);
+}
+
+export async function deleteStudy(studyId: string): Promise<void> {
+  await http.delete(`/api/study/${encodeURIComponent(studyId)}`);
+}

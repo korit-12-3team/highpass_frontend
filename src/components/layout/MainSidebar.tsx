@@ -41,6 +41,8 @@ export default function MainSidebar({
   onOpenProfile,
   onLogout,
 }: MainSidebarProps) {
+  const unreadChatCount = chatRooms.reduce((sum, room) => sum + (room.unreadCount ?? 0), 0);
+
   return (
     <aside className="relative z-10 hidden w-64 flex-col bg-hp-900 shadow-xl md:flex">
       <div className="border-b border-hp-800 p-6">
@@ -86,9 +88,9 @@ export default function MainSidebar({
             >
               {item.icon}
               {item.label}
-              {item.href === "/chat" && chatRooms.length > 0 && (
+              {item.href === "/chat" && unreadChatCount > 0 && (
                 <span className="ml-auto rounded-full bg-hp-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                  {chatRooms.length}
+                  {unreadChatCount > 99 ? "99+" : unreadChatCount}
                 </span>
               )}
             </button>

@@ -234,6 +234,15 @@ export default function SearchPageClient() {
     [mergedSchedules],
   );
 
+  useEffect(() => {
+    if (requestedTab) return;
+    if (loading) return;
+    if (activeTab !== "upcoming") return;
+    if (upcomingSchedules.length === 0 && pastSchedules.length > 0) {
+      setActiveTab("past");
+    }
+  }, [activeTab, loading, pastSchedules.length, requestedTab, upcomingSchedules.length]);
+
   const visibleSchedules = activeTab === "past" ? pastSchedules : upcomingSchedules;
 
   const filteredSchedules = useMemo(() => {
@@ -348,7 +357,11 @@ export default function SearchPageClient() {
 
           {!loading && !loadError && filteredSchedules.length === 0 && (
             <div className="rounded-xl border border-dashed border-hp-200 p-8 text-center text-slate-500">
-              {activeTab === "past" ? "지난 일정이 없습니다." : "현재 예정된 자격증 일정이 없습니다."}
+              {activeTab === "past"
+                ? "지난 일정이 없습니다."
+                : pastSchedules.length > 0
+                  ? "예정된 일정은 없고 지난 일정만 있습니다. '지난 일정' 탭에서 확인해 주세요."
+                  : "현재 예정된 자격증 일정이 없습니다."}
             </div>
           )}
 

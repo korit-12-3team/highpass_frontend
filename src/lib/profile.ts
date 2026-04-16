@@ -109,3 +109,12 @@ export async function updateUserPassword(
 ): Promise<void> {
   await http.patch(`/api/users/${encodeURIComponent(userId)}/password`, input);
 }
+
+export async function verifyUserPassword(
+  userId: string,
+  input: {
+    currentPassword: string;
+  },
+): Promise<void> {
+  await http.post(`/api/users/${encodeURIComponent(userId)}/password/verify`, input);
+}

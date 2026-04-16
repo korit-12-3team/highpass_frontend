@@ -114,13 +114,21 @@ function mapUserCertificate(record: CertificateApiRecord): UserCertificateRecord
 
 export async function listCertificateSchedules(): Promise<CertificateSchedule[]> {
   const response = await http.get("/api/certificates/schedules");
+  if (typeof response.data === "string" && response.data.trim().startsWith("<")) {
+    throw new Error("자격증 일정 API가 JSON 대신 HTML을 반환했습니다. 백엔드 인증/보안 설정을 확인해 주세요.");
+  }
   const payload = unwrapData(response.data);
-  if (!Array.isArray(payload)) return [];
+  if (!Array.isArray(payload)) {
+    throw new Error("자격증 일정 API 응답 형식이 올바르지 않습니다.");
+  }
   return payload.map((item) => mapCertificateSchedule(item as CertificateApiRecord));
 }
 
 export async function syncCertificateSchedules(): Promise<CertificateSyncResult> {
   const response = await http.post("/api/certificates/admin/sync");
+  if (typeof response.data === "string" && response.data.trim().startsWith("<")) {
+    throw new Error("자격증 동기화 API가 JSON 대신 HTML을 반환했습니다. 백엔드 인증/보안 설정을 확인해 주세요.");
+  }
   const payload = unwrapData(response.data) as Partial<CertificateSyncResult> | undefined;
 
   return {

@@ -65,6 +65,10 @@ export interface ChatRoom {
   partnerId: string;
   partnerNickname: string;
   messages: ChatMessage[];
+  unreadCount?: number;
+  name?: string;
+  roomNickname?: string;
+  lastMessage?: string;
 }
 
 export interface SearchPlace {

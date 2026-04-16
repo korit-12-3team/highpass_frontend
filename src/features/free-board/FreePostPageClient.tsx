@@ -8,13 +8,16 @@ import { deleteBoard, getBoard } from "@/lib/boards";
 import { createComment, deleteComment as deleteCommentRequest, listComments, updateComment as updateCommentRequest } from "@/lib/comments";
 import { saveLikedPost, toggleBoardLike } from "@/lib/likes";
 import { formatBoardCreatedAt, getInitial } from "@/features/boards/detail-utils";
+import { createPostViewRef, resolvePostViewRef } from "@/lib/post-view-session";
 
 export default function FreePostPageClient() {
   const params = useParams<{ postId: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { boardData, setBoardData, currentUser, setProfileModal } = useApp();
-  const postId = String(params.postId ?? "");
+  const rawPostId = String(params.postId ?? "");
+  const postRef = searchParams.get("ref");
+  const postId = useMemo(() => rawPostId || resolvePostViewRef("free", postRef), [postRef, rawPostId]);
   const returnTo = searchParams.get("returnTo");
 
   const basePost = useMemo(
@@ -65,6 +68,13 @@ export default function FreePostPageClient() {
       window.clearTimeout(timer);
     };
   }, [currentUser?.id, postId, setBoardData]);
+
+  useEffect(() => {
+    if (!rawPostId || !post) return;
+    const ref = createPostViewRef("free", post.id);
+    const nextUrl = `/free/post?ref=${encodeURIComponent(ref)}${returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : ""}`;
+    router.replace(nextUrl, { scroll: false });
+  }, [post, rawPostId, returnTo, router]);
 
   const syncComments = useCallback(
     (comments: BoardPost["comments"]) => {

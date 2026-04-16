@@ -8,6 +8,7 @@ import { listComments } from "@/lib/comments";
 import { saveLikedPost, toggleBoardLike } from "@/lib/likes";
 import { CERT_DATA, REGION_DATA } from "@/lib/constants";
 import { formatBoardCreatedAt, getInitial } from "@/features/boards/detail-utils";
+import { createPostViewRef } from "@/lib/post-view-session";
 
 const CUSTOM_CERT_FILTER = "기타";
 
@@ -186,7 +187,8 @@ export default function StudyPageClient() {
   const openPost = (postId: string) => {
     const currentQuery = searchParams.toString();
     const returnTo = currentQuery ? `${pathname}?${currentQuery}` : pathname;
-    router.push(`/study/${encodeURIComponent(postId)}?returnTo=${encodeURIComponent(returnTo)}`);
+    const ref = createPostViewRef("study", postId);
+    router.push(`/study/post?ref=${encodeURIComponent(ref)}&returnTo=${encodeURIComponent(returnTo)}`);
   };
 
   return (
@@ -201,7 +203,7 @@ export default function StudyPageClient() {
             setWriteType("study");
             setWriteModalOpen(true);
           }}
-          className="inline-flex items-center gap-2 rounded-full bg-hp-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-hp-700"
+          className="inline-flex items-center gap-2 rounded-full bg-hp-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-hp-700 hover:shadow-md"
         >
           <Zap size={16} />
           모집글 작성
@@ -209,7 +211,7 @@ export default function StudyPageClient() {
       </div>
 
       <div className="mb-5 grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_120px]">
-        <div className="rounded-2xl border border-slate-200 bg-white p-3">
+        <div className="rounded-2xl border border-slate-200 bg-white p-3 transition hover:border-hp-200 hover:shadow-sm">
           <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">자격증 영역</p>
           <div className="grid gap-2 md:grid-cols-2">
             <select
@@ -257,7 +259,7 @@ export default function StudyPageClient() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-3">
+        <div className="rounded-2xl border border-slate-200 bg-white p-3 transition hover:border-hp-200 hover:shadow-sm">
           <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">지역 영역</p>
           <div className="grid gap-2 md:grid-cols-2">
             <select
@@ -299,7 +301,7 @@ export default function StudyPageClient() {
               setLocationFilterSiDo("");
               setLocationFilterGunGu("");
             }}
-            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
           >
             필터 초기화
           </button>
@@ -315,7 +317,7 @@ export default function StudyPageClient() {
           {filteredPosts.map((post, index) => (
             <article
               key={`study-${post.id}`}
-              className={`px-5 py-5 pb-2 ${index !== filteredPosts.length - 1 ? "border-b border-slate-200" : ""}`}
+              className={`group px-5 py-5 pb-2 transition hover:bg-hp-50/30 ${index !== filteredPosts.length - 1 ? "border-b border-slate-200" : ""}`}
             >
               <div
                 role="button"
@@ -330,15 +332,18 @@ export default function StudyPageClient() {
                 className="block w-full cursor-pointer text-left"
               >
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="min-w-0 flex-wrap text-lg font-bold leading-tight text-slate-950">{post.title}</h3>
-                  <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+                  <h3 className="min-w-0 flex-wrap text-lg font-bold leading-tight text-slate-950 transition group-hover:text-hp-800">{post.title}</h3>
+                  <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700 transition group-hover:bg-amber-100">
                     {post.cert || "자격증 미정"}
                   </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1 text-xs font-bold text-sky-700">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1 text-xs font-bold text-sky-700 transition group-hover:bg-sky-100">
                     <MapPin size={12} />
                     {post.location || "장소 미정"}
                   </span>
                 </div>
+                <p className="mt-3 overflow-hidden text-ellipsis whitespace-nowrap text-sm leading-6 text-slate-600">
+                  {post.content}
+                </p>
 
               </div>
 
@@ -348,7 +353,7 @@ export default function StudyPageClient() {
                     <button
                       type="button"
                       onClick={() => setProfileModal(post.authorId)}
-                      className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 underline-offset-2 transition hover:text-hp-700"
+                      className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 underline-offset-2 transition hover:text-hp-700 hover:underline"
                     >
                       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-hp-100 text-[11px] font-bold text-hp-700">
                         {getInitial(post.author)}
@@ -362,12 +367,14 @@ export default function StudyPageClient() {
                   <div className="flex flex-wrap items-center gap-3 text-[12px]">
                     <span className="inline-flex items-center gap-1.5 font-medium text-slate-500">
                       <button
-                      type="button"
-                      onClick={() => void handleToggleLike(post.id)}
-                      disabled={likeSubmittingPostId === post.id}
-                      className={`inline-flex items-center gap-1.5 font-medium transition ${
-                        post.likedByUser ? "text-red-500" : "text-slate-500 hover:text-slate-700"
-                      } disabled:opacity-50`}
+                        type="button"
+                        onClick={() => void handleToggleLike(post.id)}
+                        disabled={likeSubmittingPostId === post.id}
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 font-medium transition ${
+                          post.likedByUser
+                            ? "bg-red-50 text-red-500"
+                            : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                        } disabled:opacity-50`}
                       >
                         <Heart size={14} className={post.likedByUser ? "fill-current" : ""} />
                         좋아요 {post.likes}
