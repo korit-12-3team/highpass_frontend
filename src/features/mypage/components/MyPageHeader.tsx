@@ -1,6 +1,6 @@
 import React from "react";
 import { FileText, Heart, MessageSquare, Settings } from "lucide-react";
-import type { UserProfile } from "@/lib/types";
+import type { UserProfile } from "@/entities/common/types";
 
 type MyPageTab = "profile" | "posts" | "comments" | "likes";
 

@@ -4,13 +4,13 @@ import React, { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useKakaoLoader } from "react-kakao-maps-sdk";
 import { Client } from "@stomp/stompjs";
-import MainSidebar from "@/components/layout/MainSidebar";
-import ProfileModal from "@/components/profile/ProfileModal";
-import WritePostModal from "@/components/post/WritePostModal";
-import { useApp } from "@/lib/AppContext";
-import { createUserProfile, getUserProfile } from "@/lib/profile";
-import { createChatClient } from "@/lib/stomp";
-import type { SearchPlace, UserProfile } from "@/lib/types";
+import MainSidebar from "@/shared/components/layout/MainSidebar";
+import ProfileModal from "@/shared/components/profile/ProfileModal";
+import WritePostModal from "@/features/boards/components/WritePostModal";
+import { useApp } from "@/shared/context/AppContext";
+import { createUserProfile, getUserProfile } from "@/features/mypage/api/profile";
+import { createChatClient } from "@/services/realtime/stomp";
+import type { SearchPlace, UserProfile } from "@/entities/common/types";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -20,7 +20,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     isAuthenticated,
     authReady,
     logout,
-    boardData,
     chatRooms,
     setChatRooms,
     activeChatRoomId,
@@ -159,16 +158,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   const getProfileById = (profileId: string) => {
     if (profileId === currentUser.id) return currentUser;
-
-    const boardProfile = boardData.find((post) => post.authorId === profileId);
-    if (boardProfile) {
-      return createUserProfile({
-        id: boardProfile.authorId,
-        nickname: boardProfile.author,
-        name: boardProfile.author,
-        location: boardProfile.location ?? "",
-      });
-    }
 
     const chatProfile = chatRooms.find((room) => room.partnerId === profileId);
     if (chatProfile) {

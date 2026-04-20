@@ -1,7 +1,7 @@
 import { Mail, MapPin, Settings, ShieldCheck, UserRound } from "lucide-react";
-import { AGE_RANGE_OPTIONS, GENDER_OPTIONS } from "@/lib/profile";
-import { REGION_DATA } from "@/lib/constants";
-import type { UserProfile } from "@/lib/types";
+import { AGE_RANGE_OPTIONS, GENDER_OPTIONS } from "@/features/mypage/api/profile";
+import { REGION_DATA } from "@/shared/constants";
+import type { UserProfile } from "@/entities/common/types";
 import { InfoField, SectionCard } from "@/features/mypage/components/MyPageCommon";
 
 type ProfileEditState = {

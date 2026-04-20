@@ -1,6 +1,6 @@
 import React from "react";
 import { Clock3, FileText, MessageSquare } from "lucide-react";
-import type { BoardPost, PostComment } from "@/lib/AppContext";
+import type { BoardPost, PostComment } from "@/entities/common/types";
 import { EmptyState } from "@/features/mypage/components/MyPageCommon";
 
 type MyCommentItem = {
