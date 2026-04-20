@@ -1,9 +1,0 @@
-{
-  "name": "korit123team",
-  "crons": [
-    {
-      "path": "/api/cron",
-      "schedule": "0 9 * * *"
-    }
-  ]
-}

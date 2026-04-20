@@ -1,13 +1,14 @@
 import SockJS from 'sockjs-client';
 import { Client, IMessage } from '@stomp/stompjs';
 import axios from 'axios';
+import { CHAT_API_BASE_URL, STOMP_ENDPOINT_URL } from '@/services/config/config';
 
 export const createChatClient = (
     roomIds: number[],
     onMessageReceived: (message : any) => void 
     ) => {
         const client = new Client({
-            webSocketFactory : () => new SockJS('http://localhost:8080/ws-stomp'),
+            webSocketFactory : () => new SockJS(STOMP_ENDPOINT_URL),
             reconnectDelay: 5000,
             debug : (str) => console.log(str), 
         }); 
@@ -34,13 +35,13 @@ export const sendMessage = (client : Client, messageData: any) => {
 };
 
 export const getMyChatRooms = async (userId: number) => {
-    const response = await axios.get(`/api/chat/rooms?userId=${userId}`);
+    const response = await axios.get(`${CHAT_API_BASE_URL}/chat/rooms?userId=${userId}`);
     return response.data; 
 }
 
 export const enterChatRoom = async (userId : number, partnerId: number) => {
-    const response = await axios.post(`api/chat/room`, {
-        userId, partnerId
+    const response = await axios.post(`${CHAT_API_BASE_URL}/chat/room`, null, {
+        params: { userId, partnerId }
     });
     return response.data; 
 }

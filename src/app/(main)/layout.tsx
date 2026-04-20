@@ -9,6 +9,7 @@ import ProfileModal from "@/shared/components/profile/ProfileModal";
 import WritePostModal from "@/features/boards/components/WritePostModal";
 import { useApp } from "@/shared/context/AppContext";
 import { createUserProfile, getUserProfile } from "@/features/mypage/api/profile";
+import { CHAT_API_BASE_URL } from "@/services/config/config";
 import { createChatClient } from "@/services/realtime/stomp";
 import type { SearchPlace, UserProfile } from "@/entities/common/types";
 
@@ -102,7 +103,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
     void (async () => {
       try {
-        const response = await fetch(`http://localhost:8080/chat/rooms?userId=${currentUser.id}`);
+        const response = await fetch(`${CHAT_API_BASE_URL}/chat/rooms?userId=${currentUser.id}`);
         if (!response.ok) return;
         const rooms = await response.json();
         if (cancelled) return;
@@ -244,7 +245,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             setActiveChatRoomId(existing.id);
           } else {
             try {
-              const response = await fetch(`http://localhost:8080/chat/room?userId=${currentUser.id}&partnerId=${profile.id}`,
+              const response = await fetch(`${CHAT_API_BASE_URL}/chat/room?userId=${currentUser.id}&partnerId=${profile.id}`,
             { 
               method: 'POST', 
               headers: { 'Content-Type': 'application/json' }

@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(npm run:*)",
-      "Bash(netstat -ano)",
-      "Bash(findstr :3000)"
-    ]
-  }
-}

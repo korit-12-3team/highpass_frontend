@@ -5,6 +5,7 @@ import { ArrowRight, MessageCircle } from "lucide-react";
 import axios from "axios";
 import { useApp } from "@/shared/context/AppContext";
 import { sendMessage } from "@/services/realtime/stomp";
+import { CHAT_API_BASE_URL, STOMP_ENDPOINT_URL } from "@/services/config/config";
 
 export default function ChatPageClient() {
   const { currentUser, chatRooms, setChatRooms, activeChatRoomId, setActiveChatRoomId } = useApp();
@@ -54,7 +55,7 @@ export default function ChatPageClient() {
       const SockJS = (await import("sockjs-client")).default;
       const { Client } = await import("@stomp/stompjs");
       const tempClient = new Client({
-        webSocketFactory: () => new SockJS("http://localhost:8080/ws-stomp"),
+        webSocketFactory: () => new SockJS(STOMP_ENDPOINT_URL),
       });
       tempClient.onConnect = () => {
         sendMessage(tempClient, messageData);
@@ -78,7 +79,7 @@ export default function ChatPageClient() {
 
     if (currentUser?.id) {
       try {
-        await axios.post(`http://localhost:8080/chat/rooms/${roomId}/read`, null, {
+        await axios.post(`${CHAT_API_BASE_URL}/chat/rooms/${roomId}/read`, null, {
           params: { userId: currentUser.id },
         });
       } catch {
