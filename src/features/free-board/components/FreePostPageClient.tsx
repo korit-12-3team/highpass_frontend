@@ -4,7 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, Heart, Pencil, Trash2, X } from "lucide-react";
 import type { BoardPost, PostComment } from "@/entities/common/types";
-import { createComment, deleteComment as deleteCommentRequest, listComments, updateComment as updateCommentRequest } from "@/features/boards/api/comments";
+import {
+  createComment,
+  deleteComment as deleteCommentRequest,
+  listComments,
+  updateComment as updateCommentRequest,
+} from "@/features/boards/api/comments";
 import { isPostLiked, saveLikedPost, toggleBoardLike } from "@/features/boards/api/likes";
 import { formatBoardCreatedAt, getInitial } from "@/features/boards/utils/detail-utils";
 import { deleteBoard } from "@/features/free-board/api/boards";
@@ -70,7 +75,7 @@ export default function FreePostPageClient({
     const targetId = Number(post.id);
 
     if (!Number.isFinite(userId) || !Number.isFinite(targetId)) {
-      setPostError("醫뗭븘???붿껌???꾩슂???ъ슜???먮뒗 寃뚯떆湲 ID媛 ?щ컮瑜댁? ?딆뒿?덈떎.");
+      setPostError("좋아요 요청에 필요한 사용자 또는 게시글 ID가 올바르지 않습니다.");
       return;
     }
 
@@ -85,7 +90,7 @@ export default function FreePostPageClient({
         likedByUser: nextLiked,
       }));
     } catch (e) {
-      setPostError(e instanceof Error ? e.message : "醫뗭븘??泥섎━???ㅽ뙣?덉뒿?덈떎.");
+      setPostError(e instanceof Error ? e.message : "좋아요 처리에 실패했습니다.");
     } finally {
       setLikeSubmitting(false);
     }
@@ -98,7 +103,7 @@ export default function FreePostPageClient({
     const targetId = Number(post.id);
 
     if (!Number.isFinite(userId) || !Number.isFinite(targetId)) {
-      setCommentError("?볤? ?붿껌???꾩슂???ъ슜???먮뒗 寃뚯떆湲 ID媛 ?щ컮瑜댁? ?딆뒿?덈떎.");
+      setCommentError("댓글 요청에 필요한 사용자 또는 게시글 ID가 올바르지 않습니다.");
       return;
     }
 
@@ -114,7 +119,7 @@ export default function FreePostPageClient({
       setCommentText("");
       await loadComments();
     } catch (e) {
-      setCommentError(e instanceof Error ? e.message : "?볤? ?깅줉???ㅽ뙣?덉뒿?덈떎.");
+      setCommentError(e instanceof Error ? e.message : "댓글 등록에 실패했습니다.");
     } finally {
       setCommentSubmitting(false);
     }
@@ -132,7 +137,7 @@ export default function FreePostPageClient({
     const targetId = Number(post.id);
 
     if (!Number.isFinite(userId) || !Number.isFinite(targetId)) {
-      setCommentError("?볤? ?붿껌???꾩슂???ъ슜???먮뒗 寃뚯떆湲 ID媛 ?щ컮瑜댁? ?딆뒿?덈떎.");
+      setCommentError("댓글 요청에 필요한 사용자 또는 게시글 ID가 올바르지 않습니다.");
       return;
     }
 
@@ -148,18 +153,18 @@ export default function FreePostPageClient({
       cancelEditingComment();
       await loadComments();
     } catch (e) {
-      setCommentError(e instanceof Error ? e.message : "?볤? ?섏젙???ㅽ뙣?덉뒿?덈떎.");
+      setCommentError(e instanceof Error ? e.message : "댓글 수정에 실패했습니다.");
     } finally {
       setActiveCommentId(null);
     }
   };
 
   const removeComment = async (commentId: number) => {
-    if (!currentUser || !window.confirm("?볤?????젣?섏떆寃좎뒿?덇퉴?")) return;
+    if (!currentUser || !window.confirm("댓글을 삭제하시겠습니까?")) return;
 
     const userId = Number(currentUser.id);
     if (!Number.isFinite(userId)) {
-      setCommentError("?볤? ??젣???꾩슂???ъ슜??ID媛 ?щ컮瑜댁? ?딆뒿?덈떎.");
+      setCommentError("댓글 요청에 필요한 사용자 ID가 올바르지 않습니다.");
       return;
     }
 
@@ -170,7 +175,7 @@ export default function FreePostPageClient({
       if (editingCommentId === commentId) cancelEditingComment();
       await loadComments();
     } catch (e) {
-      setCommentError(e instanceof Error ? e.message : "?볤? ??젣???ㅽ뙣?덉뒿?덈떎.");
+      setCommentError(e instanceof Error ? e.message : "댓글 삭제에 실패했습니다.");
     } finally {
       setActiveCommentId(null);
     }
@@ -179,7 +184,7 @@ export default function FreePostPageClient({
   if (!post) {
     return (
       <div className="mx-auto max-w-xl rounded-[28px] border border-hp-100 bg-white px-6 py-16 text-center text-sm text-slate-400 shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
-        寃뚯떆湲??遺덈윭?ㅼ? 紐삵뻽?듬땲??
+        게시글을 불러오지 못했습니다.
       </div>
     );
   }
@@ -192,11 +197,11 @@ export default function FreePostPageClient({
             <button
               onClick={() => router.push(returnTo ? decodeURIComponent(returnTo) : "/free")}
               className="rounded-full p-2 transition hover:bg-slate-100"
-              aria-label="?ㅻ줈"
+              aria-label="뒤로"
             >
-              ??
+              ←
             </button>
-            <div className="text-sm font-semibold text-slate-700">寃뚯떆湲</div>
+            <div className="text-sm font-semibold text-slate-700">자유 게시판</div>
           </div>
         </div>
 
@@ -207,7 +212,7 @@ export default function FreePostPageClient({
             <button
               onClick={() => setProfileModal(post.authorId)}
               className="flex h-11 w-11 items-center justify-center rounded-full bg-hp-100 p-[2px]"
-              title="?꾨줈??蹂닿린"
+              title="프로필 보기"
             >
               <span className="flex h-full w-full items-center justify-center rounded-full bg-white text-sm font-bold text-hp-700">
                 {getInitial(post.author)}
@@ -226,7 +231,7 @@ export default function FreePostPageClient({
               <button
                 disabled={deletingPost}
                 onClick={async () => {
-                  if (deletingPost || !window.confirm("寃뚯떆湲????젣?섏떆寃좎뒿?덇퉴?")) return;
+                  if (deletingPost || !window.confirm("게시글을 삭제하시겠습니까?")) return;
 
                   try {
                     setDeletingPost(true);
@@ -234,13 +239,13 @@ export default function FreePostPageClient({
                     await deleteBoard(String(post.id));
                     router.push(returnTo ? decodeURIComponent(returnTo) : "/free");
                   } catch (e) {
-                    setPostError(e instanceof Error ? e.message : "寃뚯떆湲 ??젣???ㅽ뙣?덉뒿?덈떎.");
+                    setPostError(e instanceof Error ? e.message : "게시글 삭제에 실패했습니다.");
                   } finally {
                     setDeletingPost(false);
                   }
                 }}
                 className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-red-500 disabled:opacity-50"
-                aria-label="寃뚯떆湲 ??젣"
+                aria-label="게시글 삭제"
               >
                 <Trash2 size={18} />
               </button>
@@ -263,7 +268,7 @@ export default function FreePostPageClient({
               } disabled:opacity-50`}
             >
               <Heart size={18} className={post.likedByUser ? "fill-current" : ""} />
-              醫뗭븘??{post.likes}
+              좋아요 {post.likes}
             </button>
             <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500">
               <Eye size={16} />
@@ -273,7 +278,7 @@ export default function FreePostPageClient({
         </div>
 
         <div className="border-t border-hp-100 px-4 py-4">
-          <div className="mb-3 text-sm font-semibold text-slate-900">?볤?</div>
+          <div className="mb-3 text-sm font-semibold text-slate-900">댓글</div>
 
           <div className="mb-4 flex items-center gap-3 rounded-2xl border border-black/10 bg-slate-50 px-4 py-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
@@ -282,7 +287,7 @@ export default function FreePostPageClient({
             <input
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
-              placeholder="?볤????낅젰?섏꽭??"
+              placeholder="댓글을 입력해주세요"
               className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
             />
             <button
@@ -290,7 +295,7 @@ export default function FreePostPageClient({
               disabled={commentSubmitting || !commentText.trim()}
               className="text-sm font-semibold text-hp-600 disabled:text-slate-300"
             >
-              ?깅줉
+              등록
             </button>
           </div>
 
@@ -298,7 +303,7 @@ export default function FreePostPageClient({
 
           {(post.comments || []).length === 0 ? (
             <div className="rounded-2xl border border-dashed border-black/10 bg-slate-50 px-4 py-8 text-center text-sm text-slate-400">
-              ?꾩쭅 ?볤????놁뒿?덈떎.
+              아직 댓글이 없습니다.
             </div>
           ) : (
             <div className="space-y-4">
@@ -318,7 +323,7 @@ export default function FreePostPageClient({
                               <button
                                 onClick={cancelEditingComment}
                                 className="rounded-full p-1 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700"
-                                aria-label="?볤? ?섏젙 痍⑥냼"
+                                aria-label="댓글 수정 취소"
                               >
                                 <X size={14} />
                               </button>
@@ -330,7 +335,7 @@ export default function FreePostPageClient({
                                   setCommentError("");
                                 }}
                                 className="rounded-full p-1 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700"
-                                aria-label="?볤? ?섏젙"
+                                aria-label="댓글 수정"
                               >
                                 <Pencil size={14} />
                               </button>
@@ -339,7 +344,7 @@ export default function FreePostPageClient({
                               onClick={() => void removeComment(comment.id)}
                               disabled={activeCommentId === comment.id}
                               className="rounded-full p-1 text-slate-400 transition hover:bg-slate-200 hover:text-red-500 disabled:opacity-50"
-                              aria-label="?볤? ??젣"
+                              aria-label="댓글 삭제"
                             >
                               <Trash2 size={14} />
                             </button>
@@ -361,7 +366,7 @@ export default function FreePostPageClient({
                               disabled={activeCommentId === comment.id || !editingCommentText.trim()}
                               className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
                             >
-                              {activeCommentId === comment.id ? "???以?." : "???"}
+                              {activeCommentId === comment.id ? "저장 중..." : "저장"}
                             </button>
                           </div>
                         </div>
