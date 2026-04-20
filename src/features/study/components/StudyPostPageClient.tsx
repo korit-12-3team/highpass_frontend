@@ -654,7 +654,17 @@ export default function StudyPostPageClient({
                       <div className="min-w-0 flex-1">
                         <div className="rounded-2xl bg-slate-50 px-4 py-3">
                           <div className="mb-1 flex items-center gap-2">
-                            <span className="text-sm font-semibold text-slate-900">{comment.author}</span>
+                            {comment.authorId ? (
+                              <button
+                                type="button"
+                                className="text-sm font-semibold text-slate-900 transition hover:underline"
+                                onClick={() => setProfileModal(comment.authorId!)}
+                              >
+                                {comment.author}
+                              </button>
+                            ) : (
+                              <span className="text-sm font-semibold text-slate-900">{comment.author}</span>
+                            )}
                             <span className="text-xs text-slate-400">{formatBoardCreatedAt(comment.createdAt)}</span>
                             {comment.author === currentUser?.nickname && (
                               <div className="ml-auto flex items-center gap-1">

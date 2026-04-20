@@ -30,6 +30,7 @@ export interface UserProfile {
 export interface PostComment {
   id: number;
   author: string;
+  authorId?: string;
   text: string;
   createdAt?: string;
 }

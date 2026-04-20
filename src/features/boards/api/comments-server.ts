@@ -5,6 +5,7 @@ type CommentApiRecord = {
   id?: unknown;
   content?: unknown;
   nickname?: unknown;
+  userId?: unknown;
   createdAt?: unknown;
 };
 
@@ -27,6 +28,7 @@ function mapApiRecordToComment(record: CommentApiRecord): PostComment {
   return {
     id: safeNumber(record.id, Date.now()),
     author: safeString(record.nickname, "Unknown"),
+    authorId: safeString(record.userId),
     text: safeString(record.content),
     createdAt: typeof record.createdAt === "string" ? record.createdAt : undefined,
   };
