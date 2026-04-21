@@ -71,6 +71,17 @@ export function getEventSegmentState(event: EventType, dateKey: string, fallback
   };
 }
 
+export function shouldShowEventLabel(event: EventType, dateKey: string, weekStartDate: Date, fallbackYear: number) {
+  const target = parseDate(dateKey);
+  const start = parseDate(event.startDate, fallbackYear);
+
+  if (!target || !start) {
+    return event.startDate === dateKey;
+  }
+
+  return startOfDay(start).getTime() === startOfDay(target).getTime() || startOfDay(target).getTime() === startOfDay(weekStartDate).getTime();
+}
+
 function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
@@ -97,8 +108,8 @@ export function getEventLabelStyle(event: EventType, dateKey: string, weekStartD
   const spanDays = Math.max(1, getDayDiff(visibleStart, visibleEnd) + 1);
 
   return {
-    left: `calc(${-daysBefore * 100}% - ${daysBefore * 8}px)`,
-    width: `calc(${spanDays * 100}% + ${(spanDays - 1) * 8}px)`,
+    left: `${-daysBefore * 100}%`,
+    width: `${spanDays * 100}%`,
   };
 }
 

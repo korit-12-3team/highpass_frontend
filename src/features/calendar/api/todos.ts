@@ -18,13 +18,25 @@ function mapTodo(record: TodoApiRecord): TodoItem {
   };
 }
 
+async function getErrorMessage(response: Response, fallback: string) {
+  const text = await response.text().catch(() => "");
+  if (!text) return fallback;
+
+  try {
+    const data = JSON.parse(text) as { message?: string; error?: string };
+    return data.message || data.error || fallback;
+  } catch {
+    return text;
+  }
+}
+
 export async function listTodosByDate(userId: string, date: string): Promise<TodoItem[]> {
   const response = await fetchWithAuth(`${API_BASE_URL}/api/todos/${userId}`, {
     method: "GET",
   });
 
   if (!response.ok) {
-    throw new Error("할 일 목록을 불러오지 못했습니다.");
+    throw new Error(await getErrorMessage(response, "할 일 목록을 불러오지 못했습니다."));
   }
 
   const data = (await response.json()) as TodoApiRecord[];
@@ -38,7 +50,7 @@ export async function listTodos(userId: string): Promise<TodoItem[]> {
   });
 
   if (!response.ok) {
-    throw new Error("할 일 목록을 불러오지 못했습니다.");
+    throw new Error(await getErrorMessage(response, "할 일 목록을 불러오지 못했습니다."));
   }
 
   const data = (await response.json()) as TodoApiRecord[];
@@ -58,7 +70,7 @@ export async function createTodo(userId: string, content: string, date: string):
   });
 
   if (!response.ok) {
-    throw new Error("할 일을 추가하지 못했습니다.");
+    throw new Error(await getErrorMessage(response, "할 일을 추가하지 못했습니다."));
   }
 
   const data = (await response.json()) as TodoApiRecord;
@@ -71,7 +83,7 @@ export async function toggleTodoStatus(todoId: number): Promise<TodoItem> {
   });
 
   if (!response.ok) {
-    throw new Error("할 일 상태를 변경하지 못했습니다.");
+    throw new Error(await getErrorMessage(response, "할 일 상태를 변경하지 못했습니다."));
   }
 
   const data = (await response.json()) as TodoApiRecord;
@@ -86,7 +98,7 @@ export async function updateTodoContent(todoId: number, content: string): Promis
   });
 
   if (!response.ok) {
-    throw new Error("할 일을 수정하지 못했습니다.");
+    throw new Error(await getErrorMessage(response, "할 일을 수정하지 못했습니다."));
   }
 
   const data = (await response.json()) as TodoApiRecord;
@@ -99,6 +111,6 @@ export async function deleteTodo(todoId: number) {
   });
 
   if (!response.ok) {
-    throw new Error("할 일을 삭제하지 못했습니다.");
+    throw new Error(await getErrorMessage(response, "할 일을 삭제하지 못했습니다."));
   }
 }

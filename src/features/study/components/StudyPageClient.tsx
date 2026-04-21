@@ -6,21 +6,15 @@ import { Eye, Heart, MapPin, MessageCircle, Zap } from "lucide-react";
 import type { BoardPost } from "@/entities/common/types";
 import { listComments } from "@/features/boards/api/comments";
 import { isPostLiked, saveLikedPost, toggleBoardLike } from "@/features/boards/api/likes";
-import { formatBoardCreatedAt, getInitial } from "@/features/boards/utils/detail-utils";
+import { formatBoardCreatedAt, getBoardCreatedAtTime, getInitial } from "@/features/boards/utils/detail-utils";
 import { CERT_DATA, REGION_DATA } from "@/shared/constants";
 import { useApp } from "@/shared/context/AppContext";
 
 const CUSTOM_CERT_FILTER = "기타";
 
 function sortPosts(posts: BoardPost[]) {
-  const getTime = (value?: string) => {
-    if (!value) return 0;
-    const t = new Date(value).getTime();
-    return Number.isNaN(t) ? 0 : t;
-  };
-
   return posts.slice().sort((a, b) => {
-    const dt = getTime(b.createdAt) - getTime(a.createdAt);
+    const dt = getBoardCreatedAtTime(b.createdAt) - getBoardCreatedAtTime(a.createdAt);
     if (dt !== 0) return dt;
     return Number(b.id) - Number(a.id);
   });

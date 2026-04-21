@@ -30,58 +30,85 @@ export function CalendarEventModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="space-y-4 p-5">
+      <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="space-y-5 p-5">
           <input
             type="text"
             value={form.title}
             onChange={onChangeField("title")}
             placeholder="일정 제목"
-            className="w-full border-b-2 border-hp-200 p-2 text-lg font-bold outline-none focus:border-hp-600"
+            className="w-full border-b-2 border-hp-200 px-1 py-3 text-xl font-black outline-none focus:border-hp-600"
           />
-          <textarea
-            value={form.content}
-            onChange={onChangeField("content")}
-            placeholder="일정 설명"
-            rows={3}
-            className="w-full rounded-xl border border-hp-100 p-3 outline-none focus:border-hp-300"
-          />
-          <div className="flex gap-3">
-            <input
-              type="date"
-              value={form.startDate}
-              onChange={onChangeStartDate}
-              className="w-full rounded-xl border border-hp-100 p-2.5"
-            />
-            <input
-              type="date"
-              value={form.endDate}
-              min={form.startDate || undefined}
-              onChange={onChangeEndDate}
-              className="w-full rounded-xl border border-hp-100 p-2.5"
-            />
-          </div>
-          <div className="flex gap-2">
-            <button onClick={onToggleAllDay} className="rounded-lg border border-hp-200 px-3 py-2 text-sm">
-              {form.isAllDay ? "종일" : "시간 설정"}
-            </button>
+
+          <div className="space-y-3">
+            <div className="grid grid-cols-[auto_1fr_1fr] items-end gap-3">
+              <button
+                type="button"
+                onClick={onToggleAllDay}
+                className={`rounded-xl border px-3 py-2.5 text-sm font-bold transition ${
+                  form.isAllDay
+                    ? "border-hp-600 bg-hp-600 text-white"
+                    : "border-hp-200 bg-white text-hp-700 hover:bg-hp-50"
+                }`}
+              >
+                종일
+              </button>
+              <label className="space-y-1">
+                <span className="text-xs font-bold text-slate-500">시작일</span>
+                <input
+                  type="date"
+                  value={form.startDate}
+                  onChange={onChangeStartDate}
+                  className="w-full rounded-xl border border-hp-100 p-2.5 text-sm font-semibold outline-none focus:border-hp-400"
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs font-bold text-slate-500">종료일</span>
+                <input
+                  type="date"
+                  value={form.endDate}
+                  min={form.startDate || undefined}
+                  onChange={onChangeEndDate}
+                  className="w-full rounded-xl border border-hp-100 p-2.5 text-sm font-semibold outline-none focus:border-hp-400"
+                />
+              </label>
+            </div>
+
             {!form.isAllDay && (
-              <>
-                <input
-                  type="time"
-                  value={form.startTime}
-                  onChange={onChangeField("startTime")}
-                  className="rounded-xl border border-hp-100 p-2.5"
-                />
-                <input
-                  type="time"
-                  value={form.endTime}
-                  onChange={onChangeField("endTime")}
-                  className="rounded-xl border border-hp-100 p-2.5"
-                />
-              </>
+              <div className="grid grid-cols-[auto_1fr_1fr] items-end gap-3">
+                <div className="w-[52px]" />
+                <label className="space-y-1">
+                  <span className="text-xs font-bold text-slate-500">시작 시간</span>
+                  <input
+                    type="time"
+                    value={form.startTime}
+                    onChange={onChangeField("startTime")}
+                    className="w-full rounded-xl border border-hp-100 p-2.5 text-sm font-semibold outline-none focus:border-hp-400"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs font-bold text-slate-500">종료 시간</span>
+                  <input
+                    type="time"
+                    value={form.endTime}
+                    onChange={onChangeField("endTime")}
+                    className="w-full rounded-xl border border-hp-100 p-2.5 text-sm font-semibold outline-none focus:border-hp-400"
+                  />
+                </label>
+              </div>
             )}
           </div>
+
+          <label className="block space-y-2">
+            <span className="text-xs font-bold text-slate-500">일정 설명</span>
+            <textarea
+              value={form.content}
+              onChange={onChangeField("content")}
+              placeholder="메모나 세부 내용을 입력해 주세요"
+              rows={3}
+              className="w-full resize-none rounded-xl border border-hp-100 p-3 text-sm outline-none focus:border-hp-300"
+            />
+          </label>
         </div>
 
         <div className="flex gap-2 border-t border-hp-50 p-4">

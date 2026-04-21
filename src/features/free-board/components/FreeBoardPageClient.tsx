@@ -6,16 +6,10 @@ import { Eye, Heart, MessageCircle } from "lucide-react";
 import type { BoardPost } from "@/entities/common/types";
 import { createComment } from "@/features/boards/api/comments";
 import { isPostLiked, saveLikedPost, toggleBoardLike } from "@/features/boards/api/likes";
-import { formatBoardCreatedAt, getInitial } from "@/features/boards/utils/detail-utils";
+import { formatBoardCreatedAt, getBoardCreatedAtTime, getInitial } from "@/features/boards/utils/detail-utils";
 import { useApp } from "@/shared/context/AppContext";
 
 function sortPosts(posts: BoardPost[]) {
-  const getTime = (value?: string) => {
-    if (!value) return 0;
-    const t = new Date(value).getTime();
-    return Number.isNaN(t) ? 0 : t;
-  };
-
   return Array.from(
     posts.reduce((map, item) => {
       map.set(item.id, item);
@@ -24,7 +18,7 @@ function sortPosts(posts: BoardPost[]) {
   )
     .slice()
     .sort((a, b) => {
-      const dt = getTime(b.createdAt) - getTime(a.createdAt);
+      const dt = getBoardCreatedAtTime(b.createdAt) - getBoardCreatedAtTime(a.createdAt);
       if (dt !== 0) return dt;
       return Number(b.id) - Number(a.id);
     });

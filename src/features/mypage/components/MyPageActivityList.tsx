@@ -1,25 +1,13 @@
 import React from "react";
 import { Clock3, FileText, MessageSquare } from "lucide-react";
 import type { BoardPost, PostComment } from "@/entities/common/types";
+import { formatBoardDate } from "@/features/boards/utils/detail-utils";
 import { EmptyState } from "@/features/mypage/components/MyPageCommon";
 
 type MyCommentItem = {
   comment: PostComment;
   post: BoardPost;
 };
-
-function formatDate(value?: string) {
-  if (!value) return "날짜 정보 없음";
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-
-  return parsed.toLocaleDateString("ko-KR", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
 
 function PostTypeBadge({ type }: { type: BoardPost["type"] }) {
   return (
@@ -58,7 +46,7 @@ export function PostList({ posts, onOpenPost }: { posts: BoardPost[]; onOpenPost
             {post.cert ? <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">{post.cert}</span> : null}
             <span className="inline-flex items-center gap-1 text-xs text-slate-400">
               <Clock3 size={12} />
-              {formatDate(post.createdAt)}
+              {formatBoardDate(post.createdAt)}
             </span>
           </div>
 
@@ -98,7 +86,7 @@ export function CommentList({ items, onOpenPost }: { items: MyCommentItem[]; onO
         >
           <div className="flex flex-wrap items-center gap-2">
             <PostTypeBadge type={post.type} />
-            <span className="text-xs font-semibold text-slate-400">{formatDate(comment.createdAt)}</span>
+            <span className="text-xs font-semibold text-slate-400">{formatBoardDate(comment.createdAt)}</span>
           </div>
 
           <p className="mt-3 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Commented Post</p>

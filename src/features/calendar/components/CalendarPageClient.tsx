@@ -30,6 +30,7 @@ import {
   getMonthKey,
   parseCalendarMonthParams,
   parseDate,
+  shouldShowEventLabel,
   sortEventsForCalendar,
 } from "@/features/calendar/utils/calendarLayout";
 import {
@@ -50,6 +51,13 @@ type TodayInfo = {
   date: number;
 };
 
+type EventKind = NonNullable<EventType["kind"]>;
+
+const EVENT_KIND_FILTERS: { kind: EventKind; label: string; colorClass: string }[] = [
+  { kind: "general", label: "일반 일정", colorClass: "bg-hp-500" },
+  { kind: "certificate", label: "자격증 일정", colorClass: "bg-amber-500" },
+];
+
 const DEFAULT_EVENT_FORM: EventFormState = {
   id: null,
   title: "",
@@ -57,18 +65,39 @@ const DEFAULT_EVENT_FORM: EventFormState = {
   startDate: "",
   endDate: "",
   color: "bg-hp-500",
-  isAllDay: true,
+  isAllDay: false,
   startTime: "09:00",
   endTime: "10:00",
   kind: "general",
 };
 
+function formatTimeValue(date: Date) {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function getDefaultEventTimes() {
+  const start = new Date();
+  start.setHours(start.getHours() + 1, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setHours(start.getHours() + 1);
+
+  return {
+    startTime: formatTimeValue(start),
+    endTime: formatTimeValue(end),
+  };
+}
+
 function buildEventForm(dateText: string, event?: EventType): EventFormState {
   if (!event) {
+    const defaultTimes = getDefaultEventTimes();
+
     return {
       ...DEFAULT_EVENT_FORM,
       startDate: dateText,
       endDate: dateText,
+      startTime: defaultTimes.startTime,
+      endTime: defaultTimes.endTime,
     };
   }
 
@@ -88,6 +117,10 @@ function buildEventForm(dateText: string, event?: EventType): EventFormState {
 
 function getDisplayEventColor(event: EventType) {
   return event.kind === "certificate" ? "bg-amber-500" : event.color;
+}
+
+function getEventKind(event: EventType): EventKind {
+  return event.kind === "certificate" ? "certificate" : "general";
 }
 
 export default function CalendarPageClient() {
@@ -126,6 +159,10 @@ export default function CalendarPageClient() {
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [eventForm, setEventForm] = useState<EventFormState>(DEFAULT_EVENT_FORM);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>(null);
+  const [visibleEventKinds, setVisibleEventKinds] = useState<Record<EventKind, boolean>>({
+    general: true,
+    certificate: true,
+  });
 
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
@@ -526,11 +563,20 @@ export default function CalendarPageClient() {
     };
   });
 
+  const filteredEvents = events.filter((event) => visibleEventKinds[getEventKind(event)]);
+  const eventKindCounts = EVENT_KIND_FILTERS.reduce(
+    (counts, filter) => ({
+      ...counts,
+      [filter.kind]: events.filter((event) => getEventKind(event) === filter.kind).length,
+    }),
+    {} as Record<EventKind, number>,
+  );
+
   const weekLayoutByCellKey = new Map(
     Array.from({ length: 6 }, (_, weekIndex) =>
       buildWeekEventRows(
         calendarDays.slice(weekIndex * 7, weekIndex * 7 + 7),
-        events,
+        filteredEvents,
         currentYear,
         currentMonth,
       ),
@@ -540,7 +586,7 @@ export default function CalendarPageClient() {
   );
 
   const selectedEvents = sortEventsForCalendar(
-    events.filter((event) => eventOverlapsDate(event, selectedDateKey, currentYear)),
+    filteredEvents.filter((event) => eventOverlapsDate(event, selectedDateKey, currentYear)),
     currentYear,
   );
   const getTodosForDate = (date: number) => todos[formatDateKey(currentYear, currentMonth, date)] ?? [];
@@ -587,6 +633,18 @@ export default function CalendarPageClient() {
     });
   };
 
+  const requestDeleteTodo = (todo: TodoItem) => {
+    setConfirmDialog({
+      title: "할 일 삭제",
+      message: `"${todo.text}" 할 일을 삭제하시겠습니까?`,
+      confirmLabel: "삭제하기",
+      tone: "danger",
+      onConfirm: () => {
+        void handleDeleteTodo(todo.id);
+      },
+    });
+  };
+
   const handleEditSelectedEvent = () => {
     if (!selectedEvent) return;
     const eventToEdit = selectedEvent;
@@ -604,7 +662,7 @@ export default function CalendarPageClient() {
   return (
     <div className="animate-in fade-in flex h-full flex-col gap-4 duration-500 lg:flex-row">
       <div className="flex flex-1 flex-col rounded-2xl border border-hp-100 bg-white p-5 shadow-sm">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="w-[210px] shrink-0">
               <button
@@ -682,6 +740,39 @@ export default function CalendarPageClient() {
           >
             <Plus size={16} />
             일정 추가
+          </button>
+        </div>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-hp-100 bg-slate-50/70 px-4 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Calendars</span>
+            {EVENT_KIND_FILTERS.map((filter) => (
+              <label
+                key={filter.kind}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-hp-50 hover:ring-hp-200"
+              >
+                <input
+                  type="checkbox"
+                  checked={visibleEventKinds[filter.kind]}
+                  onChange={(event) =>
+                    setVisibleEventKinds((prev) => ({
+                      ...prev,
+                      [filter.kind]: event.target.checked,
+                    }))
+                  }
+                  className="h-3.5 w-3.5 rounded border-slate-300 accent-hp-600"
+                />
+                <span className={`h-2.5 w-2.5 rounded-full ${filter.colorClass}`} />
+                <span>{filter.label}</span>
+                <span className="text-slate-400">{eventKindCounts[filter.kind] ?? 0}</span>
+              </label>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setVisibleEventKinds({ general: true, certificate: true })}
+            className="text-xs font-bold text-hp-600 transition hover:text-hp-700"
+          >
+            전체 보기
           </button>
         </div>
         {calendarError && <p className="mb-4 text-sm text-red-500">{calendarError}</p>}
@@ -769,7 +860,24 @@ export default function CalendarPageClient() {
                           const segment = getEventSegmentState(event, cellDateKey, currentYear);
                           const isSingleDay = segment.startsToday && segment.endsToday;
                           const labelStyle = getEventLabelStyle(event, cellDateKey, weekStartDate, currentYear);
-                          return <div key={`${day.key}-${event.id}`} className={`relative flex h-5 items-center overflow-hidden text-[10px] font-semibold text-white ${getDisplayEventColor(event)} ${day.currentMonth ? "" : "opacity-45"} ${isSingleDay ? "rounded-md" : segment.startsToday ? "-mr-3 rounded-l-md rounded-r-none pr-3" : segment.endsToday ? "-ml-3 rounded-l-none rounded-r-md pl-3" : "-mx-3 rounded-none px-3"}`}><span className="pointer-events-none absolute whitespace-nowrap px-1 leading-5" style={labelStyle}>{event.title}</span></div>;
+                          const showMultiDayLabel = shouldShowEventLabel(event, cellDateKey, weekStartDate, currentYear);
+                          return (
+                            <div
+                              key={`${day.key}-${event.id}`}
+                              className={`relative flex h-5 items-center text-[10px] font-semibold text-white ${getDisplayEventColor(event)} ${day.currentMonth ? "" : "opacity-45"} ${isSingleDay ? "overflow-hidden rounded-md" : segment.startsToday ? "z-10 -mr-3 overflow-visible rounded-l-md rounded-r-none pr-3" : segment.endsToday ? "-ml-3 overflow-hidden rounded-l-none rounded-r-md pl-3" : "-mx-3 overflow-hidden rounded-none px-3"}`}
+                            >
+                              {isSingleDay ? (
+                                <span className="truncate px-1">{event.title}</span>
+                              ) : showMultiDayLabel ? (
+                                <span
+                                  className="pointer-events-none absolute z-20 truncate px-1 leading-5"
+                                  style={labelStyle}
+                                >
+                                  {event.title}
+                                </span>
+                              ) : null}
+                            </div>
+                          );
                         })}
                       </div>
                       <div className="mt-auto flex min-h-4 items-end">
@@ -859,7 +967,7 @@ export default function CalendarPageClient() {
                         <button onClick={() => startTodoEdit(todo)} className="text-slate-300 opacity-0 hover:text-hp-600 group-hover:opacity-100">
                           <Pencil size={16} />
                         </button>
-                        <button onClick={() => handleDeleteTodo(todo.id)} className="text-slate-300 opacity-0 hover:text-red-500 group-hover:opacity-100">
+                        <button onClick={() => requestDeleteTodo(todo)} className="text-slate-300 opacity-0 hover:text-red-500 group-hover:opacity-100">
                           <Trash2 size={16} /></button>
                       </>}
                     </div>

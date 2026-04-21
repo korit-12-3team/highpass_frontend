@@ -1,149 +1,21 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { toast } from "sonner";
-import { Calendar as CalendarIcon, CheckCircle2, ClipboardPenLine, RefreshCw, Search, X } from "lucide-react";
+import { Calendar as CalendarIcon, CheckCircle2, ClipboardPenLine, RefreshCw, Search } from "lucide-react";
 import { useApp } from "@/shared/context/AppContext";
-import { createCalendarEvent } from "@/features/calendar/api/calendar";
-import { listCertificateSchedules, saveUserCertificate, syncCertificateSchedules, type CertificateSchedule } from "@/features/search/api/certificates";
-
-type CertScheduleType = "written" | "practical";
-type ScheduleTab = "upcoming" | "past";
-
-type ApplyRange = {
-  start?: string;
-  end?: string;
-  label: string;
-};
-
-type MergedCertificateSchedule = {
-  id: string;
-  sourceSchedules: CertificateSchedule[];
-  certificateName: string;
-  examYear: number;
-  round: number;
-  writtenExamDate?: string;
-  writtenResultDate?: string;
-  practicalExamDate?: string;
-  practicalResultDate?: string;
-  writtenApplyRanges: ApplyRange[];
-  practicalApplyRanges: ApplyRange[];
-};
-
-function formatDateRange(start?: string, end?: string) {
-  if (!start && !end) return "일정 미정";
-  if (start && end) return `${start} ~ ${end}`;
-  return start || end || "일정 미정";
-}
-
-function buildEventTitle(name: string, scheduleType: CertScheduleType, suffix: string) {
-  return `${name} ${scheduleType === "written" ? "필기" : "실기"} ${suffix}`;
-}
-
-function makeMergeKey(item: CertificateSchedule) {
-  return [
-    item.examYear,
-    item.round,
-    item.certificateName.trim(),
-    item.writtenExamDate || "",
-    item.writtenResultDate || "",
-    item.practicalExamDate || "",
-    item.practicalResultDate || "",
-  ].join("|");
-}
-
-function mergeApplyRanges(ranges: ApplyRange[]) {
-  const map = new Map<string, ApplyRange>();
-
-  ranges.forEach((range) => {
-    const key = `${range.start || ""}|${range.end || ""}|${range.label}`;
-    if (!map.has(key)) {
-      map.set(key, range);
-    }
-  });
-
-  return Array.from(map.values()).sort((a, b) =>
-    `${a.start || ""}|${a.end || ""}`.localeCompare(`${b.start || ""}|${b.end || ""}`),
-  );
-}
-
-function getLatestMergedScheduleDate(item: MergedCertificateSchedule) {
-  const candidates = [
-    ...item.writtenApplyRanges.flatMap((range) => [range.start, range.end]),
-    ...item.practicalApplyRanges.flatMap((range) => [range.start, range.end]),
-    item.writtenExamDate,
-    item.writtenResultDate,
-    item.practicalExamDate,
-    item.practicalResultDate,
-  ].filter((value): value is string => Boolean(value));
-
-  if (candidates.length === 0) return "";
-  return candidates.reduce((latest, current) => (current > latest ? current : latest));
-}
-
-function isPastMergedSchedule(item: MergedCertificateSchedule) {
-  const latestDate = getLatestMergedScheduleDate(item);
-  if (!latestDate) return false;
-  const today = new Date().toLocaleDateString("en-CA");
-  return latestDate < today;
-}
-
-function mergeSchedules(schedules: CertificateSchedule[]): MergedCertificateSchedule[] {
-  const grouped = new Map<string, MergedCertificateSchedule>();
-
-  schedules.forEach((item) => {
-    const key = makeMergeKey(item);
-    const existing = grouped.get(key);
-
-    if (!existing) {
-      grouped.set(key, {
-        id: key,
-        sourceSchedules: [item],
-        certificateName: item.certificateName,
-        examYear: item.examYear,
-        round: item.round,
-        writtenExamDate: item.writtenExamDate,
-        writtenResultDate: item.writtenResultDate,
-        practicalExamDate: item.practicalExamDate,
-        practicalResultDate: item.practicalResultDate,
-        writtenApplyRanges: mergeApplyRanges([{ start: item.writtenApplyStart, end: item.writtenApplyEnd, label: "정기접수" }]),
-        practicalApplyRanges: mergeApplyRanges([{ start: item.practicalApplyStart, end: item.practicalApplyEnd, label: "정기접수" }]),
-      });
-      return;
-    }
-
-    existing.sourceSchedules.push(item);
-    existing.writtenApplyRanges = mergeApplyRanges([
-      ...existing.writtenApplyRanges,
-      {
-        start: item.writtenApplyStart,
-        end: item.writtenApplyEnd,
-        label: existing.writtenApplyRanges.length === 0 ? "정기접수" : "추가접수",
-      },
-    ]);
-    existing.practicalApplyRanges = mergeApplyRanges([
-      ...existing.practicalApplyRanges,
-      {
-        start: item.practicalApplyStart,
-        end: item.practicalApplyEnd,
-        label: existing.practicalApplyRanges.length === 0 ? "정기접수" : "추가접수",
-      },
-    ]);
-  });
-
-  return Array.from(grouped.values()).sort((a, b) => {
-    const aWrittenStart = a.writtenApplyRanges[0]?.start || "9999-12-31";
-    const bWrittenStart = b.writtenApplyRanges[0]?.start || "9999-12-31";
-
-    const dateOrder = aWrittenStart.localeCompare(bWrittenStart);
-    if (dateOrder !== 0) return dateOrder;
-
-    if (a.examYear !== b.examYear) return a.examYear - b.examYear;
-    if (a.round !== b.round) return a.round - b.round;
-    return a.certificateName.localeCompare(b.certificateName);
-  });
-}
+import { listCertificateSchedules, syncCertificateSchedules, type CertificateSchedule } from "@/features/search/api/certificates";
+import { CertificateScheduleModal } from "@/features/search/components/CertificateScheduleModal";
+import {
+  formatDateRange,
+  getLatestMergedScheduleDate,
+  isPastMergedSchedule,
+  mergeSchedules,
+  type CalendarSelectionState,
+  type CertScheduleType,
+  type MergedCertificateSchedule,
+  type ScheduleTab,
+} from "@/features/search/utils/certificateSchedule";
 
 export default function SearchPageClient() {
   const { currentUser, setEvents } = useApp();
@@ -161,6 +33,11 @@ export default function SearchPageClient() {
   const [certScheduleType, setCertScheduleType] = useState<CertScheduleType>("written");
   const [calendarSaving, setCalendarSaving] = useState(false);
   const [calendarError, setCalendarError] = useState("");
+  const [calendarSelection, setCalendarSelection] = useState<CalendarSelectionState>({
+    apply: true,
+    exam: true,
+    result: true,
+  });
   const [syncingSchedules, setSyncingSchedules] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
   const [activeTab, setActiveTab] = useState<ScheduleTab>(requestedTab === "past" ? "past" : "upcoming");
@@ -219,6 +96,7 @@ export default function SearchPageClient() {
   useEffect(() => {
     if (!certModalOpen) return;
     setCertScheduleType(certModalOpen.writtenExamDate ? "written" : "practical");
+    setCalendarSelection({ apply: true, exam: true, result: true });
   }, [certModalOpen]);
 
   const mergedSchedules = useMemo(() => mergeSchedules(schedules), [schedules]);
@@ -255,6 +133,9 @@ export default function SearchPageClient() {
   const selectedScheduleDate =
     certScheduleType === "written" ? certModalOpen?.writtenExamDate : certModalOpen?.practicalExamDate;
 
+  const selectedResultDate =
+    certScheduleType === "written" ? certModalOpen?.writtenResultDate : certModalOpen?.practicalResultDate;
+
   const selectedApplyRanges =
     certScheduleType === "written" ? certModalOpen?.writtenApplyRanges ?? [] : certModalOpen?.practicalApplyRanges ?? [];
 
@@ -262,6 +143,15 @@ export default function SearchPageClient() {
     certScheduleType === "written"
       ? `필기 ${certModalOpen?.writtenExamDate || "없음"}`
       : `실기 ${certModalOpen?.practicalExamDate || "없음"}`;
+
+  const selectedCalendarItemCount =
+    (calendarSelection.apply ? selectedApplyRanges.filter((range) => range.start || range.end).length : 0) +
+    (calendarSelection.exam && selectedScheduleDate ? 1 : 0) +
+    (calendarSelection.result && selectedResultDate ? 1 : 0);
+
+  const toggleCalendarSelection = (key: keyof CalendarSelectionState) => {
+    setCalendarSelection((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   return (
     <div className="mx-auto max-w-5xl animate-in fade-in duration-500">
@@ -338,7 +228,7 @@ export default function SearchPageClient() {
               className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-hp-200 bg-white px-4 py-2.5 text-sm font-bold text-hp-700 transition hover:bg-hp-50 disabled:opacity-60"
             >
               <RefreshCw size={16} className={syncingSchedules ? "animate-spin" : ""} />
-              {syncingSchedules ? "갱신 중" : "자격증 갱신"}
+              {syncingSchedules ? "갱신 중..." : "자격증 갱신"}
             </button>
           </div>
         </div>
@@ -475,145 +365,31 @@ export default function SearchPageClient() {
       </div>
 
       {certModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="flex w-full max-w-sm flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b p-5">
-              <h3 className="font-bold">
-                일정 추가
-              </h3>
-              <button
-                onClick={() => {
-                  setCertModalOpen(null);
-                  setCalendarError("");
-                }}
-                aria-label="닫기"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="space-y-3 p-4">
-              {calendarError && <p className="text-sm text-red-500">{calendarError}</p>}
-
-              <label className="block text-sm font-bold text-hp-700">일정 제목</label>
-              <div className="rounded-lg border bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
-                {certModalOpen.certificateName}
-              </div>
-
-              <label className="block text-sm font-bold text-hp-700">캘린더에 추가할 일정</label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  disabled={!certModalOpen.writtenExamDate}
-                  onClick={() => setCertScheduleType("written")}
-                  className={`rounded-lg border px-3 py-2 text-sm font-bold transition-colors ${
-                    certScheduleType === "written"
-                      ? "border-violet-500 bg-violet-50 text-violet-700"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-violet-200"
-                  } disabled:cursor-not-allowed disabled:opacity-40`}
-                >
-                  필기
-                </button>
-                <button
-                  type="button"
-                  disabled={!certModalOpen.practicalExamDate}
-                  onClick={() => setCertScheduleType("practical")}
-                  className={`rounded-lg border px-3 py-2 text-sm font-bold transition-colors ${
-                    certScheduleType === "practical"
-                      ? "border-violet-500 bg-violet-50 text-violet-700"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-violet-200"
-                  } disabled:cursor-not-allowed disabled:opacity-40`}
-                >
-                  실기
-                </button>
-              </div>
-
-              <div className="rounded-lg border border-violet-100 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-700">
-                {selectedScheduleLabel}
-              </div>
-
-              <div className="space-y-1 text-xs text-slate-500">
-                <p>접수 일정</p>
-                {selectedApplyRanges.length > 0 ? (
-                  selectedApplyRanges.map((range, index) => (
-                    <div key={`modal-apply-${index}`} className="flex items-center gap-2">
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                        {range.label}
-                      </span>
-                      <p className="text-sm font-semibold text-slate-700">{formatDateRange(range.start, range.end)}</p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm font-semibold text-slate-400">일정 없음</p>
-                )}
-              </div>
-
-              <button
-                disabled={calendarSaving}
-                className="mt-4 w-full rounded-lg bg-hp-600 p-3 font-bold text-white disabled:opacity-60"
-                onClick={async () => {
-                  if (!currentUser || !selectedScheduleDate || calendarSaving) return;
-
-                  try {
-                    setCalendarSaving(true);
-                    setCalendarError("");
-
-                    const primaryScheduleId = certModalOpen.sourceSchedules[0]?.id;
-                    if (primaryScheduleId) {
-                      await saveUserCertificate(currentUser.id, primaryScheduleId);
-                    }
-
-                    const eventsToCreate = [
-                      createCalendarEvent({
-                        userId: currentUser.id,
-                        title: buildEventTitle(certModalOpen.certificateName, certScheduleType, "시험"),
-                        startDate: selectedScheduleDate,
-                        endDate: selectedScheduleDate,
-                        color: certScheduleType === "written" ? "bg-violet-500" : "bg-indigo-500",
-                        isAllDay: true,
-                        kind: "certificate",
-                      }),
-                    ];
-
-                    selectedApplyRanges.forEach((range) => {
-                      const normalizedStart = range.start || range.end;
-                      const normalizedEnd = range.end || range.start;
-                      const applySuffix = range.label === "추가접수" ? "추가접수" : "접수";
-
-                      if (!normalizedStart) return;
-
-                      eventsToCreate.unshift(
-                        createCalendarEvent({
-                          userId: currentUser.id,
-                          title: buildEventTitle(certModalOpen.certificateName, certScheduleType, applySuffix),
-                          startDate: normalizedStart,
-                          endDate: normalizedEnd || normalizedStart,
-                          color: certScheduleType === "written" ? "bg-violet-300" : "bg-indigo-300",
-                          isAllDay: true,
-                          kind: "certificate",
-                        }),
-                      );
-                    });
-
-                    const createdEvents = await Promise.all(eventsToCreate);
-                    setEvents((prev) => [...prev, ...createdEvents]);
-                    setCertModalOpen(null);
-                    toast.success("캘린더에 일정이 추가되었습니다.");
-                    router.push("/calendar");
-                  } catch (error) {
-                    const message = error instanceof Error ? error.message : "캘린더에 추가하지 못했습니다.";
-                    setCalendarError(message);
-                    toast.error(message);
-                  } finally {
-                    setCalendarSaving(false);
-                  }
-                }}
-              >
-                {calendarSaving ? "저장 중..." : "캘린더에 추가"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <CertificateScheduleModal
+          schedule={certModalOpen}
+          currentUserId={currentUser?.id}
+          scheduleType={certScheduleType}
+          calendarSelection={calendarSelection}
+          calendarSaving={calendarSaving}
+          calendarError={calendarError}
+          selectedScheduleDate={selectedScheduleDate}
+          selectedResultDate={selectedResultDate}
+          selectedApplyRanges={selectedApplyRanges}
+          selectedCalendarItemCount={selectedCalendarItemCount}
+          onChangeScheduleType={setCertScheduleType}
+          onToggleSelection={toggleCalendarSelection}
+          onClose={() => {
+            setCertModalOpen(null);
+            setCalendarError("");
+          }}
+          onSetSaving={setCalendarSaving}
+          onSetError={setCalendarError}
+          onEventsCreated={(createdEvents) => setEvents((prev) => [...prev, ...createdEvents])}
+          onAdded={() => {
+            setCertModalOpen(null);
+            router.push("/calendar");
+          }}
+        />
       )}
     </div>
   );
