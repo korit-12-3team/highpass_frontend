@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Calendar as CalendarIcon, CheckCircle2, Circle, Clock, GripVertical, Pencil, Plus, Trash2, X, Zap,} from "lucide-react";
+import { toast } from "sonner";
+import { ArrowRight, CheckCircle2, Circle, GripVertical, Pencil, Plus, Trash2, Zap,} from "lucide-react";
 import { EventType, TodoItem, useApp } from "@/shared/context/AppContext";
 import {
   createCalendarEvent,
@@ -17,27 +18,36 @@ import {
   toggleTodoStatus,
   updateTodoContent,
 } from "@/features/calendar/api/todos";
+import {
+  CalendarDayCell,
+  MAX_VISIBLE_EVENT_ROWS,
+  buildWeekEventRows,
+  eventOverlapsDate,
+  formatDateKey,
+  getCellDate,
+  getEventLabelStyle,
+  getEventSegmentState,
+  getMonthKey,
+  parseCalendarMonthParams,
+  parseDate,
+  sortEventsForCalendar,
+} from "@/features/calendar/utils/calendarLayout";
+import {
+  readTodoOrder,
+  reorderTodos,
+  sortTodosByStoredOrder,
+  writeTodoOrder,
+} from "@/features/calendar/utils/todoOrder";
+import { CalendarConfirmDialog } from "@/features/calendar/components/CalendarConfirmDialog";
+import { CalendarEventDetailModal } from "@/features/calendar/components/CalendarEventDetailModal";
+import { CalendarEventModal } from "@/features/calendar/components/CalendarEventModal";
+import { ConfirmDialogState, EventFormState } from "@/features/calendar/types";
 
 const WEEK_DAYS = ["일", "월", "화", "수", "목", "금", "토"];
-const MAX_VISIBLE_EVENT_ROWS = 2;
-const TODO_ORDER_STORAGE_PREFIX = "hp_todo_order_";
 type TodayInfo = {
   year: number;
   month: number;
   date: number;
-};
-
-type EventFormState = {
-  id: string | null;
-  title: string;
-  content: string;
-  startDate: string;
-  endDate: string;
-  color: string;
-  isAllDay: boolean;
-  startTime: string;
-  endTime: string;
-  kind: "general" | "certificate";
 };
 
 const DEFAULT_EVENT_FORM: EventFormState = {
@@ -52,218 +62,6 @@ const DEFAULT_EVENT_FORM: EventFormState = {
   endTime: "10:00",
   kind: "general",
 };
-
-const formatDateKey = (y: number, m: number, d: number) =>
-  `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-
-function getTodoOrderStorageKey(userId: string) {
-  return `${TODO_ORDER_STORAGE_PREFIX}${userId}`;
-}
-
-function readTodoOrder(userId: string): Record<string, number[]> {
-  if (typeof window === "undefined") return {};
-
-  try {
-    const raw = window.localStorage.getItem(getTodoOrderStorageKey(userId));
-    if (!raw) return {};
-
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    return Object.fromEntries(
-      Object.entries(parsed).map(([dateKey, ids]) => [
-        dateKey,
-        Array.isArray(ids) ? ids.map((id) => Number(id)).filter(Number.isFinite) : [],
-      ]),
-    );
-  } catch {
-    return {};
-  }
-}
-
-function writeTodoOrder(userId: string, orderMap: Record<string, number[]>) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(getTodoOrderStorageKey(userId), JSON.stringify(orderMap));
-}
-
-function sortTodosByStoredOrder(items: TodoItem[], orderedIds: number[]) {
-  if (orderedIds.length === 0) return items;
-
-  const orderedIndex = new Map(orderedIds.map((id, index) => [id, index]));
-  return [...items].sort((a, b) => {
-    const left = orderedIndex.get(a.id) ?? Number.MAX_SAFE_INTEGER;
-    const right = orderedIndex.get(b.id) ?? Number.MAX_SAFE_INTEGER;
-    return left - right;
-  });
-}
-
-function reorderTodos(items: TodoItem[], sourceId: number, targetId: number) {
-  const sourceIndex = items.findIndex((todo) => todo.id === sourceId);
-  const targetIndex = items.findIndex((todo) => todo.id === targetId);
-
-  if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) {
-    return items;
-  }
-
-  const next = [...items];
-  const [moved] = next.splice(sourceIndex, 1);
-  next.splice(targetIndex, 0, moved);
-  return next;
-}
-
-function parseDate(dateText?: string, fallbackYear?: number) {
-  if (!dateText) return null;
-
-  const date = new Date(dateText);
-  if (Number.isNaN(date.getTime())) return null;
-
-  if (typeof fallbackYear === "number" && date.getFullYear() === 1970) {
-    date.setFullYear(fallbackYear);
-  }
-
-  return date;
-}
-
-function formatEventRange(event: EventType, fallbackYear: number) {
-  const start = parseDate(event.startDate, fallbackYear);
-  const end = parseDate(event.endDate || event.startDate, fallbackYear);
-
-  if (!start) return `${fallbackYear}.${event.month + 1}.${event.startDay}`;
-
-  const startLabel = `${start.getFullYear()}.${start.getMonth() + 1}.${start.getDate()}`;
-  if (!end) return startLabel;
-
-  return start.toDateString() === end.toDateString()
-    ? startLabel
-    : `${startLabel} - ${end.getFullYear()}.${end.getMonth() + 1}.${end.getDate()}`;
-}
-
-function eventOverlapsDate(event: EventType, dateKey: string, fallbackYear: number) {
-  const target = parseDate(dateKey);
-  const start = parseDate(event.startDate, fallbackYear);
-  const end = parseDate(event.endDate || event.startDate, fallbackYear);
-
-  if (!target || !start) {
-    const date = new Date(dateKey);
-    return event.month === date.getMonth() && date.getDate() >= event.startDay && date.getDate() <= event.endDay;
-  }
-
-  return start <= target && target <= (end ?? start);
-}
-
-function getEventSegmentState(event: EventType, dateKey: string, fallbackYear: number) {
-  const target = parseDate(dateKey);
-  const start = parseDate(event.startDate, fallbackYear);
-  const end = parseDate(event.endDate || event.startDate, fallbackYear) ?? start;
-
-  if (!target || !start || !end) {
-    return {
-      startsToday: event.startDate === dateKey,
-      endsToday: (event.endDate ?? event.startDate) === dateKey,
-      showLabel: event.startDate === dateKey,
-    };
-  }
-
-  const startsToday = start.toDateString() === target.toDateString();
-  const endsToday = end.toDateString() === target.toDateString();
-
-  return {
-    startsToday,
-    endsToday,
-    showLabel: startsToday || target.getDate() === 1,
-  };
-}
-
-function sortEventsForCalendar(events: EventType[], fallbackYear: number) {
-  return [...events].sort((a, b) => {
-    const aStart = parseDate(a.startDate, fallbackYear)?.getTime() ?? 0;
-    const bStart = parseDate(b.startDate, fallbackYear)?.getTime() ?? 0;
-    if (aStart !== bStart) return aStart - bStart;
-
-    const aEnd = parseDate(a.endDate || a.startDate, fallbackYear)?.getTime() ?? aStart;
-    const bEnd = parseDate(b.endDate || b.startDate, fallbackYear)?.getTime() ?? bStart;
-
-    return bEnd - aEnd;
-  });
-}
-
-type CalendarDayCell = {
-  key: string;
-  date: number;
-  currentMonth: boolean;
-};
-
-function getCellDate(cell: CalendarDayCell, year: number, month: number) {
-  if (cell.currentMonth) return new Date(year, month, cell.date);
-  if (cell.key.startsWith("prev-")) return new Date(year, month - 1, cell.date);
-  return new Date(year, month + 1, cell.date);
-}
-
-function getEventTimeRange(event: EventType, fallbackYear: number) {
-  const start = parseDate(event.startDate, fallbackYear);
-  const end = parseDate(event.endDate || event.startDate, fallbackYear) ?? start;
-
-  if (!start || !end) return null;
-
-  return { start, end };
-}
-
-function buildWeekEventRows(
-  weekCells: CalendarDayCell[],
-  events: EventType[],
-  year: number,
-  month: number,
-) {
-  const visible = weekCells.map((cell) => {
-    const date = getCellDate(cell, year, month);
-    return {
-      cell,
-      dateKey: formatDateKey(date.getFullYear(), date.getMonth(), date.getDate()),
-    };
-  });
-
-  const eventMap = new Map<string, EventType>();
-  visible.forEach(({ dateKey }) => {
-    events.forEach((event) => {
-      if (eventOverlapsDate(event, dateKey, year)) {
-        eventMap.set(event.id, event);
-      }
-    });
-  });
-
-  const weekEvents = sortEventsForCalendar(Array.from(eventMap.values()), year);
-  const rows: EventType[][] = [];
-
-  weekEvents.forEach((event) => {
-    const range = getEventTimeRange(event, year);
-    const startTime = range?.start.getTime() ?? 0;
-    const endTime = range?.end.getTime() ?? startTime;
-
-    let rowIndex = rows.findIndex((row) =>
-      row.every((placed) => {
-        const placedRange = getEventTimeRange(placed, year);
-        const placedStart = placedRange?.start.getTime() ?? 0;
-        const placedEnd = placedRange?.end.getTime() ?? placedStart;
-        return endTime < placedStart || startTime > placedEnd;
-      }),
-    );
-
-    if (rowIndex === -1) {
-      rows.push([event]);
-      rowIndex = rows.length - 1;
-    } else {
-      rows[rowIndex].push(event);
-    }
-  });
-
-  return visible.map(({ cell, dateKey }) => {
-    const rowEvents = rows.map((row) => row.find((event) => eventOverlapsDate(event, dateKey, year)) ?? null);
-
-    return {
-      cellKey: cell.key,
-      rowEvents,
-      overflowCount: rowEvents.slice(MAX_VISIBLE_EVENT_ROWS).filter(Boolean).length,
-    };
-  });
-}
 
 function buildEventForm(dateText: string, event?: EventType): EventFormState {
   if (!event) {
@@ -290,20 +88,6 @@ function buildEventForm(dateText: string, event?: EventType): EventFormState {
 
 function getDisplayEventColor(event: EventType) {
   return event.kind === "certificate" ? "bg-amber-500" : event.color;
-}
-
-function parseCalendarMonthParams(yearValue: string | null, monthValue: string | null) {
-  if (!yearValue || !monthValue) return null;
-
-  const year = Number(yearValue);
-  const month = Number(monthValue);
-  if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) return null;
-
-  return new Date(year, month - 1, 1);
-}
-
-function getMonthKey(date: Date) {
-  return `${date.getFullYear()}-${date.getMonth()}`;
 }
 
 export default function CalendarPageClient() {
@@ -341,6 +125,7 @@ export default function CalendarPageClient() {
   const [savingEvent, setSavingEvent] = useState(false);
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [eventForm, setEventForm] = useState<EventFormState>(DEFAULT_EVENT_FORM);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>(null);
 
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
@@ -576,7 +361,6 @@ export default function CalendarPageClient() {
 
   const openEditModal = (event: EventType) => {
     setCalendarError("");
-    setSelectedEvent(event);
     setEventForm(buildEventForm(selectedDateKey, event));
     setEventModalOpen(true);
   };
@@ -584,6 +368,14 @@ export default function CalendarPageClient() {
   const closeEventModal = () => {
     setEventModalOpen(false);
     setEventForm(DEFAULT_EVENT_FORM);
+  };
+
+  const closeConfirmDialog = () => setConfirmDialog(null);
+
+  const handleConfirmDialogConfirm = () => {
+    const action = confirmDialog?.onConfirm;
+    closeConfirmDialog();
+    action?.();
   };
 
   const handleAddTodo = async (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -655,7 +447,17 @@ export default function CalendarPageClient() {
   };
 
   const handleSubmitEvent = async () => {
-    if (!currentUser || !eventForm.title.trim() || !eventForm.startDate || !eventForm.endDate || savingEvent) {
+    if (!currentUser || savingEvent) {
+      return;
+    }
+
+    if (!eventForm.title.trim()) {
+      toast.warning("일정 제목을 입력해 주세요.");
+      return;
+    }
+
+    if (!eventForm.startDate || !eventForm.endDate) {
+      toast.warning("일정 날짜를 선택해 주세요.");
       return;
     }
 
@@ -688,8 +490,11 @@ export default function CalendarPageClient() {
       setCurrentDate(new Date(nextDate.getFullYear(), nextDate.getMonth(), 1));
       setSelectedDate(nextDate.getDate());
       closeEventModal();
+      toast.success(eventForm.id ? "일정이 수정되었습니다." : "일정이 추가되었습니다.");
     } catch (error) {
-      setCalendarError(error instanceof Error ? error.message : "Failed to save the event.");
+      const message = error instanceof Error ? error.message : "일정을 저장하지 못했습니다.";
+      setCalendarError(message);
+      toast.error(message);
     } finally {
       setSavingEvent(false);
     }
@@ -746,176 +551,52 @@ export default function CalendarPageClient() {
       setEventForm((prev) => ({ ...prev, [field]: e.target.value }));
     };
 
+  const updateEventStartDate = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const startDate = e.target.value;
+    setEventForm((prev) => ({
+      ...prev,
+      startDate,
+      endDate: startDate,
+    }));
+  };
+
+  const updateEventEndDate = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const endDate = e.target.value;
+    setEventForm((prev) => ({
+      ...prev,
+      endDate: prev.startDate && endDate < prev.startDate ? prev.startDate : endDate,
+    }));
+  };
+
   const toggleEventAllDay = () => {
     setEventForm((prev) => ({ ...prev, isAllDay: !prev.isAllDay }));
   };
 
   const handleCloseSelectedEvent = () => setSelectedEvent(null);
 
+  const requestDeleteEvent = (event: EventType) => {
+    setConfirmDialog({
+      title: "일정 삭제",
+      message: "삭제한 일정은 되돌릴 수 없습니다. 삭제하시겠습니까?",
+      confirmLabel: "삭제하기",
+      tone: "danger",
+      onConfirm: () => {
+        setSelectedEvent((prev) => (prev?.id === event.id ? null : prev));
+        void handleDeleteEvent(event.id);
+      },
+    });
+  };
+
   const handleEditSelectedEvent = () => {
     if (!selectedEvent) return;
-
+    const eventToEdit = selectedEvent;
     setSelectedEvent(null);
-    openEditModal(selectedEvent);
+    window.setTimeout(() => openEditModal(eventToEdit), 0);
   };
 
   const handleDeleteSelectedEvent = () => {
     if (!selectedEvent) return;
-
-    const eventId = selectedEvent.id;
-    setSelectedEvent(null);
-    void handleDeleteEvent(eventId);
-  };
-
-  const renderEventModal = () => {
-    if (!eventModalOpen) return null;
-
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-        <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
-
-          <div className="space-y-4 p-5">
-            <input
-              type="text"
-              value={eventForm.title}
-              onChange={updateEventFormField("title")}
-              placeholder="일정 제목"
-              className="w-full border-b-2 border-hp-200 p-2 text-lg font-bold outline-none focus:border-hp-600"
-            />
-            <textarea
-              value={eventForm.content}
-              onChange={updateEventFormField("content")}
-              placeholder="일정 설명"
-              rows={3}
-              className="w-full rounded-xl border border-hp-100 p-3 outline-none focus:border-hp-300"
-            />
-            <div className="flex gap-3">
-              <input
-                type="date"
-                value={eventForm.startDate}
-                onChange={updateEventFormField("startDate")}
-                className="w-full rounded-xl border border-hp-100 p-2.5"
-              />
-              <input
-                type="date"
-                value={eventForm.endDate}
-                onChange={updateEventFormField("endDate")}
-                className="w-full rounded-xl border border-hp-100 p-2.5"
-              />
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={toggleEventAllDay}
-                className="rounded-lg border border-hp-200 px-3 py-2 text-sm"
-              >
-                {eventForm.isAllDay ? "종일" : "시간 설정"}
-              </button>
-              {!eventForm.isAllDay && (
-                <>
-                  <input
-                    type="time"
-                    value={eventForm.startTime}
-                    onChange={updateEventFormField("startTime")}
-                    className="rounded-xl border border-hp-100 p-2.5"
-                  />
-                  <input
-                    type="time"
-                    value={eventForm.endTime}
-                    onChange={updateEventFormField("endTime")}
-                    className="rounded-xl border border-hp-100 p-2.5"
-                  />
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="flex gap-2 border-t border-hp-50 p-4">
-            <button
-              onClick={closeEventModal}
-              className="flex-1 rounded-xl border border-hp-200 bg-hp-50 px-4 py-2.5 font-bold text-hp-700 hover:bg-hp-100"
-            >
-              취소
-            </button>
-            <button
-              disabled={savingEvent}
-              onClick={() => void handleSubmitEvent()}
-              className="flex-1 rounded-xl bg-hp-600 px-4 py-2.5 font-bold text-white hover:bg-hp-700 disabled:opacity-60"
-            >
-              {savingEvent ? "저장 중..." : eventForm.id ? "수정" : "저장"}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderSelectedEventModal = () => {
-    if (!selectedEvent) return null;
-
-    return (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-        onClick={handleCloseSelectedEvent}
-      >
-        <div
-          className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className={`${getDisplayEventColor(selectedEvent)} p-5`}>
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="mb-1 text-xs font-bold text-white/70">
-                  {selectedEvent.isAllDay
-                    ? "종일"
-                    : `${selectedEvent.startTime} ~ ${selectedEvent.endTime}`}
-                </p>
-                <h3 className="text-xl font-bold leading-tight text-white">{selectedEvent.title}</h3>
-              </div>
-              <button onClick={handleCloseSelectedEvent} className="rounded-full bg-white/20 p-1.5">
-                <X size={18} className="text-white" />
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-3 p-5">
-            <div className="flex items-center gap-3 text-sm text-slate-600">
-              <CalendarIcon size={16} className="text-hp-500" />
-              <span className="font-medium">{formatEventRange(selectedEvent, currentYear)}</span>
-            </div>
-            {!selectedEvent.isAllDay && (
-              <div className="flex items-center gap-3 text-sm text-slate-600">
-                <Clock size={16} className="text-hp-500" />
-                <span className="font-medium">
-                  {selectedEvent.startTime} ~ {selectedEvent.endTime}
-                </span>
-              </div>
-            )}
-            {selectedEvent.content && (
-              <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
-                {selectedEvent.content}
-              </p>
-            )}
-          </div>
-
-          <div className="flex gap-2 px-5 pb-5">
-            <button
-              onClick={handleEditSelectedEvent}
-              className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-hp-200 py-2.5 text-sm font-bold text-hp-700 transition-colors hover:bg-hp-50"
-            >
-              <Pencil size={15} />
-              수정
-            </button>
-            <button
-              onClick={handleDeleteSelectedEvent}
-              className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-red-200 py-2.5 text-sm font-bold text-red-500 transition-colors hover:bg-red-50"
-            >
-              <Trash2 size={15} />
-              삭제
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    requestDeleteEvent(selectedEvent);
   };
 
   if (!mounted) return null;
@@ -1027,6 +708,7 @@ export default function CalendarPageClient() {
                 const dayTodos = day.currentMonth ? getTodosForDate(day.date) : [];
                 const dayCompletedTodos = dayTodos.filter((todo) => todo.done).length;
                 const dayPendingTodos = dayTodos.length - dayCompletedTodos;
+                const weekStartDate = getCellDate(calendarDays[index - (index % 7)], currentYear, currentMonth);
                 const isSelected = day.currentMonth && day.date === selectedDate;
                 const isToday =
                   day.currentMonth &&
@@ -1075,7 +757,7 @@ export default function CalendarPageClient() {
                         )}
                         {dayPendingTodos > 0 && (
                           <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
-                            할 일 {dayPendingTodos}
+                            예정 {dayPendingTodos}
                           </span>
                         )}
                       </div>
@@ -1086,10 +768,17 @@ export default function CalendarPageClient() {
                           if (!event) return <div key={`${day.key}-empty-${rowIndex}`} className="h-5" />;
                           const segment = getEventSegmentState(event, cellDateKey, currentYear);
                           const isSingleDay = segment.startsToday && segment.endsToday;
-                          return <div key={`${day.key}-${event.id}`} className={`flex h-5 items-center overflow-hidden text-[10px] font-semibold text-white ${getDisplayEventColor(event)} ${day.currentMonth ? "" : "opacity-45"} ${isSingleDay ? "rounded-md" : segment.startsToday ? "-mr-3 rounded-l-md rounded-r-none pr-3" : segment.endsToday ? "-ml-3 rounded-l-none rounded-r-md pl-3" : "-mx-3 rounded-none px-3"}`}><span className={`truncate px-1 ${segment.showLabel ? "opacity-100" : "opacity-0"}`}>{event.title}</span></div>;
+                          const labelStyle = getEventLabelStyle(event, cellDateKey, weekStartDate, currentYear);
+                          return <div key={`${day.key}-${event.id}`} className={`relative flex h-5 items-center overflow-hidden text-[10px] font-semibold text-white ${getDisplayEventColor(event)} ${day.currentMonth ? "" : "opacity-45"} ${isSingleDay ? "rounded-md" : segment.startsToday ? "-mr-3 rounded-l-md rounded-r-none pr-3" : segment.endsToday ? "-ml-3 rounded-l-none rounded-r-md pl-3" : "-mx-3 rounded-none px-3"}`}><span className="pointer-events-none absolute whitespace-nowrap px-1 leading-5" style={labelStyle}>{event.title}</span></div>;
                         })}
                       </div>
-                      <div className="mt-auto flex min-h-4 items-end">{overflowCount > 0 && <p className={`text-[10px] font-medium leading-none ${day.currentMonth ? "text-slate-400" : "text-slate-300"}`}>+ {overflowCount}개</p>}</div>
+                      <div className="mt-auto flex min-h-4 items-end">
+                        {overflowCount > 0 && (
+                          <p className={`text-[10px] font-medium leading-none ${day.currentMonth ? "text-slate-400" : "text-slate-300"}`}>
+                            + {overflowCount}개
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </button>
                 );
@@ -1125,7 +814,7 @@ export default function CalendarPageClient() {
                       </div>
                       <div className="absolute right-3 top-3 flex gap-1 opacity-0 transition-all group-hover:opacity-100">
                         <button onClick={(e) => { e.stopPropagation(); openEditModal(event); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-hp-600"><Pencil size={16} /></button>
-                        <button onClick={(e) => { e.stopPropagation(); void handleDeleteEvent(event.id); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-red-500"><Trash2 size={16} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); requestDeleteEvent(event); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-red-500"><Trash2 size={16} /></button>
                       </div>
                     </div>
             ))}
@@ -1186,8 +875,31 @@ export default function CalendarPageClient() {
           </div>
       </aside>
 
-      {renderEventModal()}
-      {renderSelectedEventModal()}
+      <CalendarEventModal
+        open={eventModalOpen}
+        form={eventForm}
+        saving={savingEvent}
+        onChangeField={updateEventFormField}
+        onChangeStartDate={updateEventStartDate}
+        onChangeEndDate={updateEventEndDate}
+        onToggleAllDay={toggleEventAllDay}
+        onClose={closeEventModal}
+        onSubmit={() => void handleSubmitEvent()}
+      />
+      <CalendarEventDetailModal
+        event={selectedEvent}
+        currentYear={currentYear}
+        getDisplayEventColor={getDisplayEventColor}
+        onClose={handleCloseSelectedEvent}
+        onEdit={handleEditSelectedEvent}
+        onDelete={handleDeleteSelectedEvent}
+      />
+      <CalendarConfirmDialog
+        dialog={confirmDialog}
+        onClose={closeConfirmDialog}
+        onConfirm={handleConfirmDialogConfirm}
+      />
     </div>
   );
 }
+

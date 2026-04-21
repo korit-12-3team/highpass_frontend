@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import { Calendar as CalendarIcon, CheckCircle2, ClipboardPenLine, RefreshCw, Search, X } from "lucide-react";
 import { useApp } from "@/shared/context/AppContext";
 import { createCalendarEvent } from "@/features/calendar/api/calendar";
@@ -597,9 +598,12 @@ export default function SearchPageClient() {
                     const createdEvents = await Promise.all(eventsToCreate);
                     setEvents((prev) => [...prev, ...createdEvents]);
                     setCertModalOpen(null);
+                    toast.success("캘린더에 일정이 추가되었습니다.");
                     router.push("/calendar");
                   } catch (error) {
-                    setCalendarError(error instanceof Error ? error.message : "캘린더에 추가하지 못했습니다.");
+                    const message = error instanceof Error ? error.message : "캘린더에 추가하지 못했습니다.";
+                    setCalendarError(message);
+                    toast.error(message);
                   } finally {
                     setCalendarSaving(false);
                   }

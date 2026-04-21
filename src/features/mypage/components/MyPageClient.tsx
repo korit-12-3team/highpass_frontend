@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import type { BoardPost, PostComment, UserProfile } from "@/entities/common/types";
 import { listComments } from "@/features/boards/api/comments";
 import { isPostLiked } from "@/features/boards/api/likes";
@@ -365,8 +366,11 @@ export default function MyPageClient({
       setCurrentPassword("");
       setEditState((prev) => ({ ...prev, newPassword: "", newPasswordConfirm: "" }));
       setProfileSaveSuccess("회원정보가 업데이트되었습니다.");
+      toast.success("회원정보가 업데이트되었습니다.");
     } catch (error) {
-      setProfileSaveError(error instanceof Error ? error.message : "회원정보 수정에 실패했습니다.");
+      const message = error instanceof Error ? error.message : "회원정보 수정에 실패했습니다.";
+      setProfileSaveError(message);
+      toast.error(message);
       setProfileSaveSuccess("");
     } finally {
       setProfileSaving(false);

@@ -2,6 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { Client } from "@stomp/stompjs";
+import { toast } from "sonner";
 import { fetchCurrentUserProfile, logoutSession, notifyAuthExpired, subscribeAuthExpired } from "@/services/auth/auth";
 import { createBoard } from "@/features/free-board/api/boards";
 import { createStudy } from "@/features/study/api/study-api";
@@ -124,6 +125,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setActiveChatRoomId(null);
     setEvents([]);
     setTodos({});
+    toast.success("로그아웃되었습니다.");
   }, []);
 
   const submitPost = useCallback(async () => {

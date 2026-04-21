@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Loader2, X } from "lucide-react";
 import KakaoMap from "@/shared/components/map/KakaoMap";
 import { CERT_DATA } from "@/shared/constants";
@@ -271,12 +272,16 @@ export default function WritePostModal(props: WritePostModalProps) {
                 const ok = await submitPost();
                 if (!ok) {
                   setError("제목 또는 내용을 입력해 주세요.");
+                  toast.warning("제목 또는 내용을 입력해 주세요.");
                   return;
                 }
+                toast.success("게시물이 작성되었습니다.");
                 onClose();
                 router.refresh();
               } catch (e) {
-                setError(e instanceof Error ? e.message : "게시글 저장에 실패했습니다.");
+                const message = e instanceof Error ? e.message : "게시글 저장에 실패했습니다.";
+                setError(message);
+                toast.error(message);
               } finally {
                 setSaving(false);
               }
