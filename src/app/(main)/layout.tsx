@@ -29,6 +29,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     setChatRooms,
     activeChatRoomId,
     setActiveChatRoomId,
+    setChatClient,
     profileModal,
     setProfileModal,
     writeModalOpen,
@@ -198,12 +199,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
     client.activate();
     chatClientRef.current = client;
+    setChatClient(client);
 
     return () => {
       chatClientRef.current = null;
+      setChatClient(null);
       void client.deactivate();
     };
-  }, [activeChatRoomId, chatRoomIdsKey, currentUser?.id, pathname, setChatRooms]);
+  }, [chatRoomIdsKey, currentUser?.id, setChatClient, setChatRooms]);
 
   const ready = authReady && isAuthenticated && !!currentUser;
   if (!ready || !currentUser) return null;

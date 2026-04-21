@@ -286,6 +286,7 @@ export default function MyPageClient({
   );
 
   if (!currentUser || !displayUser) return null;
+  const isSocialAccount = displayUser.loginType !== "local";
 
   const resetEditState = () => {
     setEditState({
@@ -319,7 +320,7 @@ export default function MyPageClient({
     const nextPassword = editState.newPassword.trim();
     const confirmPassword = editState.newPasswordConfirm.trim();
 
-    if (!password) {
+    if (!isSocialAccount && !password) {
       setProfileSaveError("현재 비밀번호를 입력해 주세요.");
       setProfileSaveSuccess("");
       return;
@@ -331,7 +332,7 @@ export default function MyPageClient({
       return;
     }
 
-    if ((nextPassword || confirmPassword) && nextPassword !== confirmPassword) {
+    if (!isSocialAccount && (nextPassword || confirmPassword) && nextPassword !== confirmPassword) {
       setProfileSaveError("새 비밀번호와 비밀번호 확인이 일치하지 않습니다.");
       setProfileSaveSuccess("");
       return;
@@ -343,7 +344,7 @@ export default function MyPageClient({
       setProfileSaveSuccess("");
 
       const updated = await updateUserProfile(currentUser.id, {
-        currentPassword: password,
+        currentPassword: isSocialAccount ? undefined : password,
         nickname,
         ageRange,
         gender,
@@ -351,7 +352,7 @@ export default function MyPageClient({
         gunGu,
       });
 
-      if (nextPassword) {
+      if (!isSocialAccount && nextPassword) {
         await updateUserPassword(currentUser.id, {
           currentPassword: password,
           newPassword: nextPassword,
@@ -399,7 +400,14 @@ export default function MyPageClient({
     }
   };
 
-  const accountTypeLabel = displayUser.loginType === "local" ? "일반 회원" : "소셜 회원";
+  const accountTypeLabel =
+    displayUser.loginType === "local"
+      ? "일반 회원"
+      : displayUser.socialProvider === "KAKAO"
+        ? "카카오 회원"
+        : displayUser.socialProvider === "GOOGLE"
+          ? "구글 회원"
+          : "소셜 회원";
 
   return (
     <div className="mx-auto max-w-6xl animate-in fade-in space-y-6 duration-500">
@@ -427,9 +435,14 @@ export default function MyPageClient({
           saveError={profileSaveError}
           saveSuccess={profileSaveSuccess}
           saving={profileSaving}
+          isSocialAccount={isSocialAccount}
           onStartEdit={() => {
             resetEditState();
-            setProfilePasswordModalOpen(true);
+            if (isSocialAccount) {
+              setProfileEditOpen(true);
+            } else {
+              setProfilePasswordModalOpen(true);
+            }
           }}
           onCancelEdit={() => {
             resetEditState();

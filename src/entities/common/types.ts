@@ -25,6 +25,7 @@ export interface UserProfile {
   location: string;
   profileImage?: string | null;
   loginType?: string;
+  socialProvider?: string;
 }
 
 export interface PostComment {

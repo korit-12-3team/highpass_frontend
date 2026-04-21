@@ -25,7 +25,7 @@ export const createChatClient = (
     };
 
 
-export const sendMessage = (client : Client, messageData: any) => {
+export const sendMessage = (client : Client | null, messageData: any) => {
     if (client && client.connected) {
         client.publish({
             destination : '/pub/chat/message',

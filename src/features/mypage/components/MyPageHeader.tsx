@@ -11,6 +11,24 @@ const TAB_ITEMS: { id: MyPageTab; label: string; icon: React.ReactNode }[] = [
   { id: "likes", label: "좋아요", icon: <Heart size={16} /> },
 ];
 
+function AccountTypeBadge({ label, provider }: { label: string; provider?: string }) {
+  const badge =
+    provider === "KAKAO"
+      ? { mark: "K", className: "border-[#FEE500] bg-[#FEE500] text-black" }
+      : provider === "GOOGLE"
+        ? { mark: "G", className: "border-slate-200 bg-white text-slate-700" }
+        : { mark: "✓", className: "border-hp-200 bg-hp-50 text-hp-700" };
+
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-600">
+      <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border text-[11px] font-black ${badge.className}`}>
+        {badge.mark}
+      </span>
+      {label}
+    </span>
+  );
+}
+
 export function MyPageHeader({
   user,
   accountTypeLabel,
@@ -36,9 +54,7 @@ export function MyPageHeader({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-600">
-            {accountTypeLabel}
-          </span>
+          <AccountTypeBadge label={accountTypeLabel} provider={user.socialProvider} />
           <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-600">
             게시물 {postCount}
           </span>

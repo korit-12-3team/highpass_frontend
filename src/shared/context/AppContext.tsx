@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import type { Client } from "@stomp/stompjs";
 import { fetchCurrentUserProfile, logoutSession, notifyAuthExpired, subscribeAuthExpired } from "@/services/auth/auth";
 import { createBoard } from "@/features/free-board/api/boards";
 import { createStudy } from "@/features/study/api/study-api";
@@ -23,6 +24,8 @@ interface AppContextType {
   setChatRooms: React.Dispatch<React.SetStateAction<ChatRoom[]>>;
   activeChatRoomId: string | null;
   setActiveChatRoomId: React.Dispatch<React.SetStateAction<string | null>>;
+  chatClient: Client | null;
+  setChatClient: React.Dispatch<React.SetStateAction<Client | null>>;
 
   profileModal: string | null;
   setProfileModal: React.Dispatch<React.SetStateAction<string | null>>;
@@ -57,6 +60,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [todos, setTodos] = useState<TodoMap>({});
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
   const [activeChatRoomId, setActiveChatRoomId] = useState<string | null>(null);
+  const [chatClient, setChatClient] = useState<Client | null>(null);
 
   const [profileModal, setProfileModal] = useState<string | null>(null);
 
@@ -179,6 +183,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setChatRooms,
         activeChatRoomId,
         setActiveChatRoomId,
+        chatClient,
+        setChatClient,
         profileModal,
         setProfileModal,
         writeModalOpen,

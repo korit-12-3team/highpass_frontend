@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import AuthShell from "@/features/auth/components/AuthShell";
 import { useApp } from "@/shared/context/AppContext";
 import { fetchCurrentUserProfile } from "@/services/auth/auth";
@@ -12,6 +13,12 @@ import { AGE_RANGE_OPTIONS, GENDER_OPTIONS, createUserProfile } from "@/features
 
 interface SignupFormProps {
   isSocialSignup: boolean;
+  socialSignupData?: {
+    email: string;
+    provider: string;
+    providerId: string;
+    nickname: string;
+  };
 }
 
 type SignupApiResponse = {
@@ -45,14 +52,18 @@ function mapSignupResponseToUser(payload: SignupApiResponse) {
   });
 }
 
-export default function SignupForm({ isSocialSignup }: SignupFormProps) {
+export default function SignupForm({ isSocialSignup, socialSignupData }: SignupFormProps) {
   const { isAuthenticated, authReady, handleAuthSuccess } = useApp();
   const router = useRouter();
 
-  const [email, setEmail] = useState(isSocialSignup ? "social-user@example.com" : "");
+  const socialEmail = socialSignupData?.email ?? "";
+  const socialProvider = socialSignupData?.provider ?? "";
+  const socialProviderId = socialSignupData?.providerId ?? "";
+
+  const [email, setEmail] = useState(isSocialSignup ? socialEmail : "");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
-  const [nickname, setNickname] = useState("");
+  const [nickname, setNickname] = useState(socialSignupData?.nickname ?? "");
   const [ageRange, setAgeRange] = useState("");
   const [gender, setGender] = useState("");
   const [siDo, setSiDo] = useState("");
@@ -78,8 +89,8 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
       return;
     }
 
-    if (isSocialSignup) {
-      setError("소셜 회원가입은 아직 준비 중입니다.");
+    if (isSocialSignup && (!socialEmail || !socialProvider || !socialProviderId)) {
+      setError("소셜 회원가입 정보가 누락되었습니다. 소셜 로그인을 다시 시도해 주세요.");
       return;
     }
 
@@ -87,37 +98,52 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
+      const endpoint = isSocialSignup ? `${API_BASE_URL}/api/oauth2/signup` : `${API_BASE_URL}/api/auth/signup`;
+      const payload = isSocialSignup
+        ? {
+            email: socialEmail,
+            nickname,
+            ageRange,
+            gender,
+            siDo,
+            gunGu,
+            provider: socialProvider,
+            providerId: socialProviderId,
+          }
+        : {
+            email,
+            password,
+            nickname,
+            ageRange,
+            gender,
+            siDo,
+            gunGu,
+          };
+
+      const response = await fetch(endpoint, {
         method: "POST",
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          email,
-          password,
-          nickname,
-          ageRange,
-          gender,
-          siDo,
-          gunGu,
-        }),
+        body: JSON.stringify(payload),
       });
 
-      let payload: SignupApiResponse | null = null;
+      let payloadResponse: SignupApiResponse | null = null;
       try {
-        payload = (await response.json()) as SignupApiResponse;
+        payloadResponse = (await response.json()) as SignupApiResponse;
       } catch {
-        payload = null;
+        payloadResponse = null;
       }
 
       if (!response.ok) {
-        setError(payload?.message || "회원가입에 실패했습니다.");
+        setError(payloadResponse?.message || "회원가입에 실패했습니다.");
         return;
       }
 
-      handleAuthSuccess((await fetchCurrentUserProfile()) ?? mapSignupResponseToUser(payload ?? {}));
-      router.replace(payload?.redirectUrl || "/calendar");
+      handleAuthSuccess((await fetchCurrentUserProfile()) ?? mapSignupResponseToUser(payloadResponse ?? {}));
+      toast.success("회원가입이 완료되었습니다.");
+      router.replace(payloadResponse?.redirectUrl || "/calendar");
     } catch {
       setError("서버에 연결할 수 없습니다. API 주소 또는 서버 상태를 확인해 주세요.");
     } finally {
@@ -126,17 +152,26 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
   };
 
   return (
-    <AuthShell title="회원가입" subtitle={isSocialSignup ? "소셜 회원가입" : "계정을 생성해 주세요"}>
+    <AuthShell
+      title="회원가입"
+      subtitle={isSocialSignup ? "소셜 계정 인증이 완료되었습니다. 추가 정보만 입력해 주세요." : "계정을 생성해 주세요."}
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="이메일"
-          disabled={isSocialSignup}
-          className="w-full rounded-xl border border-hp-200 bg-hp-50 px-4 py-3 text-slate-800 outline-none focus:border-hp-500 disabled:opacity-60"
-          required
-        />
+        {isSocialSignup ? (
+          <div className="rounded-xl border border-hp-200 bg-hp-50 px-4 py-3 text-sm text-slate-600">
+            <p className="font-medium text-slate-800">{socialEmail || "이메일 정보를 가져오지 못했습니다."}</p>
+            <p className="mt-1 text-xs text-slate-500">이메일과 비밀번호는 이미 소셜 계정 인증에 사용되었습니다.</p>
+          </div>
+        ) : (
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="이메일"
+            className="w-full rounded-xl border border-hp-200 bg-hp-50 px-4 py-3 text-slate-800 outline-none focus:border-hp-500"
+            required
+          />
+        )}
 
         {!isSocialSignup ? (
           <>
@@ -246,12 +281,13 @@ export default function SignupForm({ isSocialSignup }: SignupFormProps) {
           disabled={
             loading ||
             isPasswordMismatch ||
-            !email ||
             !nickname ||
             !ageRange ||
             !gender ||
             !siDo ||
             !gunGu ||
+            (isSocialSignup && (!socialEmail || !socialProvider || !socialProviderId)) ||
+            (!isSocialSignup && !email) ||
             (!isSocialSignup && !password)
           }
           className="w-full rounded-xl bg-hp-600 py-3.5 font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"

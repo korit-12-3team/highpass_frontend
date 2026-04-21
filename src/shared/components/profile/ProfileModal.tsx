@@ -68,17 +68,13 @@ export default function ProfileModal({
                   {profile.email}
                 </p>
               ) : null}
-              {profile.ageRange ? (
-                <p className="flex items-center gap-2">
-                  <Users size={16} />
-                  {profile.ageRange}
-                </p>
-              ) : null}
-              {profile.gender ? (
-                <p className="flex items-center gap-2">
-                  <Users size={16} />
-                  {profile.gender}
-                </p>
+              {profile.ageRange || profile.gender ? (
+                <div className="flex items-center gap-2">
+                  <Users size={16} className="shrink-0" />
+                  <span>
+                    {[profile.ageRange, profile.gender].filter(Boolean).join(" / ")}
+                  </span>
+                </div>
               ) : null}
               {profile.location ? (
                 <p className="flex items-center gap-2">

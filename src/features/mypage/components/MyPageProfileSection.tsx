@@ -1,4 +1,4 @@
-import { Mail, MapPin, Settings, ShieldCheck, UserRound } from "lucide-react";
+import { Mail, MapPin, Settings, UserRound } from "lucide-react";
 import { AGE_RANGE_OPTIONS, GENDER_OPTIONS } from "@/features/mypage/api/profile";
 import { REGION_DATA } from "@/shared/constants";
 import type { UserProfile } from "@/entities/common/types";
@@ -24,6 +24,7 @@ export function MyPageProfileSection({
   saveError,
   saveSuccess,
   saving,
+  isSocialAccount,
   onStartEdit,
   onCancelEdit,
   onSave,
@@ -38,6 +39,7 @@ export function MyPageProfileSection({
   saveError: string;
   saveSuccess: string;
   saving: boolean;
+  isSocialAccount: boolean;
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onSave: () => void;
@@ -57,8 +59,7 @@ export function MyPageProfileSection({
                 <Mail size={15} className="text-hp-600" />
                 {user.email}
               </span>
-              <span className="inline-flex items-center gap-2">
-                <ShieldCheck size={15} className="text-hp-600" />
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600">
                 {accountTypeLabel}
               </span>
             </div>
@@ -174,7 +175,7 @@ export function MyPageProfileSection({
         </div>
       </div>
 
-      {editOpen ? (
+      {editOpen && !isSocialAccount ? (
         <div className="mt-6 rounded-[24px] border border-hp-200 bg-hp-50/70 p-4">
           <div>
             <p className="text-sm font-bold text-slate-900">프로필 정보를 직접 수정하고 바로 저장할 수 있습니다.</p>

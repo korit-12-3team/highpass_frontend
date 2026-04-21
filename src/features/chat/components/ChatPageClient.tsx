@@ -5,10 +5,10 @@ import { ArrowRight, MessageCircle } from "lucide-react";
 import axios from "axios";
 import { useApp } from "@/shared/context/AppContext";
 import { sendMessage } from "@/services/realtime/stomp";
-import { CHAT_API_BASE_URL, STOMP_ENDPOINT_URL } from "@/services/config/config";
+import { CHAT_API_BASE_URL } from "@/services/config/config";
 
 export default function ChatPageClient() {
-  const { currentUser, chatRooms, setChatRooms, activeChatRoomId, setActiveChatRoomId } = useApp();
+  const { currentUser, chatRooms, setChatRooms, activeChatRoomId, setActiveChatRoomId, chatClient } = useApp();
   const [chatInput, setChatInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -51,20 +51,7 @@ export default function ChatPageClient() {
 
     setChatInput("");
 
-    try {
-      const SockJS = (await import("sockjs-client")).default;
-      const { Client } = await import("@stomp/stompjs");
-      const tempClient = new Client({
-        webSocketFactory: () => new SockJS(STOMP_ENDPOINT_URL),
-      });
-      tempClient.onConnect = () => {
-        sendMessage(tempClient, messageData);
-        void tempClient.deactivate();
-      };
-      tempClient.activate();
-    } catch {
-      // Keep optimistic UI even if realtime send bootstrap fails.
-    }
+    sendMessage(chatClient, messageData);
   };
 
   const handleRoomClick = async (roomId: number | string) => {

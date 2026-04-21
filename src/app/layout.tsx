@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Toaster } from "sonner";
 import "@/styles/globals.css";
 import { AppProvider } from "@/shared/context/AppContext";
 
@@ -28,6 +29,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <AppProvider>
           {children}
+          <Toaster richColors position="top-center" />
         </AppProvider>
       </body>
     </html>

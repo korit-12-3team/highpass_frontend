@@ -18,6 +18,7 @@ export type UserApiRecord = {
   profileImage?: unknown;
   profileImageUrl?: unknown;
   loginType?: unknown;
+  socialProvider?: unknown;
 };
 
 function safeString(value: unknown, fallback = "") {
@@ -48,6 +49,7 @@ export function createUserProfile(input: Partial<UserProfile> & Pick<UserProfile
     profileImage:
       typeof input.profileImage === "string" || input.profileImage === null ? input.profileImage : null,
     loginType: safeString(input.loginType, "local"),
+    socialProvider: safeString(input.socialProvider),
   };
 }
 
@@ -69,6 +71,7 @@ export function mapApiRecordToUserProfile(record: UserApiRecord): UserProfile {
     location: buildLocation(record.siDo, record.gunGu, record.location),
     profileImage,
     loginType: safeString(record.loginType, "local"),
+    socialProvider: safeString(record.socialProvider),
   });
 }
 
@@ -82,7 +85,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
 export async function updateUserProfile(
   userId: string,
   input: {
-    currentPassword: string;
+    currentPassword?: string;
     nickname: string;
     ageRange: string;
     gender: string;
