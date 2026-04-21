@@ -7,11 +7,13 @@ import { Client } from "@stomp/stompjs";
 import MainSidebar from "@/shared/components/layout/MainSidebar";
 import ProfileModal from "@/shared/components/profile/ProfileModal";
 import WritePostModal from "@/features/boards/components/WritePostModal";
+import ScheduleNotificationModal from "@/features/calendar/components/ScheduleNotificationModal";
 import { useApp } from "@/shared/context/AppContext";
 import { createUserProfile, getUserProfile } from "@/features/mypage/api/profile";
+import { listCalendarEvents } from "@/features/calendar/api/calendar";
 import { CHAT_API_BASE_URL } from "@/services/config/config";
 import { createChatClient } from "@/services/realtime/stomp";
-import type { SearchPlace, UserProfile } from "@/entities/common/types";
+import type { EventType, SearchPlace, UserProfile } from "@/entities/common/types";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -21,6 +23,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     isAuthenticated,
     authReady,
     logout,
+    events,
+    setEvents,
     chatRooms,
     setChatRooms,
     activeChatRoomId,
@@ -58,9 +62,56 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const chatClientRef = useRef<Client | null>(null);
   const chatRoomIdsKey = chatRooms.map((room) => room.id).join(",");
 
+  const [showScheduleNotify, setShowScheduleNotify] = useState(false);
+  const [startingEvents, setStartingEvents] = useState<EventType[]>([]);
+  const [endingEvents, setEndingEvents] = useState<EventType[]>([]);
+
   useEffect(() => {
     if (authReady && !isAuthenticated) router.replace("/login");
   }, [authReady, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (!authReady || !currentUser?.id) return;
+
+    const checkSchedules = async () => {
+      try {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const todayStrLocal = `${year}-${month}-${day}`;
+
+        // Only show if not hidden for today
+        const hideUntil = localStorage.getItem(`hp_hide_schedule_notify_${currentUser.id}`);
+        if (hideUntil === todayStrLocal) return;
+
+        const allEvents = await listCalendarEvents(String(currentUser.id));
+        setEvents(allEvents);
+
+        const starting = allEvents.filter(ev => {
+          if (!ev.startDate) return false;
+          const evStart = ev.startDate.split('T')[0];
+          return evStart === todayStrLocal;
+        });
+
+        const ending = allEvents.filter(ev => {
+          if (!ev.endDate) return false;
+          const evEnd = ev.endDate.split('T')[0];
+          return evEnd === todayStrLocal;
+        });
+
+        if (starting.length > 0 || ending.length > 0) {
+          setStartingEvents(starting);
+          setEndingEvents(ending);
+          setShowScheduleNotify(true);
+        }
+      } catch (error) {
+        console.error("Failed to check schedules:", error);
+      }
+    };
+
+    void checkSchedules();
+  }, [authReady, currentUser?.id, setEvents]);
 
   useEffect(() => {
     if (!profileModal) {
@@ -299,6 +350,22 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         loadingKakao={loadingKakao}
         errorKakao={errorKakao}
         onClose={resetWriteForm}
+      />
+
+      <ScheduleNotificationModal
+        isOpen={showScheduleNotify}
+        startingEvents={startingEvents}
+        endingEvents={endingEvents}
+        onClose={() => setShowScheduleNotify(false)}
+        onDontShowToday={() => {
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          const todayStrLocal = `${year}-${month}-${day}`;
+          localStorage.setItem(`hp_hide_schedule_notify_${currentUser.id}`, todayStrLocal);
+          setShowScheduleNotify(false);
+        }}
       />
     </div>
   );
