@@ -26,6 +26,12 @@ export default function ProfileModal({
 }: ProfileModalProps) {
   if (!isOpen) return null;
 
+  const lastSeenLabel = profile.online
+    ? "접속 중"
+    : profile.lastSeenAt
+      ? `마지막 접속 ${profile.lastSeenAt.split("T")[0]}`
+      : "마지막 접속 정보 없음";
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-xl" onClick={(event) => event.stopPropagation()}>
@@ -62,6 +68,10 @@ export default function ProfileModal({
             </h3>
 
             <div className="mt-4 flex w-full flex-col gap-2 text-sm text-slate-600">
+              <p className="flex items-center gap-2">
+                <span className={`h-2.5 w-2.5 rounded-full ${profile.online ? "bg-emerald-500" : "bg-slate-300"}`} />
+                {lastSeenLabel}
+              </p>
               {profile.email ? (
                 <p className="flex items-center gap-2">
                   <User2 size={16} />

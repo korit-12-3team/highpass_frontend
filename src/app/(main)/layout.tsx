@@ -66,6 +66,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const [showScheduleNotify, setShowScheduleNotify] = useState(false);
   const [startingEvents, setStartingEvents] = useState<EventType[]>([]);
   const [endingEvents, setEndingEvents] = useState<EventType[]>([]);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (authReady && !isAuthenticated) router.replace("/login");
@@ -173,9 +174,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }, [authReady, currentUser?.id, setActiveChatRoomId, setChatRooms]);
 
   useEffect(() => {
-    if (!currentUser?.id || chatRooms.length === 0) return;
+    if (!currentUser?.id) return;
 
-    const client = createChatClient(chatRooms.map((room) => Number(room.id)).filter(Number.isFinite), (newMessage) => {
+    const client = createChatClient(currentUser.id, chatRooms.map((room) => Number(room.id)).filter(Number.isFinite), (newMessage) => {
       setChatRooms((prev) =>
         prev.map((room) => {
           if (Number(room.id) !== Number(newMessage.roomId)) return room;
@@ -210,6 +211,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   const ready = authReady && isAuthenticated && !!currentUser;
   if (!ready || !currentUser) return null;
+  const isAdminPath = pathname.startsWith("/admin");
 
   const getProfileById = (profileId: string) => {
     if (profileId === currentUser.id) return currentUser;
@@ -271,16 +273,18 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="flex h-screen bg-hp-50 font-sans text-slate-800">
-      <MainSidebar
-        pathname={pathname}
-        currentUser={currentUser}
-        chatRooms={chatRooms}
-        onNavigate={(href) => router.push(href)}
-        onOpenProfile={() => setProfileModal(currentUser.id)}
-        onLogout={logout}
-      />
+      {!isAdminPath && (
+        <MainSidebar
+          pathname={pathname}
+          currentUser={currentUser}
+          chatRooms={chatRooms}
+          onNavigate={(href) => router.push(href)}
+          onOpenProfile={() => setProfileModal(currentUser.id)}
+          onLogout={() => setLogoutConfirmOpen(true)}
+        />
+      )}
 
-      <main className="app-scroll-container relative flex-1 p-4 md:p-8">{children}</main>
+      <main className={`app-scroll-container relative flex-1 ${isAdminPath ? "p-0" : "p-4 md:p-8"}`}>{children}</main>
 
       <ProfileModal
         profile={profile}
@@ -370,6 +374,37 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           setShowScheduleNotify(false);
         }}
       />
+
+      {logoutConfirmOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 px-4">
+          <div className="w-full max-w-sm rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.24)]">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">Logout</p>
+            <h3 className="mt-2 text-xl font-black text-slate-950">로그아웃하시겠습니까?</h3>
+            <p className="mt-3 text-sm font-semibold leading-6 text-slate-500">
+              확인을 누르면 현재 계정에서 로그아웃됩니다.
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setLogoutConfirmOpen(false)}
+                className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLogoutConfirmOpen(false);
+                  logout();
+                }}
+                className="rounded-full bg-hp-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-hp-700"
+              >
+                로그아웃
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

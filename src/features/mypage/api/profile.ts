@@ -15,10 +15,13 @@ export type UserApiRecord = {
   location?: unknown;
   siDo?: unknown;
   gunGu?: unknown;
+  role?: unknown;
   profileImage?: unknown;
   profileImageUrl?: unknown;
   loginType?: unknown;
   socialProvider?: unknown;
+  online?: unknown;
+  lastSeenAt?: unknown;
 };
 
 function safeString(value: unknown, fallback = "") {
@@ -46,10 +49,13 @@ export function createUserProfile(input: Partial<UserProfile> & Pick<UserProfile
     ageRange: safeString(input.ageRange),
     gender: safeString(input.gender),
     location: safeString(input.location),
+    role: safeString(input.role, "USER"),
     profileImage:
       typeof input.profileImage === "string" || input.profileImage === null ? input.profileImage : null,
     loginType: safeString(input.loginType, "local"),
     socialProvider: safeString(input.socialProvider),
+    online: input.online,
+    lastSeenAt: safeString(input.lastSeenAt),
   };
 }
 
@@ -69,9 +75,12 @@ export function mapApiRecordToUserProfile(record: UserApiRecord): UserProfile {
     ageRange: safeString(record.ageRange),
     gender: safeString(record.gender),
     location: buildLocation(record.siDo, record.gunGu, record.location),
+    role: safeString(record.role, "USER"),
     profileImage,
     loginType: safeString(record.loginType, "local"),
     socialProvider: safeString(record.socialProvider),
+    online: Boolean(record.online),
+    lastSeenAt: safeString(record.lastSeenAt),
   });
 }
 
@@ -120,4 +129,8 @@ export async function verifyUserPassword(
   },
 ): Promise<void> {
   await http.post(`/api/users/${encodeURIComponent(userId)}/password/verify`, input);
+}
+
+export async function withdrawUser(userId: string): Promise<void> {
+  await http.delete(`/api/users/${encodeURIComponent(userId)}`);
 }

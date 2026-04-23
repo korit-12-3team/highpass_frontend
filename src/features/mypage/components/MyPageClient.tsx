@@ -8,7 +8,7 @@ import { listComments } from "@/features/boards/api/comments";
 import { isPostLiked } from "@/features/boards/api/likes";
 import { listBoards } from "@/features/free-board/api/boards";
 import { REGION_DATA } from "@/shared/constants";
-import { getUserProfile, updateUserPassword, updateUserProfile, verifyUserPassword } from "@/features/mypage/api/profile";
+import { getUserProfile, updateUserPassword, updateUserProfile, verifyUserPassword, withdrawUser } from "@/features/mypage/api/profile";
 import { listStudies } from "@/features/study/api/study-api";
 import { useApp } from "@/shared/context/AppContext";
 import { MyPageHeader, MyPageTabNav } from "@/features/mypage/components/MyPageHeader";
@@ -17,6 +17,8 @@ import { SectionCard } from "@/features/mypage/components/MyPageCommon";
 import { MyPagePasswordModal } from "@/features/mypage/components/MyPagePasswordModal";
 import { MyPageProfileSection } from "@/features/mypage/components/MyPageProfileSection";
 import { MyPageBoardFilterTabs } from "@/features/mypage/components/MyPageBoardFilterTabs";
+import { MyPageWithdrawModal } from "@/features/mypage/components/MyPageWithdrawModal";
+import { logoutSession } from "@/services/auth/auth";
 
 type ProfileEditState = {
   nickname: string;
@@ -83,6 +85,10 @@ export default function MyPageClient({
   const [profileSaveError, setProfileSaveError] = useState("");
   const [profileSaveSuccess, setProfileSaveSuccess] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [withdrawDraft, setWithdrawDraft] = useState("");
+  const [withdrawError, setWithdrawError] = useState("");
+  const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [editState, setEditState] = useState<ProfileEditState>({
     nickname: "",
@@ -404,6 +410,29 @@ export default function MyPageClient({
     }
   };
 
+  const confirmWithdraw = async () => {
+    if (withdrawDraft !== "회원탈퇴") {
+      setWithdrawError("회원탈퇴를 정확히 입력해 주세요.");
+      return;
+    }
+
+    try {
+      setWithdrawSubmitting(true);
+      setWithdrawError("");
+      await withdrawUser(currentUser.id);
+      await logoutSession();
+      setCurrentUser(null);
+      toast.success("회원 탈퇴가 처리되었습니다.");
+      router.replace("/login");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "회원 탈퇴 처리에 실패했습니다.";
+      setWithdrawError(message);
+      toast.error(message);
+    } finally {
+      setWithdrawSubmitting(false);
+    }
+  };
+
   const accountTypeLabel =
     displayUser.loginType === "local"
       ? "일반 회원"
@@ -454,6 +483,11 @@ export default function MyPageClient({
             setProfileEditOpen(false);
           }}
           onSave={() => void saveProfile()}
+          onStartWithdraw={() => {
+            setWithdrawDraft("");
+            setWithdrawError("");
+            setWithdrawOpen(true);
+          }}
           onChange={(next) => setEditState((prev) => ({ ...prev, ...next }))}
         />
       ) : null}
@@ -497,6 +531,20 @@ export default function MyPageClient({
           setProfileSaveError("");
         }}
         onConfirm={() => void confirmProfileEdit()}
+      />
+      <MyPageWithdrawModal
+        open={withdrawOpen}
+        value={withdrawDraft}
+        error={withdrawError}
+        submitting={withdrawSubmitting}
+        onChange={setWithdrawDraft}
+        onClose={() => {
+          if (withdrawSubmitting) return;
+          setWithdrawOpen(false);
+          setWithdrawDraft("");
+          setWithdrawError("");
+        }}
+        onConfirm={() => void confirmWithdraw()}
       />
     </div>
   );

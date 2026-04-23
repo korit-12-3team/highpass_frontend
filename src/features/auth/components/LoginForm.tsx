@@ -19,6 +19,7 @@ type LoginApiResponse = {
   gender?: string;
   siDo?: string;
   gunGu?: string;
+  role?: string;
   redirectUrl?: string;
   message?: string;
 };
@@ -36,6 +37,7 @@ function mapLoginResponseToUser(payload: LoginApiResponse) {
     ageRange: payload.ageRange,
     gender: payload.gender,
     location,
+    role: payload.role || "USER",
     profileImage: null,
     loginType: "local",
   });
@@ -54,7 +56,10 @@ export default function LoginForm() {
 
   useEffect(() => {
     if (!authReady || !isAuthenticated) return;
-    router.replace("/calendar");
+    void (async () => {
+      const user = await fetchCurrentUserProfile().catch(() => null);
+      router.replace(user?.role === "ADMIN" ? "/admin" : "/calendar");
+    })();
   }, [authReady, isAuthenticated, router]);
 
   const handleLocalLogin = async (e: React.FormEvent) => {
@@ -97,6 +102,11 @@ export default function LoginForm() {
   return (
     <AuthShell title="로그인" subtitle="계정으로 로그인해 주세요">
       <form onSubmit={handleLocalLogin} className="space-y-4">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-900">
+          <p className="font-black">임시 관리자 계정</p>
+          <p className="mt-1">아이디: admin@highpass.local</p>
+          <p>비밀번호: Admin1234!</p>
+        </div>
         <input
           type="email"
           value={email}

@@ -29,6 +29,7 @@ function mapCurrentUserPayload(payload: Record<string, unknown>): UserProfile | 
     ageRange: typeof payload.ageRange === "string" ? payload.ageRange : "",
     gender: typeof payload.gender === "string" ? payload.gender : "",
     location,
+    role: typeof payload.role === "string" ? payload.role : "USER",
     profileImage:
       typeof payload.profileImage === "string"
         ? payload.profileImage

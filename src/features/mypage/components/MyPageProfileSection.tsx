@@ -1,4 +1,4 @@
-import { Mail, MapPin, Settings, UserRound } from "lucide-react";
+import { Mail, MapPin, Settings, UserRound, UserX } from "lucide-react";
 import { AGE_RANGE_OPTIONS, GENDER_OPTIONS } from "@/features/mypage/api/profile";
 import { REGION_DATA } from "@/shared/constants";
 import type { UserProfile } from "@/entities/common/types";
@@ -28,6 +28,7 @@ export function MyPageProfileSection({
   onStartEdit,
   onCancelEdit,
   onSave,
+  onStartWithdraw,
   onChange,
 }: {
   user: UserProfile;
@@ -43,6 +44,7 @@ export function MyPageProfileSection({
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onSave: () => void;
+  onStartWithdraw: () => void;
   onChange: (next: Partial<ProfileEditState>) => void;
 }) {
   return (
@@ -84,14 +86,24 @@ export function MyPageProfileSection({
                 </button>
               </>
             ) : (
-              <button
-                type="button"
-                onClick={onStartEdit}
-                disabled={verifying}
-                className="rounded-full bg-hp-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-hp-700 disabled:opacity-60"
-              >
-                {verifying ? "확인 중..." : "회원정보 수정"}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={onStartWithdraw}
+                  className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-white px-4 py-2 text-sm font-bold text-rose-600 transition hover:bg-rose-50"
+                >
+                  <UserX size={16} />
+                  회원 탈퇴
+                </button>
+                <button
+                  type="button"
+                  onClick={onStartEdit}
+                  disabled={verifying}
+                  className="rounded-full bg-hp-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-hp-700 disabled:opacity-60"
+                >
+                  {verifying ? "확인 중..." : "회원정보 수정"}
+                </button>
+              </>
             )}
           </div>
         </div>

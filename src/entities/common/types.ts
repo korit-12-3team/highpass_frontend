@@ -23,9 +23,12 @@ export interface UserProfile {
   ageRange: string;
   gender: string;
   location: string;
+  role?: "USER" | "ADMIN" | string;
   profileImage?: string | null;
   loginType?: string;
   socialProvider?: string;
+  online?: boolean;
+  lastSeenAt?: string;
 }
 
 export interface PostComment {

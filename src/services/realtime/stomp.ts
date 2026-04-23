@@ -4,11 +4,15 @@ import axios from 'axios';
 import { CHAT_API_BASE_URL, STOMP_ENDPOINT_URL } from '@/services/config/config';
 
 export const createChatClient = (
+    userId: string | number,
     roomIds: number[],
     onMessageReceived: (message : any) => void 
     ) => {
         const client = new Client({
             webSocketFactory : () => new SockJS(STOMP_ENDPOINT_URL),
+            connectHeaders: {
+                userId: String(userId),
+            },
             reconnectDelay: 5000,
             debug : (str) => console.log(str), 
         }); 
