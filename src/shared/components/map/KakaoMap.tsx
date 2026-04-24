@@ -1,6 +1,6 @@
 "use client";
 
-import { Map, MapMarker, useKakaoLoader } from "react-kakao-maps-sdk";
+import { Map, MapMarker } from "react-kakao-maps-sdk";
 
 export interface MapMarkerInfo {
   lat: number;
@@ -9,7 +9,6 @@ export interface MapMarkerInfo {
 }
 
 interface KakaoMapProps {
-  apiKey: string;
   center?: { lat: number, lng: number };
   level?: number;
   markers?: MapMarkerInfo[];
@@ -18,7 +17,7 @@ interface KakaoMapProps {
   locationName?: string;
 }
 
-export default function KakaoMap({ apiKey, center, level = 3, markers, lat, lng, locationName }: KakaoMapProps) {
+export default function KakaoMap({ center, level = 3, markers, lat, lng, locationName }: KakaoMapProps) {
   // 상위(page.tsx)에서 이미 로더를 사용 중이므로 여기서는 바로 Map을 렌더링합니다.
   // 만약 개별적으로 쓸 때를 대비해 로직은 유지하되, 현재는 바로 렌더링되도록 합니다.
 

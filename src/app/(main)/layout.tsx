@@ -11,7 +11,7 @@ import ScheduleNotificationModal from "@/features/calendar/components/ScheduleNo
 import { useApp } from "@/shared/context/AppContext";
 import { createUserProfile, getUserProfile } from "@/features/mypage/api/profile";
 import { listCalendarEvents } from "@/features/calendar/api/calendar";
-import { CHAT_API_BASE_URL } from "@/services/config/config";
+import { CHAT_API_BASE_URL, KAKAO_MAP_APPKEY } from "@/services/config/config";
 import { createChatClient } from "@/services/realtime/stomp";
 import type { EventType, SearchPlace, UserProfile } from "@/entities/common/types";
 
@@ -53,7 +53,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   } = useApp();
 
   const [loadingKakao, errorKakao] = useKakaoLoader({
-    appkey: "894423a9ffcffb29a1e5d50427ded82e",
+    appkey: KAKAO_MAP_APPKEY,
     libraries: ["services", "clusterer"],
   });
 
