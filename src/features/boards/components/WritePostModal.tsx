@@ -25,7 +25,7 @@ interface WritePostModalProps {
   searchKeyword: string;
   setSearchKeyword: (value: string) => void;
   searchResults: SearchPlace[];
-  searchPlacesOnKakao: () => void;
+  searchPlacesOnKakao: () => Promise<void>;
   loadingKakao: boolean;
   errorKakao: unknown;
   onClose: () => void;
@@ -178,7 +178,7 @@ export default function WritePostModal(props: WritePostModalProps) {
                   value={searchKeyword}
                   onChange={(e) => setSearchKeyword(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") searchPlacesOnKakao();
+                    if (e.key === "Enter") void searchPlacesOnKakao();
                   }}
                   className="flex-1 rounded-lg border border-hp-600 bg-hp-800 p-2.5 text-sm text-white outline-none placeholder:text-hp-400"
                   placeholder="장소 검색 (예시: 강남 카페)"
@@ -186,9 +186,9 @@ export default function WritePostModal(props: WritePostModalProps) {
                 />
                 <button
                   type="button"
-                  onClick={searchPlacesOnKakao}
+                  onClick={() => void searchPlacesOnKakao()}
                   className="rounded-lg bg-hp-600 px-5 text-sm font-bold text-white transition-colors hover:bg-hp-500"
-                  disabled={saving}
+                  disabled={saving || loadingKakao}
                 >
                   검색
                 </button>

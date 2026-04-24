@@ -2,15 +2,22 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, Heart, MapPin, Pencil, Search, Trash2, X } from "lucide-react";
+import { AlertTriangle, Eye, Heart, MapPin, Pencil, Search, Trash2, X } from "lucide-react";
 import KakaoMap from "@/shared/components/map/KakaoMap";
 import type { BoardPost, PostComment, SearchPlace } from "@/entities/common/types";
-import { createComment, deleteComment as deleteCommentRequest, listComments, updateComment as updateCommentRequest } from "@/features/boards/api/comments";
+import {
+  createComment,
+  deleteComment as deleteCommentRequest,
+  listComments,
+  updateComment as updateCommentRequest,
+} from "@/features/boards/api/comments";
 import { isPostLiked, saveLikedPost, toggleBoardLike } from "@/features/boards/api/likes";
 import { CERT_DATA } from "@/shared/constants";
+import ReportDialog from "@/features/reports/components/ReportDialog";
 import { deleteStudy, updateStudy } from "@/features/study/api/study-api";
 import { formatBoardCreatedAt, getInitial } from "@/features/boards/utils/detail-utils";
 import { useApp } from "@/shared/context/AppContext";
+import { waitForKakaoServices } from "@/shared/utils/kakao";
 
 const CUSTOM_CERT_FILTER = "기타";
 
@@ -49,16 +56,26 @@ export default function StudyPostPageClient({
   const [postEditError, setPostEditError] = useState("");
   const [postSaving, setPostSaving] = useState(false);
   const [postDeleting, setPostDeleting] = useState(false);
+  const [reportTarget, setReportTarget] = useState<null | {
+    targetType: "post" | "comment";
+    targetId: string;
+    title: string;
+    subtitle: string;
+  }>(null);
 
   const certificateCategories = useMemo(
     () => Object.keys(CERT_DATA).filter((category) => category !== CUSTOM_CERT_FILTER),
     [],
   );
   const certOptions = useMemo(
-    () => (postEditCertCategory && postEditCertCategory !== CUSTOM_CERT_FILTER ? CERT_DATA[postEditCertCategory] || [] : []),
+    () =>
+      postEditCertCategory && postEditCertCategory !== CUSTOM_CERT_FILTER
+        ? CERT_DATA[postEditCertCategory] || []
+        : [],
     [postEditCertCategory],
   );
   const isCustomCert = postEditCertCategory === CUSTOM_CERT_FILTER;
+  const canManagePost = !!currentUser && currentUser.id === post?.authorId;
 
   useEffect(() => {
     setPost(initialPost ? { ...initialPost, comments: initialComments } : null);
@@ -80,11 +97,16 @@ export default function StudyPostPageClient({
     if (!post) return;
 
     const matchedCategory =
-      Object.entries(CERT_DATA).find(([category, certificates]) => category !== CUSTOM_CERT_FILTER && certificates.includes(post.cert || ""))?.[0] ?? "";
+      Object.entries(CERT_DATA).find(
+        ([category, certificates]) =>
+          category !== CUSTOM_CERT_FILTER && certificates.includes(post.cert || ""),
+      )?.[0] ?? "";
 
     setPostEditTitle(post.title || "");
     setPostEditContent(post.content || "");
-    setPostEditCertCategory(matchedCategory || ((post.cert || "").trim() ? CUSTOM_CERT_FILTER : ""));
+    setPostEditCertCategory(
+      matchedCategory || ((post.cert || "").trim() ? CUSTOM_CERT_FILTER : ""),
+    );
     setPostEditCert(post.cert || "");
     setPostEditLocation(post.location || "");
     setPlaceKeyword(post.location || "");
@@ -101,24 +123,18 @@ export default function StudyPostPageClient({
     );
   }, [post]);
 
-  const syncComments = useCallback(
-    (comments: BoardPost["comments"]) => {
-      setPost((prev) => (prev ? { ...prev, comments } : prev));
-    },
-    [],
-  );
+  const syncComments = useCallback((comments: BoardPost["comments"]) => {
+    setPost((prev) => (prev ? { ...prev, comments } : prev));
+  }, []);
 
   const loadComments = useCallback(async () => {
     const comments = await listComments("STUDY", postId);
     syncComments(comments);
   }, [postId, syncComments]);
 
-  const updatePostLocally = useCallback(
-    (updater: (current: BoardPost) => BoardPost) => {
-      setPost((prev) => (prev ? updater(prev) : prev));
-    },
-    [],
-  );
+  const updatePostLocally = useCallback((updater: (current: BoardPost) => BoardPost) => {
+    setPost((prev) => (prev ? updater(prev) : prev));
+  }, []);
 
   const handleToggleLike = async () => {
     if (!post || !currentUser || likeSubmitting) return;
@@ -134,7 +150,9 @@ export default function StudyPostPageClient({
       saveLikedPost(currentUser.id, "STUDY", post.id, nextLiked);
       updatePostLocally((currentPost) => ({
         ...currentPost,
-        likes: nextLiked ? currentPost.likes + 1 : Math.max(0, currentPost.likes - 1),
+        likes: nextLiked
+          ? currentPost.likes + 1
+          : Math.max(0, currentPost.likes - 1),
         likedByUser: nextLiked,
       }));
     } finally {
@@ -163,8 +181,10 @@ export default function StudyPostPageClient({
       });
       setCommentText("");
       await loadComments();
-    } catch (e) {
-      setCommentError(e instanceof Error ? e.message : "댓글 등록에 실패했습니다.");
+    } catch (error) {
+      setCommentError(
+        error instanceof Error ? error.message : "댓글 등록에 실패했습니다.",
+      );
     } finally {
       setCommentSubmitting(false);
     }
@@ -196,8 +216,10 @@ export default function StudyPostPageClient({
       });
       cancelEditingComment();
       await loadComments();
-    } catch (e) {
-      setCommentError(e instanceof Error ? e.message : "댓글 수정에 실패했습니다.");
+    } catch (error) {
+      setCommentError(
+        error instanceof Error ? error.message : "댓글 수정에 실패했습니다.",
+      );
     } finally {
       setActiveCommentId(null);
     }
@@ -214,25 +236,29 @@ export default function StudyPostPageClient({
       await deleteCommentRequest(commentId, userId);
       if (editingCommentId === commentId) cancelEditingComment();
       await loadComments();
-    } catch (e) {
-      setCommentError(e instanceof Error ? e.message : "댓글 삭제에 실패했습니다.");
+    } catch (error) {
+      setCommentError(
+        error instanceof Error ? error.message : "댓글 삭제에 실패했습니다.",
+      );
     } finally {
       setActiveCommentId(null);
     }
   };
 
-  const showMapPreview =
-    typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1";
-  const canManagePost = !!currentUser && currentUser.id === post?.authorId;
-
   const cancelPostEdit = () => {
     if (!post) return;
     setEditingPost(false);
+    setPostEditError("");
     setPostEditTitle(post.title || "");
     setPostEditContent(post.content || "");
     const matchedCategory =
-      Object.entries(CERT_DATA).find(([category, certificates]) => category !== CUSTOM_CERT_FILTER && certificates.includes(post.cert || ""))?.[0] ?? "";
-    setPostEditCertCategory(matchedCategory || ((post.cert || "").trim() ? CUSTOM_CERT_FILTER : ""));
+      Object.entries(CERT_DATA).find(
+        ([category, certificates]) =>
+          category !== CUSTOM_CERT_FILTER && certificates.includes(post.cert || ""),
+      )?.[0] ?? "";
+    setPostEditCertCategory(
+      matchedCategory || ((post.cert || "").trim() ? CUSTOM_CERT_FILTER : ""),
+    );
     setPostEditCert(post.cert || "");
     setPostEditLocation(post.location || "");
     setPlaceKeyword(post.location || "");
@@ -247,10 +273,9 @@ export default function StudyPostPageClient({
           }
         : null,
     );
-    setPostEditError("");
   };
 
-  const searchPlacesOnKakao = () => {
+  const searchPlacesOnKakao = async () => {
     if (typeof window === "undefined") return;
     const keyword = placeKeyword.trim();
     if (!keyword) {
@@ -258,37 +283,40 @@ export default function StudyPostPageClient({
       return;
     }
 
-    const kakaoMaps = window.kakao?.maps;
-    const services = kakaoMaps?.services;
+    try {
+      const services = await waitForKakaoServices();
+      const places = new services.Places();
+      places.keywordSearch(keyword, (data, status) => {
+        if (status !== services.Status.OK) {
+          setPlaceResults([]);
+          setPostEditError("장소 검색 결과가 없습니다.");
+          return;
+        }
 
-    if (!services) {
-      setPostEditError("지도 스크립트가 아직 로드되지 않았습니다.");
-      return;
-    }
-
-    const places = new services.Places();
-    places.keywordSearch(keyword, (data, status) => {
-      if (status !== services.Status.OK) {
-        setPlaceResults([]);
-        setPostEditError("장소 검색 결과가 없습니다.");
-        return;
-      }
-
-      setPostEditError("");
-      setPlaceResults(
-        data.map(
-          (item): SearchPlace => ({
-            id: item.id,
-            name: item.place_name,
-            address: item.road_address_name || item.address_name,
-            phone: item.phone,
-            category: item.category_group_name || item.category_name?.split(">").pop()?.trim(),
-            lat: parseFloat(item.y),
-            lng: parseFloat(item.x),
-          }),
-        ),
+        setPostEditError("");
+        setPlaceResults(
+          data.map(
+            (item): SearchPlace => ({
+              id: item.id,
+              name: item.place_name,
+              address: item.road_address_name || item.address_name,
+              phone: item.phone,
+              category:
+                item.category_group_name ||
+                item.category_name?.split(">").pop()?.trim(),
+              lat: parseFloat(item.y),
+              lng: parseFloat(item.x),
+            }),
+          ),
+        );
+      });
+    } catch (error) {
+      setPostEditError(
+        error instanceof Error
+          ? error.message
+          : "지도 스크립트를 불러오지 못했습니다.",
       );
-    });
+    }
   };
 
   const savePost = async () => {
@@ -318,11 +346,12 @@ export default function StudyPostPageClient({
         placeId: selectedEditPlace?.id,
       });
 
-      const hydrated = { ...updated, comments: post.comments };
-      setPost(hydrated);
+      setPost({ ...updated, comments: post.comments });
       setEditingPost(false);
     } catch (error) {
-      setPostEditError(error instanceof Error ? error.message : "게시글 수정에 실패했습니다.");
+      setPostEditError(
+        error instanceof Error ? error.message : "게시글 수정에 실패했습니다.",
+      );
     } finally {
       setPostSaving(false);
     }
@@ -337,7 +366,9 @@ export default function StudyPostPageClient({
       await deleteStudy(post.id);
       router.push(returnTo ? decodeURIComponent(returnTo) : "/study");
     } catch (error) {
-      setPostEditError(error instanceof Error ? error.message : "게시글 삭제에 실패했습니다.");
+      setPostEditError(
+        error instanceof Error ? error.message : "게시글 삭제에 실패했습니다.",
+      );
     } finally {
       setPostDeleting(false);
     }
@@ -346,18 +377,32 @@ export default function StudyPostPageClient({
   if (!post) {
     return (
       <div className="mx-auto max-w-5xl rounded-[28px] border border-hp-100 bg-white px-6 py-16 text-center text-sm text-slate-400 shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
-        게시물을 불러오지 못했습니다.
+        게시글을 불러오지 못했습니다.
       </div>
     );
   }
 
   return (
     <div className="mx-auto max-w-6xl animate-in fade-in duration-500">
+      {reportTarget ? (
+        <ReportDialog
+          isOpen={!!reportTarget}
+          targetType={reportTarget.targetType}
+          targetId={reportTarget.targetId}
+          title={reportTarget.title}
+          subtitle={reportTarget.subtitle}
+          onClose={() => setReportTarget(null)}
+          onSubmitted={() => setReportTarget(null)}
+        />
+      ) : null}
+
       <div className="overflow-hidden rounded-[30px] border border-hp-100 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
         <div className="sticky top-0 z-10 border-b border-hp-100 bg-white/90 backdrop-blur">
           <div className="flex items-center gap-3 px-5 py-3">
             <button
-              onClick={() => router.push(returnTo ? decodeURIComponent(returnTo) : "/study")}
+              onClick={() =>
+                router.push(returnTo ? decodeURIComponent(returnTo) : "/study")
+              }
               className="rounded-full p-2 transition hover:bg-slate-100"
               aria-label="뒤로"
             >
@@ -374,14 +419,22 @@ export default function StudyPostPageClient({
                 <div className="mb-5 pb-5">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 flex-1">
-                      {post.title ? <h1 className="text-3xl font-bold leading-tight tracking-[-0.02em] text-slate-950">{post.title}</h1> : null}
+                      {post.title ? (
+                        <h1 className="text-3xl font-bold leading-tight tracking-[-0.02em] text-slate-950">
+                          {post.title}
+                        </h1>
+                      ) : null}
                     </div>
                     <div className="flex flex-wrap gap-2 lg:max-w-[42%] lg:justify-end">
                       <span className="inline-flex items-center gap-1 rounded-full bg-hp-50 px-3 py-1.5 text-xs font-semibold text-hp-700">
                         <MapPin size={12} />
                         {post.location}
                       </span>
-                      {post.cert && <span className="rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">{post.cert}</span>}
+                      {post.cert ? (
+                        <span className="rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
+                          {post.cert}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -409,10 +462,15 @@ export default function StudyPostPageClient({
                         onClick={() => void handleToggleLike()}
                         disabled={likeSubmitting}
                         className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 transition ${
-                          post.likedByUser ? "bg-red-50 text-red-500" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          post.likedByUser
+                            ? "bg-red-50 text-red-500"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                         } disabled:opacity-50`}
                       >
-                        <Heart size={13} className={post.likedByUser ? "fill-current" : ""} />
+                        <Heart
+                          size={13}
+                          className={post.likedByUser ? "fill-current" : ""}
+                        />
                         좋아요 {post.likes}
                       </button>
                       <span className="inline-flex items-center gap-1.5">
@@ -434,10 +492,15 @@ export default function StudyPostPageClient({
                   </span>
                 </button>
                 <div className="min-w-0 flex-1">
-                  <button className="block truncate text-left text-sm font-semibold text-slate-900 hover:underline" onClick={() => setProfileModal(post.authorId)}>
+                  <button
+                    className="block truncate text-left text-sm font-semibold text-slate-900 hover:underline"
+                    onClick={() => setProfileModal(post.authorId)}
+                  >
                     {post.author}
                   </button>
-                  <div className="text-xs text-slate-400">{formatBoardCreatedAt(post.createdAt)}</div>
+                  <div className="text-xs text-slate-400">
+                    {formatBoardCreatedAt(post.createdAt)}
+                  </div>
                 </div>
                 {canManagePost ? (
                   <div className="ml-auto flex items-center gap-2">
@@ -456,7 +519,7 @@ export default function StudyPostPageClient({
                           disabled={postSaving}
                           className="rounded-full bg-hp-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-hp-700 disabled:opacity-60"
                         >
-                          {postSaving ? "저장 중.." : "저장"}
+                          {postSaving ? "Saving..." : "Save"}
                         </button>
                       </>
                     ) : (
@@ -484,14 +547,32 @@ export default function StudyPostPageClient({
                       </>
                     )}
                   </div>
-                ) : null}
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setReportTarget({
+                        targetType: "post",
+                        targetId: `study-${post.id}`,
+                        title: "이 스터디 게시글을 신고할까요?",
+                        subtitle: "스터디 모집 글에 대한 신고 사유를 선택해 주세요.",
+                      })
+                    }
+                    className="ml-auto inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-100"
+                  >
+                    <AlertTriangle size={14} />
+                    신고
+                  </button>
+                )}
               </div>
 
               <div className="border-t border-hp-100 pt-6 lg:pt-7">
                 {editingPost ? (
                   <div className="mx-auto max-w-3xl space-y-4">
                     <div>
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">제목</p>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        제목
+                      </p>
                       <input
                         value={postEditTitle}
                         onChange={(event) => setPostEditTitle(event.target.value)}
@@ -500,7 +581,9 @@ export default function StudyPostPageClient({
                       />
                     </div>
                     <div>
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">자격증 선택</p>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        자격증 선택
+                      </p>
                       <div className="grid gap-3 md:grid-cols-2">
                         <div>
                           <p className="mb-1 text-xs font-semibold text-slate-500">분류</p>
@@ -531,7 +614,7 @@ export default function StudyPostPageClient({
                             <input
                               value={postEditCert}
                               onChange={(event) => setPostEditCert(event.target.value)}
-                              placeholder="예: 한국사, 컴활 1급"
+                              placeholder="예: 정보처리기사"
                               className="w-full rounded-2xl border border-hp-100 bg-white px-4 py-3 text-sm text-slate-700 outline-none focus:border-hp-500"
                             />
                           ) : (
@@ -541,7 +624,9 @@ export default function StudyPostPageClient({
                               disabled={!postEditCertCategory}
                               className="w-full rounded-2xl border border-hp-100 bg-white px-4 py-3 text-sm text-slate-700 outline-none focus:border-hp-500 disabled:opacity-40"
                             >
-                              <option value="">{postEditCertCategory ? "자격증 선택" : "먼저 분류를 선택해 주세요"}</option>
+                              <option value="">
+                                {postEditCertCategory ? "자격증 선택" : "먼저 분류를 선택해 주세요"}
+                              </option>
                               {certOptions.map((certificate) => (
                                 <option key={certificate} value={certificate}>
                                   {certificate}
@@ -553,7 +638,9 @@ export default function StudyPostPageClient({
                       </div>
                     </div>
                     <div>
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">본문</p>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        본문
+                      </p>
                       <textarea
                         value={postEditContent}
                         onChange={(event) => setPostEditContent(event.target.value)}
@@ -562,71 +649,36 @@ export default function StudyPostPageClient({
                         className="w-full resize-y rounded-2xl border border-hp-100 bg-white px-4 py-4 text-[15px] leading-7 text-slate-700 outline-none focus:border-hp-500"
                       />
                     </div>
-                    {postEditError ? <p className="text-sm text-red-500">{postEditError}</p> : null}
+                    {postEditError ? (
+                      <p className="text-sm text-red-500">{postEditError}</p>
+                    ) : null}
                   </div>
                 ) : (
                   <div className="mx-auto max-w-3xl">
-                    <p className="min-h-[20rem] whitespace-pre-wrap text-[15px] leading-8 text-slate-700">{post.content}</p>
+                    <p className="min-h-[20rem] whitespace-pre-wrap text-[15px] leading-8 text-slate-700">
+                      {post.content}
+                    </p>
                   </div>
                 )}
-              </div>
-
-              <div className="hidden">
-                <button
-                  onClick={() => void handleToggleLike()}
-                  disabled={likeSubmitting}
-                  className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold transition ${
-                    post.likedByUser ? "bg-red-50 text-red-500" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                  } disabled:opacity-50`}
-                >
-                  <Heart size={16} className={post.likedByUser ? "fill-current" : ""} />
-                  좋아요 {post.likes}
-                </button>
-                <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500">
-                  <Eye size={16} />
-                  {post.views}
-                </span>
               </div>
             </div>
 
             <div className="px-5 py-6 lg:px-7">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="text-lg font-bold text-slate-950">댓글</div>
-                <div className="flex items-center gap-3 text-sm">
-                  <div className="text-slate-400">{(post.comments || []).length}개</div>
-                  {!editingPost && canManagePost ? (
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingPost(true);
-                          setPostEditError("");
-                        }}
-                        className="text-slate-500 transition hover:text-slate-800"
-                      >
-                        수정
-                      </button>
-                      <span className="text-slate-300">|</span>
-                      <button
-                        type="button"
-                        onClick={() => void removePost()}
-                        disabled={postDeleting}
-                        className="text-slate-500 transition hover:text-red-500 disabled:opacity-60"
-                      >
-                        삭제
-                      </button>
-                    </div>
-                  ) : null}
+                <div className="text-sm text-slate-400">
+                  {(post.comments || []).length}개
                 </div>
               </div>
+
               <div className="mb-5 flex items-center gap-3 rounded-2xl border border-black/10 bg-slate-50 px-4 py-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
                   {getInitial(currentUser?.nickname || "U")}
                 </div>
                 <input
                   value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  placeholder="댓글을 입력하세요"
+                  onChange={(event) => setCommentText(event.target.value)}
+                  placeholder="댓글을 입력해 주세요"
                   className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
                 />
                 <button
@@ -638,7 +690,9 @@ export default function StudyPostPageClient({
                 </button>
               </div>
 
-              {commentError && <p className="mb-4 text-sm text-red-500">{commentError}</p>}
+              {commentError ? (
+                <p className="mb-4 text-sm text-red-500">{commentError}</p>
+              ) : null}
 
               {(post.comments || []).length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-black/10 bg-slate-50 px-4 py-8 text-center text-sm text-slate-400">
@@ -663,21 +717,32 @@ export default function StudyPostPageClient({
                                 {comment.author}
                               </button>
                             ) : (
-                              <span className="text-sm font-semibold text-slate-900">{comment.author}</span>
+                              <span className="text-sm font-semibold text-slate-900">
+                                {comment.author}
+                              </span>
                             )}
-                            <span className="text-xs text-slate-400">{formatBoardCreatedAt(comment.createdAt)}</span>
-                            {comment.author === currentUser?.nickname && (
+                            <span className="text-xs text-slate-400">
+                              {formatBoardCreatedAt(comment.createdAt)}
+                            </span>
+                            {comment.authorId === currentUser?.id ||
+                            (!comment.authorId && comment.author === currentUser?.nickname) ? (
                               <div className="ml-auto flex items-center gap-1">
                                 {editingCommentId === comment.id ? (
-                                  <button onClick={cancelEditingComment} className="rounded-full p-1 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700">
+                                  <button
+                                    onClick={cancelEditingComment}
+                                    className="rounded-full p-1 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700"
+                                  >
                                     <X size={14} />
                                   </button>
                                 ) : (
-                                  <button onClick={() => {
-                                    setEditingCommentId(comment.id);
-                                    setEditingCommentText(comment.text);
-                                    setCommentError("");
-                                  }} className="rounded-full p-1 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700">
+                                  <button
+                                    onClick={() => {
+                                      setEditingCommentId(comment.id);
+                                      setEditingCommentText(comment.text);
+                                      setCommentError("");
+                                    }}
+                                    className="rounded-full p-1 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700"
+                                  >
                                     <Pencil size={14} />
                                   </button>
                                 )}
@@ -689,6 +754,22 @@ export default function StudyPostPageClient({
                                   <Trash2 size={14} />
                                 </button>
                               </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setReportTarget({
+                                    targetType: "comment",
+                                    targetId: String(comment.id),
+                                    title: "이 댓글을 신고할까요?",
+                                    subtitle: `${comment.author}님의 댓글에 대한 신고 사유를 선택해 주세요.`,
+                                  })
+                                }
+                                className="ml-auto inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-600 transition hover:bg-rose-100"
+                              >
+                                <AlertTriangle size={12} />
+                                신고
+                              </button>
                             )}
                           </div>
 
@@ -696,22 +777,29 @@ export default function StudyPostPageClient({
                             <div>
                               <textarea
                                 value={editingCommentText}
-                                onChange={(e) => setEditingCommentText(e.target.value)}
+                                onChange={(event) =>
+                                  setEditingCommentText(event.target.value)
+                                }
                                 rows={3}
                                 className="w-full resize-none rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none"
                               />
                               <div className="mt-2 flex justify-end">
                                 <button
                                   onClick={() => void saveComment(comment.id)}
-                                  disabled={activeCommentId === comment.id || !editingCommentText.trim()}
+                                  disabled={
+                                    activeCommentId === comment.id ||
+                                    !editingCommentText.trim()
+                                  }
                                   className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
                                 >
-                                  {activeCommentId === comment.id ? "저장 중.." : "저장"}
+                                  {activeCommentId === comment.id ? "Saving..." : "Save"}
                                 </button>
                               </div>
                             </div>
                           ) : (
-                            <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{comment.text}</p>
+                            <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                              {comment.text}
+                            </p>
                           )}
                         </div>
                       </div>
@@ -724,7 +812,9 @@ export default function StudyPostPageClient({
 
           <aside className="bg-hp-50/40 px-5 py-6">
             <div className="lg:sticky lg:top-24">
-              <div className="text-xs font-semibold uppercase tracking-[0.24em] text-hp-500">Study Spot</div>
+              <div className="text-xs font-semibold uppercase tracking-[0.24em] text-hp-500">
+                Study Spot
+              </div>
               {editingPost ? (
                 <>
                   <div className="mt-4 flex gap-2">
@@ -734,7 +824,7 @@ export default function StudyPostPageClient({
                       onKeyDown={(event) => {
                         if (event.key === "Enter") {
                           event.preventDefault();
-                          searchPlacesOnKakao();
+                          void searchPlacesOnKakao();
                         }
                       }}
                       placeholder="장소 검색"
@@ -742,7 +832,7 @@ export default function StudyPostPageClient({
                     />
                     <button
                       type="button"
-                      onClick={searchPlacesOnKakao}
+                      onClick={() => void searchPlacesOnKakao()}
                       className="inline-flex items-center gap-2 rounded-2xl bg-hp-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-hp-700"
                     >
                       <Search size={15} />
@@ -751,7 +841,9 @@ export default function StudyPostPageClient({
                   </div>
 
                   <div className="mt-4 rounded-2xl border border-hp-100 bg-hp-50/40 px-4 py-3">
-                    <div className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">선택한 장소</div>
+                    <div className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                      선택한 장소
+                    </div>
                     <div className="inline-flex items-center gap-2 text-sm font-semibold text-hp-700">
                       <MapPin size={14} />
                       {postEditLocation || "아직 선택하지 않았습니다."}
@@ -761,37 +853,50 @@ export default function StudyPostPageClient({
                   {placeResults.length > 0 ? (
                     <div className="mt-4 flex h-72 flex-col gap-4 lg:h-auto lg:flex-row">
                       <div className="max-h-56 flex-1 space-y-2 overflow-y-auto pr-1 lg:max-h-72">
-                      {placeResults.map((result) => (
-                        <button
-                          key={result.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedEditPlace(result);
-                            setPostEditLocation(result.name);
-                            setPlaceKeyword(result.name);
-                            setPostEditError("");
-                          }}
-                          className={`block w-full rounded-2xl border px-4 py-3 text-left text-sm transition ${
-                            selectedEditPlace?.id === result.id
-                              ? "border-hp-300 bg-hp-50 text-slate-900"
-                              : "border-slate-200 bg-white text-slate-700 hover:border-hp-200 hover:bg-hp-50/40"
-                          }`}
-                        >
-                          <div className="font-semibold">{result.name}</div>
-                          <div className="mt-1 text-xs text-slate-500">{result.address}</div>
-                        </button>
-                      ))}
+                        {placeResults.map((result) => (
+                          <button
+                            key={result.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedEditPlace(result);
+                              setPostEditLocation(result.name);
+                              setPlaceKeyword(result.name);
+                              setPostEditError("");
+                            }}
+                            className={`block w-full rounded-2xl border px-4 py-3 text-left text-sm transition ${
+                              selectedEditPlace?.id === result.id
+                                ? "border-hp-300 bg-hp-50 text-slate-900"
+                                : "border-slate-200 bg-white text-slate-700 hover:border-hp-200 hover:bg-hp-50/40"
+                            }`}
+                          >
+                            <div className="font-semibold">{result.name}</div>
+                            <div className="mt-1 text-xs text-slate-500">
+                              {result.address}
+                            </div>
+                          </button>
+                        ))}
                       </div>
 
                       <div className="flex min-h-56 flex-1 items-center justify-center overflow-hidden rounded-3xl border border-hp-100 bg-hp-50/40">
-                        {selectedEditPlace && showMapPreview ? (
+                        {selectedEditPlace ? (
                           <KakaoMap
-                            markers={[{ lat: selectedEditPlace.lat, lng: selectedEditPlace.lng, locationName: selectedEditPlace.name }]}
-                            center={{ lat: selectedEditPlace.lat, lng: selectedEditPlace.lng }}
+                            markers={[
+                              {
+                                lat: selectedEditPlace.lat,
+                                lng: selectedEditPlace.lng,
+                                locationName: selectedEditPlace.name,
+                              },
+                            ]}
+                            center={{
+                              lat: selectedEditPlace.lat,
+                              lng: selectedEditPlace.lng,
+                            }}
                             level={3}
                           />
                         ) : (
-                          <div className="px-5 text-center text-sm text-slate-400">오른쪽에서 선택한 장소 지도가 여기에 표시됩니다.</div>
+                          <div className="px-5 text-center text-sm text-slate-400">
+                            장소를 선택하면 지도가 표시됩니다.
+                          </div>
                         )}
                       </div>
                     </div>
@@ -811,20 +916,19 @@ export default function StudyPostPageClient({
                   </div>
 
                   {post.lat && post.lng ? (
-                    showMapPreview ? (
-                      <div className="mt-4 overflow-hidden rounded-3xl border border-hp-100">
-                        <KakaoMap
-                          markers={[{ lat: post.lat, lng: post.lng, locationName: post.location || "스터디 장소" }]}
-                          center={{ lat: post.lat, lng: post.lng }}
-                          level={3}
-                        />
-                      </div>
-                    ) : (
-                      <div className="mt-4 rounded-3xl border border-dashed border-hp-200 bg-hp-50 px-5 py-10 text-center text-sm text-slate-500">
-                        localhost 환경에서는 지도를 숨깁니다.
-                        <div className="mt-2 font-semibold text-slate-700">{post.location}</div>
-                      </div>
-                    )
+                    <div className="mt-4 overflow-hidden rounded-3xl border border-hp-100">
+                      <KakaoMap
+                        markers={[
+                          {
+                            lat: post.lat,
+                            lng: post.lng,
+                            locationName: post.location || "스터디 장소",
+                          },
+                        ]}
+                        center={{ lat: post.lat, lng: post.lng }}
+                        level={3}
+                      />
+                    </div>
                   ) : (
                     <div className="mt-4 rounded-3xl border border-dashed border-hp-200 bg-hp-50 px-5 py-10 text-center text-sm text-slate-400">
                       아직 장소 정보가 등록되지 않았습니다.

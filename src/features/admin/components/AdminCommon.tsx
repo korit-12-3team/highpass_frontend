@@ -1,5 +1,11 @@
 import type { ReactNode } from "react";
-import type { AdminUser, ApiStatus, PostStatus, ReportStatus, UserStatus } from "@/features/admin/types";
+import type {
+  AdminUser,
+  ApiStatus,
+  PostStatus,
+  ReportStatus,
+  UserStatus,
+} from "@/features/admin/types";
 
 export const userStatusLabel: Record<UserStatus, string> = {
   active: "정상",
@@ -19,11 +25,21 @@ export const reportStatusLabel: Record<ReportStatus, string> = {
   dismissed: "반려",
 };
 
-export function statusClass(status: UserStatus | PostStatus | ReportStatus) {
-  if (status === "active" || status === "visible" || status === "resolved") {
+export function statusClass(
+  status: UserStatus | PostStatus | ReportStatus,
+) {
+  if (
+    status === "active" ||
+    status === "visible" ||
+    status === "resolved"
+  ) {
     return "bg-emerald-50 text-emerald-700 ring-emerald-200";
   }
-  if (status === "suspended" || status === "hidden" || status === "pending") {
+  if (
+    status === "suspended" ||
+    status === "hidden" ||
+    status === "pending"
+  ) {
     return "bg-amber-50 text-amber-700 ring-amber-200";
   }
   return "bg-rose-50 text-rose-700 ring-rose-200";
@@ -36,7 +52,9 @@ export function formatDateOnly(value: string) {
 
 export function getLoginTypeLabel(user: AdminUser) {
   if (user.loginType === "social" || user.socialProvider) {
-    return user.socialProvider ? `소셜회원 (${user.socialProvider})` : "소셜회원";
+    return user.socialProvider
+      ? `소셜회원 (${user.socialProvider})`
+      : "소셜회원";
   }
   return "일반회원";
 }
@@ -47,7 +65,15 @@ export function getLastSeenLabel(user: AdminUser) {
   return "기록 없음";
 }
 
-export function AdminStat({ icon, label, value }: { icon: ReactNode; label: string; value: number | string }) {
+export function AdminStat({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: number | string;
+}) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
       <div className="flex items-center justify-between">
@@ -59,15 +85,21 @@ export function AdminStat({ icon, label, value }: { icon: ReactNode; label: stri
   );
 }
 
-export function ApiNotice({ status, label }: { status: ApiStatus; label: string }) {
+export function ApiNotice({
+  status,
+  label,
+}: {
+  status: ApiStatus;
+  label: string;
+}) {
   if (status === "ready") return null;
 
   const message =
     status === "loading"
-      ? `${label} API를 호출하는 중입니다.`
+      ? `${label} API를 불러오는 중입니다.`
       : status === "unavailable"
         ? `${label} API를 불러오지 못했습니다.`
-        : `${label} API 연결 상태를 확인하기 전입니다.`;
+        : `${label} API 연결 상태를 확인하는 중입니다.`;
 
   return (
     <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
@@ -76,7 +108,13 @@ export function ApiNotice({ status, label }: { status: ApiStatus; label: string 
   );
 }
 
-export function InfoTile({ label, value }: { label: string; value: ReactNode }) {
+export function InfoTile({
+  label,
+  value,
+}: {
+  label: string;
+  value: ReactNode;
+}) {
   return (
     <div className="rounded-lg bg-slate-50 p-3">
       <p className="text-xs font-black text-slate-400">{label}</p>

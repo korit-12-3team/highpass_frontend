@@ -41,7 +41,7 @@ export type AdminPost = {
 
 export type AdminReport = {
   id: string;
-  targetType: "user" | "post";
+  targetType: "user" | "post" | "comment" | "chat" | "inquiry";
   targetId: string;
   targetLabel: string;
   reason: string;

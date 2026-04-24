@@ -1,4 +1,4 @@
-import { Mail, MapPin, Settings, UserRound, UserX } from "lucide-react";
+import { Headset, Mail, MapPin, Settings, UserRound, UserX } from "lucide-react";
 import { AGE_RANGE_OPTIONS, GENDER_OPTIONS } from "@/features/mypage/api/profile";
 import { REGION_DATA } from "@/shared/constants";
 import type { UserProfile } from "@/entities/common/types";
@@ -29,6 +29,7 @@ export function MyPageProfileSection({
   onCancelEdit,
   onSave,
   onStartWithdraw,
+  onOpenInquiry,
   onChange,
 }: {
   user: UserProfile;
@@ -45,6 +46,7 @@ export function MyPageProfileSection({
   onCancelEdit: () => void;
   onSave: () => void;
   onStartWithdraw: () => void;
+  onOpenInquiry: () => void;
   onChange: (next: Partial<ProfileEditState>) => void;
 }) {
   return (
@@ -87,6 +89,14 @@ export function MyPageProfileSection({
               </>
             ) : (
               <>
+                <button
+                  type="button"
+                  onClick={onOpenInquiry}
+                  className="inline-flex items-center gap-2 rounded-full border border-hp-200 bg-white px-4 py-2 text-sm font-bold text-hp-700 transition hover:bg-hp-50"
+                >
+                  <Headset size={16} />
+                  관리자 문의
+                </button>
                 <button
                   type="button"
                   onClick={onStartWithdraw}
@@ -190,8 +200,12 @@ export function MyPageProfileSection({
       {editOpen && !isSocialAccount ? (
         <div className="mt-6 rounded-[24px] border border-hp-200 bg-hp-50/70 p-4">
           <div>
-            <p className="text-sm font-bold text-slate-900">프로필 정보를 직접 수정하고 바로 저장할 수 있습니다.</p>
-            <p className="mt-1 text-sm text-slate-500">새 비밀번호는 선택 입력이며, 비워두면 변경하지 않습니다.</p>
+            <p className="text-sm font-bold text-slate-900">
+              프로필 정보를 직접 수정하고 바로 저장할 수 있습니다.
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              새 비밀번호는 선택 입력이며, 비워두면 변경하지 않습니다.
+            </p>
           </div>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2">

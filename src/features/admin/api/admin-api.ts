@@ -37,4 +37,3 @@ export async function updateAdminReportStatus(reportId: string, status: ReportSt
   const response = await http.patch(`/api/admin/reports/${encodeURIComponent(reportId)}/status`, { status });
   return response.data as AdminReport;
 }
-

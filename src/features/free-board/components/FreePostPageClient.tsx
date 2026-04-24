@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, Heart, Pencil, Trash2, X } from "lucide-react";
+import { AlertTriangle, Eye, Heart, Pencil, Trash2, X } from "lucide-react";
 import type { BoardPost, PostComment } from "@/entities/common/types";
 import {
   createComment,
@@ -13,6 +13,7 @@ import {
 import { isPostLiked, saveLikedPost, toggleBoardLike } from "@/features/boards/api/likes";
 import { formatBoardCreatedAt, getInitial } from "@/features/boards/utils/detail-utils";
 import { deleteBoard } from "@/features/free-board/api/boards";
+import ReportDialog from "@/features/reports/components/ReportDialog";
 import { useApp } from "@/shared/context/AppContext";
 
 export default function FreePostPageClient({
@@ -38,6 +39,12 @@ export default function FreePostPageClient({
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editingCommentText, setEditingCommentText] = useState("");
   const [likeSubmitting, setLikeSubmitting] = useState(false);
+  const [reportTarget, setReportTarget] = useState<null | {
+    targetType: "post" | "comment";
+    targetId: string;
+    title: string;
+    subtitle: string;
+  }>(null);
 
   useEffect(() => {
     setPost(initialPost ? { ...initialPost, comments: initialComments } : null);
@@ -191,6 +198,18 @@ export default function FreePostPageClient({
 
   return (
     <div className="mx-auto max-w-xl animate-in fade-in duration-500">
+      {reportTarget ? (
+        <ReportDialog
+          isOpen={!!reportTarget}
+          targetType={reportTarget.targetType}
+          targetId={reportTarget.targetId}
+          title={reportTarget.title}
+          subtitle={reportTarget.subtitle}
+          onClose={() => setReportTarget(null)}
+          onSubmitted={() => setReportTarget(null)}
+        />
+      ) : null}
+
       <div className="overflow-hidden rounded-[28px] border border-hp-100 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
         <div className="sticky top-0 z-10 border-b border-hp-100 bg-white/90 backdrop-blur">
           <div className="flex items-center gap-3 px-4 py-3">
@@ -227,7 +246,7 @@ export default function FreePostPageClient({
               </button>
               <div className="text-xs text-slate-400">{formatBoardCreatedAt(post.createdAt)}</div>
             </div>
-            {post.authorId === currentUser?.id && (
+            {post.authorId === currentUser?.id ? (
               <button
                 disabled={deletingPost}
                 onClick={async () => {
@@ -248,6 +267,22 @@ export default function FreePostPageClient({
                 aria-label="게시글 삭제"
               >
                 <Trash2 size={18} />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() =>
+                  setReportTarget({
+                    targetType: "post",
+                    targetId: `free-${post.id}`,
+                    title: "이 게시글을 신고할까요?",
+                    subtitle: "자유게시판 게시글에 대한 신고 사유를 선택해 주세요.",
+                  })
+                }
+                className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-100"
+              >
+                <AlertTriangle size={14} />
+                신고
               </button>
             )}
           </div>
@@ -327,7 +362,8 @@ export default function FreePostPageClient({
                           <span className="text-sm font-semibold text-slate-900">{comment.author}</span>
                         )}
                         <span className="text-xs text-slate-400">{formatBoardCreatedAt(comment.createdAt)}</span>
-                        {comment.author === currentUser?.nickname && (
+                        {comment.authorId === currentUser?.id ||
+                        (!comment.authorId && comment.author === currentUser?.nickname) ? (
                           <div className="ml-auto flex items-center gap-1">
                             {editingCommentId === comment.id ? (
                               <button
@@ -359,6 +395,22 @@ export default function FreePostPageClient({
                               <Trash2 size={14} />
                             </button>
                           </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setReportTarget({
+                                targetType: "comment",
+                                targetId: String(comment.id),
+                                title: "이 댓글을 신고할까요?",
+                                subtitle: `${comment.author}님의 댓글에 대한 신고 사유를 선택해 주세요.`,
+                              })
+                            }
+                            className="ml-auto inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-600 transition hover:bg-rose-100"
+                          >
+                            <AlertTriangle size={12} />
+                            신고
+                          </button>
                         )}
                       </div>
 
