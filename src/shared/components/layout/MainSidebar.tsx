@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import {
+  Bell,
   Calendar as CalendarIcon,
   MessageCircle,
   MessageSquare,
@@ -10,12 +11,17 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { ChatRoom, UserProfile } from "@/entities/common/types";
+import { ChatRoom, NotificationResponse, UserProfile } from "@/entities/common/types";
+import NotificationDropdown from "@/features/notifications/components/NotificationDropdown";
 
 interface MainSidebarProps {
   pathname: string;
   currentUser: UserProfile;
   chatRooms: ChatRoom[];
+  notifications: NotificationResponse[];
+  showNotifications: boolean;
+  setShowNotifications: (show: boolean) => void;
+  onRefreshNotifications: () => void;
   onNavigate: (href: string) => void;
   onOpenProfile: () => void;
   onLogout: () => void;
@@ -37,11 +43,16 @@ export default function MainSidebar({
   pathname,
   currentUser,
   chatRooms,
+  notifications,
+  showNotifications,
+  setShowNotifications,
+  onRefreshNotifications,
   onNavigate,
   onOpenProfile,
   onLogout,
 }: MainSidebarProps) {
   const unreadChatCount = chatRooms.reduce((sum, room) => sum + (room.unreadCount ?? 0), 0);
+  const unreadNotiCount = notifications.filter((n) => !n.isRead).length;
 
   return (
     <aside className="relative z-10 hidden w-64 flex-col border-r border-[#b8dff3] bg-[linear-gradient(180deg,#f8fcff_0%,#e8f6ff_48%,#d5ebf7_100%)] shadow-xl md:flex">
@@ -100,6 +111,37 @@ export default function MainSidebar({
           );
         })}
       </nav>
+
+      {/* 알림 버튼 추가 */}
+      <div className="mx-4 mb-2 flex justify-end">
+        <div className="relative">
+          <button
+            onClick={() => setShowNotifications(!showNotifications)}
+            className={`relative rounded-xl p-2.5 transition-all duration-200 border border-white shadow-sm ${
+              showNotifications 
+                ? "bg-[#123b5c] text-white shadow-[#0d3d62]/20" 
+                : "bg-white/50 text-[#2e668d] hover:bg-white/80 hover:text-[#123b5c] hover:shadow-md"
+            }`}
+            aria-label="알림"
+          >
+            <Bell size={20} className={showNotifications ? "animate-pulse" : ""} />
+            {unreadNotiCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-black text-white shadow-sm ring-2 ring-white">
+                {unreadNotiCount > 99 ? "99+" : unreadNotiCount}
+              </span>
+            )}
+          </button>
+
+          {showNotifications && (
+            <NotificationDropdown
+              userId={currentUser.id}
+              notifications={notifications}
+              onRefresh={onRefreshNotifications}
+              onClose={() => setShowNotifications(false)}
+            />
+          )}
+        </div>
+      </div>
 
       <div className="m-4 flex items-center justify-between rounded-2xl border border-white bg-white/75 p-3 shadow-sm shadow-[#0d3d62]/10">
         <div

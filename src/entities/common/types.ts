@@ -29,6 +29,8 @@ export interface UserProfile {
   socialProvider?: string;
   online?: boolean;
   lastSeenAt?: string;
+  isCommentNotiOn?: boolean;
+  isLikeNotiOn?: boolean;
 }
 
 export interface PostComment {
@@ -84,6 +86,20 @@ export interface SearchPlace {
   category?: string;
   lat: number;
   lng: number;
+}
+
+export type NotificationType = "COMMENT" | "LIKE" | "CALENDAR";
+
+export interface NotificationResponse {
+  id: number;
+  senderNickname: string;
+  type: NotificationType;
+  message: string;
+  targetId: number;
+  targetType: string;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
 }
 
 export type TodoItem = {

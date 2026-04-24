@@ -3,12 +3,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import { Bell, MessageCircle, ThumbsUp } from "lucide-react";
 import type { BoardPost, PostComment, UserProfile } from "@/entities/common/types";
 import { listComments } from "@/features/boards/api/comments";
 import { isPostLiked } from "@/features/boards/api/likes";
 import { listBoards } from "@/features/free-board/api/boards";
 import { REGION_DATA } from "@/shared/constants";
-import { getUserProfile, updateUserPassword, updateUserProfile, verifyUserPassword, withdrawUser } from "@/features/mypage/api/profile";
+import { getUserProfile, updateUserPassword, updateUserProfile, verifyUserPassword, withdrawUser, updateNotificationSettings } from "@/features/mypage/api/profile";
 import { listStudies } from "@/features/study/api/study-api";
 import { useApp } from "@/shared/context/AppContext";
 import { MyPageHeader, MyPageTabNav } from "@/features/mypage/components/MyPageHeader";
@@ -30,7 +31,49 @@ type ProfileEditState = {
   newPasswordConfirm: string;
 };
 
-type MyPageTab = "profile" | "posts" | "comments" | "likes";
+type MyPageTab = "profile" | "posts" | "comments" | "likes" | "settings";
+
+function NotificationSwitch({
+  label,
+  description,
+  icon,
+  isOn,
+  onToggle,
+}: {
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+  isOn: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between rounded-[22px] border border-slate-200 bg-slate-50 p-5 transition-all hover:border-hp-200 hover:bg-white">
+      <div className="flex items-center gap-4">
+        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${isOn ? 'bg-hp-100 text-hp-600' : 'bg-slate-200 text-slate-500'}`}>
+          {icon}
+        </div>
+        <div>
+          <p className="text-base font-bold text-slate-900">{label}</p>
+          <p className="text-sm text-slate-500">{description}</p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full px-1 transition-colors duration-200 ease-in-out focus:outline-none ${
+          isOn ? "bg-hp-600" : "bg-slate-300"
+        }`}
+      >
+        <span
+          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+            isOn ? "translate-x-5" : "translate-x-0"
+          }`}
+        />
+      </button>
+    </div>
+  );
+}
+
 type MyPageBoardFilter = "all" | "study" | "free";
 type MyCommentItem = {
   comment: PostComment;
@@ -50,7 +93,7 @@ function inferRegionFromLocation(location?: string) {
   return { siDo: "", gunGu: "" };
 }
 
-const PROFILE_TABS: MyPageTab[] = ["profile", "posts", "comments", "likes"];
+const PROFILE_TABS: MyPageTab[] = ["profile", "posts", "comments", "likes", "settings"];
 
 function isMyPageTab(value: string | null): value is MyPageTab {
   return value != null && PROFILE_TABS.includes(value as MyPageTab);
@@ -89,6 +132,8 @@ export default function MyPageClient({
   const [withdrawDraft, setWithdrawDraft] = useState("");
   const [withdrawError, setWithdrawError] = useState("");
   const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
+  const [likeNotification, setLikeNotification] = useState(initialProfile?.isLikeNotiOn ?? true );
+  const [commentNotification, setCommentNotification] = useState(initialProfile?.isCommentNotiOn ?? true);
   const [currentPassword, setCurrentPassword] = useState("");
   const [editState, setEditState] = useState<ProfileEditState>({
     nickname: "",
@@ -99,6 +144,27 @@ export default function MyPageClient({
     newPassword: "",
     newPasswordConfirm: "",
   });
+
+  const handleNotificationToggle = async (type: "COMMENT" | "LIKE", currentIsOn: boolean) => {
+    if (!profileUser?.id) return;
+
+    const nextIsOn = !currentIsOn;
+
+    if (type === "COMMENT") setCommentNotification(nextIsOn);
+    else setLikeNotification(nextIsOn);
+
+    try {
+      await updateNotificationSettings(String(profileUser.id), { 
+        type, 
+        isOn: nextIsOn 
+      });
+      console.log(`${type} 알림 저장 성공!`);
+    } catch (error) {
+      if (type === "COMMENT") setCommentNotification(currentIsOn);
+      else setLikeNotification(currentIsOn);
+      alert("설정 저장에 실패했습니다.");
+    }
+  };
 
   useEffect(() => {
     if (isMyPageTab(requestedTab)) {
@@ -112,7 +178,7 @@ export default function MyPageClient({
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString());
-
+    
     if (activeTab === "profile") {
       params.delete("tab");
     } else {
@@ -207,6 +273,13 @@ export default function MyPageClient({
   const displayUser = profileUser ?? currentUser;
   const visiblePosts = hydratedPosts;
   const regionFromProfile = useMemo(() => inferRegionFromLocation(displayUser?.location), [displayUser?.location]);
+
+    useEffect(() => {
+    if (displayUser) {
+      setCommentNotification(displayUser.isCommentNotiOn ?? true);
+      setLikeNotification(displayUser.isLikeNotiOn ?? true);
+    }
+  }, [displayUser]);
 
   useEffect(() => {
     if (!displayUser) return;
@@ -516,6 +589,30 @@ export default function MyPageClient({
         <SectionCard title="좋아요한 게시물" description="좋아요를 누른 게시물을 다시 모아볼 수 있습니다.">
           <MyPageBoardFilterTabs value={boardFilter} counts={likedPostCounts} onChange={setBoardFilter} />
           <PostList posts={filteredLikedPosts} onOpenPost={openBoardPost} />
+        </SectionCard>
+      ) : null}
+
+      {activeTab === "settings" ? (
+        <SectionCard
+          title="알림 설정"
+          description="댓글이나 좋아요 등 주요 활동에 대한 알림 수신 여부를 설정할 수 있습니다."
+        >
+          <div className="flex flex-col gap-4">
+            <NotificationSwitch
+              label="댓글 알림"
+              description="내 게시글에 새로운 댓글이 달리면 알림을 받습니다."
+              icon={<MessageCircle size={24} />}
+              isOn={commentNotification}
+              onToggle={() => handleNotificationToggle("COMMENT", commentNotification)}
+            />
+            <NotificationSwitch
+              label="좋아요 알림"
+              description="내 게시글이 좋아요를 받으면 알림을 받습니다."
+              icon={<ThumbsUp size={24} />}
+              isOn={likeNotification}
+              onToggle={() => handleNotificationToggle("LIKE", likeNotification)}
+            />
+          </div>
         </SectionCard>
       ) : null}
 
