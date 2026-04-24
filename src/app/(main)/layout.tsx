@@ -11,9 +11,10 @@ import ScheduleNotificationModal from "@/features/calendar/components/ScheduleNo
 import { useApp } from "@/shared/context/AppContext";
 import { createUserProfile, getUserProfile } from "@/features/mypage/api/profile";
 import { listCalendarEvents } from "@/features/calendar/api/calendar";
+import { listNotifications } from "@/features/notifications/api/notifications";
 import { CHAT_API_BASE_URL, KAKAO_MAP_APPKEY } from "@/services/config/config";
 import { createChatClient } from "@/services/realtime/stomp";
-import type { EventType, SearchPlace, UserProfile } from "@/entities/common/types";
+import type { EventType, NotificationResponse, SearchPlace, UserProfile } from "@/entities/common/types";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -68,9 +69,34 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const [endingEvents, setEndingEvents] = useState<EventType[]>([]);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
 
+  // 알림 상태 추가
+  const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  const ready = authReady && isAuthenticated && !!currentUser;
+
+  // 알림 목록 새로고침 함수
+  const refreshNotifications = async () => {
+    if (!currentUser?.id) return;
+    try {
+      const data = await listNotifications(String(currentUser.id));
+      setNotifications(data);
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+    }
+  };
+
+
   useEffect(() => {
     if (authReady && !isAuthenticated) router.replace("/login");
   }, [authReady, isAuthenticated, router]);
+
+    // 초기 알림 로드
+  useEffect(() => {
+    if (ready && currentUser?.id) {
+      void refreshNotifications();
+    }
+  }, [ready, currentUser?.id]);
 
   useEffect(() => {
     if (!authReady || !currentUser?.id) return;
@@ -176,27 +202,38 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (!currentUser?.id) return;
 
-    const client = createChatClient(currentUser.id, chatRooms.map((room) => Number(room.id)).filter(Number.isFinite), (newMessage) => {
-      setChatRooms((prev) =>
-        prev.map((room) => {
-          if (Number(room.id) !== Number(newMessage.roomId)) return room;
+    // createChatClient를 호출할 때 userId와 알림 콜백을 함께 전달합니다.
+    const client = createChatClient(
+      currentUser.id, 
+      chatRooms.map((room) => Number(room.id)).filter(Number.isFinite), 
+      (newMessage) => {
+        // 기존 채팅 메시지 처리 로직
+        setChatRooms((prev) =>
+          prev.map((room) => {
+            if (Number(room.id) !== Number(newMessage.roomId)) return room;
 
-          const roomMessages = Array.isArray(room.messages) ? room.messages : [];
-          const alreadyExists = roomMessages.some((message) => Number(message.id) === Number(newMessage.id));
-          const nextUnread =
-            pathname === "/chat" && String(activeChatRoomId) === String(room.id)
-              ? 0
-              : (room.unreadCount ?? 0) + (alreadyExists ? 0 : 1);
+            const roomMessages = Array.isArray(room.messages) ? room.messages : [];
+            const alreadyExists = roomMessages.some((message) => Number(message.id) === Number(newMessage.id));
+            const nextUnread =
+              pathname === "/chat" && String(activeChatRoomId) === String(room.id)
+                ? 0
+                : (room.unreadCount ?? 0) + (alreadyExists ? 0 : 1);
 
-          return {
-            ...room,
-            messages: alreadyExists ? roomMessages : [...roomMessages, newMessage],
-            lastMessage: newMessage.message,
-            unreadCount: nextUnread,
-          };
-        }),
-      );
-    });
+            return {
+              ...room,
+              messages: alreadyExists ? roomMessages : [...roomMessages, newMessage],
+              lastMessage: newMessage.message,
+              unreadCount: nextUnread,
+            };
+          }),
+        );
+      },
+      (newNoti) => {
+        // 실시간 알림 수신 로직
+        console.log("실시간 알림 도착 데이터 전체:", newNoti);
+        setNotifications((prev) => [newNoti, ...prev]);
+      }
+    );
 
     client.activate();
     chatClientRef.current = client;
@@ -209,7 +246,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     };
   }, [chatRoomIdsKey, currentUser?.id, setChatClient, setChatRooms]);
 
-  const ready = authReady && isAuthenticated && !!currentUser;
   if (!ready || !currentUser) return null;
   const isAdminPath = pathname.startsWith("/admin");
 
@@ -273,18 +309,22 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="flex h-screen bg-hp-50 font-sans text-slate-800">
-      {!isAdminPath && (
-        <MainSidebar
-          pathname={pathname}
-          currentUser={currentUser}
-          chatRooms={chatRooms}
-          onNavigate={(href) => router.push(href)}
-          onOpenProfile={() => setProfileModal(currentUser.id)}
-          onLogout={() => setLogoutConfirmOpen(true)}
-        />
-      )}
+      <MainSidebar
+        pathname={pathname}
+        currentUser={currentUser}
+        chatRooms={chatRooms}
+        notifications={notifications}
+        showNotifications={showNotifications}
+        setShowNotifications={setShowNotifications}
+        onRefreshNotifications={refreshNotifications}
+        onNavigate={(href) => router.push(href)}
+        onOpenProfile={() => setProfileModal(currentUser.id)}
+        onLogout={() => setLogoutConfirmOpen(true)}
+      />
 
-      <main className={`app-scroll-container relative flex-1 ${isAdminPath ? "p-0" : "p-4 md:p-8"}`}>{children}</main>
+      <main className={`app-scroll-container relative flex-1 ${isAdminPath ? "p-0" : "p-4 md:p-8"} transition-opacity ${showNotifications ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+        {children}
+      </main>
 
       <ProfileModal
         profile={profile}

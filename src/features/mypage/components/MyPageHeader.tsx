@@ -1,14 +1,15 @@
 import React from "react";
-import { FileText, Heart, MessageSquare, Settings } from "lucide-react";
+import { FileText, Heart, MessageSquare, Settings, User } from "lucide-react";
 import type { UserProfile } from "@/entities/common/types";
 
-type MyPageTab = "profile" | "posts" | "comments" | "likes";
+type MyPageTab = "profile" | "posts" | "comments" | "likes" | "settings";
 
 const TAB_ITEMS: { id: MyPageTab; label: string; icon: React.ReactNode }[] = [
-  { id: "profile", label: "회원정보", icon: <Settings size={16} /> },
+  { id: "profile", label: "회원정보", icon: <User size={16} /> },
   { id: "posts", label: "내 게시물", icon: <FileText size={16} /> },
   { id: "comments", label: "내 댓글", icon: <MessageSquare size={16} /> },
   { id: "likes", label: "좋아요", icon: <Heart size={16} /> },
+  { id: "settings", label: "설정", icon: <Settings size={16} /> },
 ];
 
 function AccountTypeBadge({ label, provider }: { label: string; provider?: string }) {
@@ -73,14 +74,14 @@ export function MyPageTabNav({
   onChange,
 }: {
   activeTab: MyPageTab;
-  counts: Record<Exclude<MyPageTab, "profile">, number>;
+  counts: Partial<Record<Exclude<MyPageTab, "profile">, number>>;
   onChange: (tab: MyPageTab) => void;
 }) {
   return (
     <div className="flex flex-wrap gap-2">
       {TAB_ITEMS.map((item) => {
         const active = item.id === activeTab;
-        const count = item.id === "profile" ? null : counts[item.id];
+        const count = (item.id === "profile" || item.id === "settings")? null : counts[item.id];
 
         return (
           <button

@@ -22,6 +22,8 @@ export type UserApiRecord = {
   socialProvider?: unknown;
   online?: unknown;
   lastSeenAt?: unknown;
+  isCommentNotiOn?: unknown;
+  isLikeNotiOn?: unknown;
 };
 
 function safeString(value: unknown, fallback = "") {
@@ -56,6 +58,8 @@ export function createUserProfile(input: Partial<UserProfile> & Pick<UserProfile
     socialProvider: safeString(input.socialProvider),
     online: input.online,
     lastSeenAt: safeString(input.lastSeenAt),
+    isCommentNotiOn: typeof input.isCommentNotiOn === 'boolean' ? input.isCommentNotiOn : true,
+    isLikeNotiOn: typeof input.isLikeNotiOn === 'boolean' ? input.isLikeNotiOn : true,
   };
 }
 
@@ -81,6 +85,8 @@ export function mapApiRecordToUserProfile(record: UserApiRecord): UserProfile {
     socialProvider: safeString(record.socialProvider),
     online: Boolean(record.online),
     lastSeenAt: safeString(record.lastSeenAt),
+    isCommentNotiOn: Boolean(record.isCommentNotiOn ?? true),
+    isLikeNotiOn: Boolean(record.isLikeNotiOn ?? true),
   });
 }
 
@@ -133,4 +139,16 @@ export async function verifyUserPassword(
 
 export async function withdrawUser(userId: string): Promise<void> {
   await http.delete(`/api/users/${encodeURIComponent(userId)}`);
+}
+
+export interface NotificationSettingPayload {
+  type: "COMMENT" | "LIKE"; 
+  isOn: boolean;
+}
+
+export async function updateNotificationSettings(
+  userId: string,
+  payload: {type: "COMMENT" | "LIKE"; isOn: boolean},
+): Promise<void> {
+  await http.patch(`/api/notifications/settings/${encodeURIComponent(userId)}`, payload);
 }
