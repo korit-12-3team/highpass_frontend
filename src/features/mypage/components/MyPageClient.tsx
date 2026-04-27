@@ -19,6 +19,7 @@ import { MyPagePasswordModal } from "@/features/mypage/components/MyPagePassword
 import { MyPageProfileSection } from "@/features/mypage/components/MyPageProfileSection";
 import { MyPageBoardFilterTabs } from "@/features/mypage/components/MyPageBoardFilterTabs";
 import { MyPageWithdrawModal } from "@/features/mypage/components/MyPageWithdrawModal";
+import { MyPageInquiryModal } from "@/features/mypage/components/MyPageInquiryModal";
 import { logoutSession } from "@/services/auth/auth";
 
 type ProfileEditState = {
@@ -129,6 +130,8 @@ export default function MyPageClient({
   const [profileSaveSuccess, setProfileSaveSuccess] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [inquiryOpen, setInquiryOpen] = useState(false);
+  const [inquirySubmitting, setInquirySubmitting] = useState(false);
   const [withdrawDraft, setWithdrawDraft] = useState("");
   const [withdrawError, setWithdrawError] = useState("");
   const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
@@ -561,6 +564,10 @@ export default function MyPageClient({
             setWithdrawError("");
             setWithdrawOpen(true);
           }}
+          onOpenInquiry={() => {
+            setInquirySubmitting(false);
+            setInquiryOpen(true);
+          }}
           onChange={(next) => setEditState((prev) => ({ ...prev, ...next }))}
         />
       ) : null}
@@ -642,6 +649,16 @@ export default function MyPageClient({
           setWithdrawError("");
         }}
         onConfirm={() => void confirmWithdraw()}
+      />
+      <MyPageInquiryModal
+        open={inquiryOpen}
+        submitting={inquirySubmitting}
+        onSubmittingChange={setInquirySubmitting}
+        onClose={() => {
+          if (inquirySubmitting) return;
+          setInquiryOpen(false);
+          setInquirySubmitting(false);
+        }}
       />
     </div>
   );

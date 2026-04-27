@@ -14,7 +14,13 @@ import { listCalendarEvents } from "@/features/calendar/api/calendar";
 import { listNotifications } from "@/features/notifications/api/notifications";
 import { CHAT_API_BASE_URL, KAKAO_MAP_APPKEY } from "@/services/config/config";
 import { createChatClient } from "@/services/realtime/stomp";
-import type { EventType, NotificationResponse, SearchPlace, UserProfile } from "@/entities/common/types";
+import { waitForKakaoServices } from "@/shared/utils/kakao";
+import type {
+  EventType,
+  NotificationResponse,
+  SearchPlace,
+  UserProfile,
+} from "@/entities/common/types";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -278,33 +284,36 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     setSearchResults([]);
   };
 
-  const searchPlacesOnKakao = () => {
+  const searchPlacesOnKakao = async () => {
     if (typeof window === "undefined") return;
-    const kakaoMaps = window.kakao?.maps;
-    const services = kakaoMaps?.services;
-
-    if (!services) {
-      alert("지도 스크립트가 아직 로드되지 않았습니다.");
+    if (!KAKAO_MAP_APPKEY) {
+      alert("카카오 지도 앱키가 설정되지 않았습니다. NEXT_PUBLIC_KAKAO_MAP_APPKEY를 확인해 주세요.");
       return;
     }
-
-    const places = new services.Places();
-    places.keywordSearch(searchKeyword, (data, status) => {
-      if (status !== services.Status.OK) return;
-      setSearchResults(
-        data.map(
-          (item): SearchPlace => ({
-            id: item.id,
-            name: item.place_name,
-            address: item.road_address_name || item.address_name,
-            phone: item.phone,
-            category: item.category_group_name || item.category_name?.split(">").pop()?.trim(),
-            lat: parseFloat(item.y),
-            lng: parseFloat(item.x),
-          }),
-        ),
-      );
-    });
+    try {
+      const services = await waitForKakaoServices();
+      const places = new services.Places();
+      places.keywordSearch(searchKeyword, (data, status) => {
+        if (status !== services.Status.OK) return;
+        setSearchResults(
+          data.map(
+            (item): SearchPlace => ({
+              id: item.id,
+              name: item.place_name,
+              address: item.road_address_name || item.address_name,
+              phone: item.phone,
+              category: item.category_group_name || item.category_name?.split(">").pop()?.trim(),
+              lat: parseFloat(item.y),
+              lng: parseFloat(item.x),
+            }),
+          ),
+        );
+      });
+      return;
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "지도 스크립트를 불러오지 못했습니다.");
+      return;
+    }
   };
 
   return (
@@ -341,39 +350,40 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           const existing = chatRooms.find((room) => room.partnerId === profile.id);
           if (existing) {
             setActiveChatRoomId(existing.id);
+            setProfileModal(null);
+            if (window.location.pathname !== "/chat") {
+              router.push("/chat");
+            }
           } else {
             try {
-              const response = await fetch(`${CHAT_API_BASE_URL}/chat/room?userId=${currentUser.id}&partnerId=${profile.id}`,
-            { 
-              method: 'POST', 
-              headers: { 'Content-Type': 'application/json' }
+              const response = await fetch(
+                `${CHAT_API_BASE_URL}/chat/room?userId=${currentUser.id}&partnerId=${profile.id}`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                },
+              );
+
+              if (response.ok) {
+                const dbRoom = await response.json();
+
+                setChatRooms((prev) => {
+                  const isIncluded = prev.some((room) => room.id === dbRoom.id);
+                  return isIncluded ? prev : [...prev, dbRoom];
+                });
+
+                setActiveChatRoomId(dbRoom.id);
+                setProfileModal(null);
+                router.push("/chat");
+              } else {
+                const errorMsg = await response.text();
+                console.error("서버 응답 에러:", errorMsg);
+              }
+            } catch (error) {
+              console.error("네트워크 에러:", error);
             }
-          );
-
-          if (response.ok) {
-            const dbRoom = await response.json();
-            
-            setChatRooms((prev) => {
-              const isIncluded = prev.some(r => r.id === dbRoom.id);
-              return isIncluded ? prev : [...prev, dbRoom];
-            });
-            
-            setActiveChatRoomId(dbRoom.id);
-            setProfileModal(null);
-            router.push("/chat");
-          } else {
-            const errorMsg = await response.text();
-            console.error("서버 응답 에러:", errorMsg);
           }
-        } catch (error) {
-          console.error("네트워크 에러:", error);
-        }
-
-        setProfileModal(null);
-        if (window.location.pathname !== "/chat") {
-          router.push("/chat");
-        }
-      }}}
+        }}
       />
 
       <WritePostModal

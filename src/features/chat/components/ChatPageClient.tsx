@@ -1,15 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, MessageCircle } from "lucide-react";
+import { AlertTriangle, ArrowRight, MessageCircle } from "lucide-react";
 import axios from "axios";
+import ReportDialog from "@/features/reports/components/ReportDialog";
 import { useApp } from "@/shared/context/AppContext";
 import { sendMessage } from "@/services/realtime/stomp";
 import { CHAT_API_BASE_URL } from "@/services/config/config";
 
 export default function ChatPageClient() {
-  const { currentUser, chatRooms, setChatRooms, activeChatRoomId, setActiveChatRoomId, chatClient } = useApp();
+  const {
+    currentUser,
+    chatRooms,
+    setChatRooms,
+    activeChatRoomId,
+    setActiveChatRoomId,
+    chatClient,
+  } = useApp();
   const [chatInput, setChatInput] = useState("");
+  const [reportModalOpen, setReportModalOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const activeRoom = useMemo(
@@ -22,10 +31,7 @@ export default function ChatPageClient() {
       setChatRooms((prevRooms) =>
         prevRooms.map((room) =>
           String(room.id) === String(activeRoom.id)
-            ? {
-                ...room,
-                unreadCount: 0,
-              }
+            ? { ...room, unreadCount: 0 }
             : room,
         ),
       );
@@ -50,11 +56,11 @@ export default function ChatPageClient() {
     };
 
     setChatInput("");
-
     sendMessage(chatClient, messageData);
   };
 
   const handleRoomClick = async (roomId: number | string) => {
+    setReportModalOpen(false);
     setChatRooms((prevRooms) =>
       prevRooms.map((room) =>
         String(room.id) === String(roomId)
@@ -77,6 +83,19 @@ export default function ChatPageClient() {
 
   return (
     <div className="mx-auto flex h-full max-w-5xl animate-in fade-in flex-col duration-500">
+      {activeRoom ? (
+        <ReportDialog
+          isOpen={reportModalOpen}
+          targetType="chat"
+          targetId={String(activeRoom.id)}
+          title="이 채팅방을 신고할까요?"
+          subtitle={`${activeRoom.roomNickname || activeRoom.name || activeRoom.partnerNickname} 대화에 대한 신고 사유를 선택해 주세요.`}
+          description="현재 대화 내용과 상대방의 행동을 기준으로 검토됩니다."
+          onClose={() => setReportModalOpen(false)}
+          onSubmitted={() => setReportModalOpen(false)}
+        />
+      ) : null}
+
       <h2 className="mb-6 text-2xl font-bold">채팅방</h2>
 
       {chatRooms.length === 0 ? (
@@ -108,8 +127,12 @@ export default function ChatPageClient() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-slate-800">{room.roomNickname || room.name || room.partnerNickname}</p>
-                    <p className="mt-0.5 truncate text-xs text-slate-400">{room.lastMessage || "대화를 시작해보세요"}</p>
+                    <p className="truncate text-sm font-bold text-slate-800">
+                      {room.roomNickname || room.name || room.partnerNickname}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-slate-400">
+                      {room.lastMessage || "대화를 시작해보세요"}
+                    </p>
                   </div>
                 </button>
               ))}
@@ -122,14 +145,28 @@ export default function ChatPageClient() {
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-hp-100 text-sm font-bold text-hp-600">
                   {(activeRoom.roomNickname || activeRoom.name || activeRoom.partnerNickname)?.substring(0, 1) || "R"}
                 </div>
-                <p className="font-bold text-slate-800">{activeRoom.roomNickname || activeRoom.name || activeRoom.partnerNickname}</p>
+                <p className="font-bold text-slate-800">
+                  {activeRoom.roomNickname || activeRoom.name || activeRoom.partnerNickname}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setReportModalOpen(true)}
+                  className="ml-auto inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-100"
+                >
+                  <AlertTriangle size={14} />
+                  신고
+                </button>
               </div>
 
               <div ref={scrollRef} className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
                 {(activeRoom.messages || []).map((message: any, idx: number) => (
                   <div
                     key={`${message.id ?? idx}-${idx}`}
-                    className={`flex ${Number(message.senderId) === Number(currentUser?.id) ? "justify-end" : "justify-start"}`}
+                    className={`flex ${
+                      Number(message.senderId) === Number(currentUser?.id)
+                        ? "justify-end"
+                        : "justify-start"
+                    }`}
                   >
                     <div
                       className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-sm ${
@@ -163,7 +200,7 @@ export default function ChatPageClient() {
             </div>
           ) : (
             <div className="flex flex-1 items-center justify-center rounded-2xl border bg-white text-sm text-slate-400 shadow-sm">
-              채팅방을 선택해주세요
+              채팅방을 선택해 주세요
             </div>
           )}
         </div>

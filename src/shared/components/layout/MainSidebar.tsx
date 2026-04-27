@@ -48,21 +48,26 @@ export default function MainSidebar({
   setShowNotifications,
   onRefreshNotifications,
   onNavigate,
-  onOpenProfile,
   onLogout,
 }: MainSidebarProps) {
   const unreadChatCount = chatRooms.reduce((sum, room) => sum + (room.unreadCount ?? 0), 0);
-  const unreadNotiCount = notifications.filter((n) => !n.isRead).length;
+  const unreadNotiCount = notifications.filter((notification) => !notification.isRead).length;
 
   return (
     <aside className="relative z-10 hidden w-64 flex-col border-r border-[#b8dff3] bg-[linear-gradient(180deg,#f8fcff_0%,#e8f6ff_48%,#d5ebf7_100%)] shadow-xl md:flex">
       <div className="p-5">
-        <h1 className="flex items-center gap-3 rounded-2xl border border-white bg-white/80 p-3 text-2xl font-black text-[#123b5c] shadow-sm shadow-[#0d3d62]/10">
-          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#eef8ff] ring-1 ring-[#b9dff5]">
-            <Image src="/images/Highpass_icon.png" alt="HighPass" width={40} height={40} className="h-10 w-10 object-contain" priority />
-          </span>
+        <h1 className="flex items-center gap-3 p-3 text-2xl font-black text-[#123b5c]">
+          <Image
+            src="/images/Highpass_icon.png"
+            alt="HighPass"
+            width={40}
+            height={40}
+            className="h-10 w-10 object-contain"
+            priority
+          />
           HIGHPASS
         </h1>
+        <div className="mt-3 border-t border-[#b8dff3]/90" />
       </div>
 
       <nav className="flex-1 space-y-1.5 overflow-y-auto px-4">
@@ -78,14 +83,18 @@ export default function MainSidebar({
                   : "text-slate-700 hover:bg-white/75 hover:text-[#123b5c]"
               }`}
             >
-              <span className={active ? "text-[#8ccaf7]" : "text-[#2e668d]"}>{item.icon}</span>
+              <span className={active ? "text-[#8ccaf7]" : "text-[#2e668d]"}>
+                {item.icon}
+              </span>
               <span className="min-w-0 text-sm font-black">{item.label}</span>
             </button>
           );
         })}
 
         <div className="pb-2 pt-5">
-          <p className="px-4 text-[10px] font-black uppercase tracking-widest text-[#5f8bab]">Community</p>
+          <p className="px-4 text-[10px] font-black uppercase tracking-widest text-[#5f8bab]">
+            Community
+          </p>
         </div>
 
         {communityItems.map((item) => {
@@ -100,13 +109,15 @@ export default function MainSidebar({
                   : "text-slate-700 hover:bg-white/75 hover:text-[#123b5c]"
               }`}
             >
-              <span className={active ? "text-[#8ccaf7]" : "text-[#2e668d]"}>{item.icon}</span>
+              <span className={active ? "text-[#8ccaf7]" : "text-[#2e668d]"}>
+                {item.icon}
+              </span>
               <span className="min-w-0 text-sm font-black">{item.label}</span>
-              {item.href === "/chat" && unreadChatCount > 0 && (
+              {item.href === "/chat" && unreadChatCount > 0 ? (
                 <span className="ml-auto rounded-full bg-[#1b7fba] px-1.5 py-0.5 text-[10px] font-bold text-white">
                   {unreadChatCount > 99 ? "99+" : unreadChatCount}
                 </span>
-              )}
+              ) : null}
             </button>
           );
         })}
@@ -143,21 +154,17 @@ export default function MainSidebar({
         </div>
       </div>
 
-      <div className="m-4 flex items-center justify-between rounded-2xl border border-white bg-white/75 p-3 shadow-sm shadow-[#0d3d62]/10">
-        <div
-          className="flex flex-1 cursor-pointer items-center gap-3 rounded-lg px-2 py-2 hover:bg-[#eef8ff]"
-          onClick={onOpenProfile}
+      <div className="m-4">
+        <button
+          type="button"
+          onClick={onLogout}
+          className="flex w-full items-center rounded-2xl border border-[#dcecf7] bg-white/80 px-4 py-3 text-sm font-black text-[#123b5c] shadow-sm shadow-[#0d3d62]/8 transition hover:border-[#b7d8ec] hover:bg-white hover:text-[#0d3d62]"
+          aria-label="로그아웃"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#123b5c] font-bold text-white shadow-sm ring-2 ring-white">
-            {currentUser.nickname.substring(0, 1)}
-          </div>
-          <div className="overflow-hidden">
-            <p className="truncate text-sm font-bold text-[#123b5c]">{currentUser.nickname}</p>
-            <p className="truncate text-[10px] text-slate-500">{currentUser.location}</p>
-          </div>
-        </div>
-        <button onClick={onLogout} className="p-2.5 text-[#2e668d] hover:text-[#123b5c]" aria-label="로그아웃">
-          <X size={16} />
+          <span className="flex w-full items-center justify-center gap-2.5 pr-1">
+            <X size={15} className="shrink-0 text-[#2e668d]" />
+            <span className="min-w-[68px] text-left">로그아웃</span>
+          </span>
         </button>
       </div>
     </aside>
