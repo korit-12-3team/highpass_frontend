@@ -1,0 +1,44 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+.app-scroll-container {
+  overflow-y: auto;
+  scrollbar-gutter: stable both-edges;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* HighPass 커스텀 컬러 (#8ccaf7 기반) */
+  --color-hp-50:  #f0f8ff;
+  --color-hp-100: #ddeffc;
+  --color-hp-200: #bfe0f9;
+  --color-hp-300: #a3d3f8;
+  --color-hp-400: #8ccaf7;
+  --color-hp-500: #6ab8f5;
+  --color-hp-600: #3fa4f2;
+  --color-hp-700: #1a8fe0;
+  --color-hp-800: #1470b0;
+  --color-hp-900: #0d4e7e;
+  --color-hp-950: #083655;
+}
+
+body {
+  background: #f0f8ff;
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}

@@ -1,0 +1,41 @@
+[
+  {
+    "description": "2026년 정기 기사 1회",
+    "docRegStartDt": "20260119",
+    "docRegEndDt": "20260122",
+    "docExamStartDt": "20260215",
+    "docExamEndDt": "20260307",
+    "docPassDt": "20260320",
+    "pracRegStartDt": "20260324",
+    "pracRegEndDt": "20260327",
+    "pracExamStartDt": "20260425",
+    "pracExamEndDt": "20260510",
+    "pracPassDt": "20260612"
+  },
+  {
+    "description": "2026년 정기 기사 2회",
+    "docRegStartDt": "20260413",
+    "docRegEndDt": "20260416",
+    "docExamStartDt": "20260509",
+    "docExamEndDt": "20260524",
+    "docPassDt": "20260611",
+    "pracRegStartDt": "20260615",
+    "pracRegEndDt": "20260618",
+    "pracExamStartDt": "20260718",
+    "pracExamEndDt": "20260802",
+    "pracPassDt": "20260904"
+  },
+  {
+    "description": "2026년 정기 기사 3회",
+    "docRegStartDt": "20260720",
+    "docRegEndDt": "20260723",
+    "docExamStartDt": "20260814",
+    "docExamEndDt": "20260830",
+    "docPassDt": "20260917",
+    "pracRegStartDt": "20260921",
+    "pracRegEndDt": "20260924",
+    "pracExamStartDt": "20261024",
+    "pracExamEndDt": "20261108",
+    "pracPassDt": "20261211"
+  }
+]
