@@ -3,12 +3,13 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Headset, Loader2 } from "lucide-react";
 import AuthShell from "@/features/auth/components/AuthShell";
 import { useApp } from "@/shared/context/AppContext";
 import { fetchCurrentUserProfile } from "@/services/auth/auth";
 import { API_BASE_URL } from "@/services/config/config";
 import { createUserProfile } from "@/features/mypage/api/profile";
+import { SupportInquiryModal } from "@/features/support/components/SupportInquiryModal";
 
 type LoginApiResponse = {
   id?: string | number;
@@ -53,6 +54,8 @@ export default function LoginForm() {
   const [error, setError] = useState("");
   const [kakaoLoading, setKakaoLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [inquiryOpen, setInquiryOpen] = useState(false);
+  const [inquirySubmitting, setInquirySubmitting] = useState(false);
 
   useEffect(() => {
     if (!authReady || !isAuthenticated) return;
@@ -199,6 +202,35 @@ export default function LoginForm() {
           회원가입
         </Link>
       </div>
+      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+        <p className="text-sm font-black text-slate-900">정지 또는 탈퇴 계정 문의</p>
+        <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+          로그인할 수 없는 계정이라면 가입한 이메일로 관리자에게 직접 문의할 수 있습니다.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setInquirySubmitting(false);
+            setInquiryOpen(true);
+          }}
+          className="mt-3 inline-flex items-center gap-2 rounded-full border border-hp-200 bg-white px-4 py-2 text-sm font-bold text-hp-700 transition hover:bg-hp-50"
+        >
+          <Headset size={15} />
+          계정 문의하기
+        </button>
+      </div>
+      <SupportInquiryModal
+        open={inquiryOpen}
+        submitting={inquirySubmitting}
+        requireEmail
+        initialEmail={email}
+        onSubmittingChange={setInquirySubmitting}
+        onClose={() => {
+          if (inquirySubmitting) return;
+          setInquiryOpen(false);
+          setInquirySubmitting(false);
+        }}
+      />
     </AuthShell>
   );
 }

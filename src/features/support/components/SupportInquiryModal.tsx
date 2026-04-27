@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Headset, X } from "lucide-react";
 import { toast } from "sonner";
-import { createReport } from "@/features/reports/api/reports";
+import { createReport, createSupportInquiry } from "@/features/reports/api/reports";
 
 const CATEGORY_OPTIONS = [
   { value: "account", label: "계정 및 로그인" },
@@ -13,33 +13,47 @@ const CATEGORY_OPTIONS = [
   { value: "other", label: "기타" },
 ];
 
-export function MyPageInquiryModal({
-  open,
-  submitting,
-  onSubmittingChange,
-  onClose,
-}: {
+type SupportInquiryModalProps = {
   open: boolean;
   submitting: boolean;
+  requireEmail?: boolean;
+  initialEmail?: string;
   onSubmittingChange: (value: boolean) => void;
   onClose: () => void;
-}) {
+};
+
+export function SupportInquiryModal({
+  open,
+  submitting,
+  requireEmail = false,
+  initialEmail = "",
+  onSubmittingChange,
+  onClose,
+}: SupportInquiryModalProps) {
   const [category, setCategory] = useState(CATEGORY_OPTIONS[0].value);
+  const [email, setEmail] = useState(initialEmail);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
 
   useEffect(() => {
     if (!open) return;
     setCategory(CATEGORY_OPTIONS[0].value);
+    setEmail(initialEmail);
     setTitle("");
     setContent("");
-  }, [open]);
+  }, [initialEmail, open]);
 
   if (!open) return null;
 
   const handleSubmit = async () => {
+    const trimmedEmail = email.trim();
     const trimmedTitle = title.trim();
     const trimmedContent = content.trim();
+
+    if (requireEmail && !trimmedEmail) {
+      toast.error("가입한 이메일을 입력해 주세요.");
+      return;
+    }
 
     if (!trimmedTitle) {
       toast.error("문의 제목을 입력해 주세요.");
@@ -53,13 +67,24 @@ export function MyPageInquiryModal({
 
     try {
       onSubmittingChange(true);
-      await createReport({
-        targetType: "inquiry",
-        targetId: "support",
-        targetLabel: trimmedTitle,
-        reasonCode: category,
-        detail: trimmedContent,
-      });
+
+      if (requireEmail) {
+        await createSupportInquiry({
+          email: trimmedEmail,
+          title: trimmedTitle,
+          reasonCode: category,
+          detail: trimmedContent,
+        });
+      } else {
+        await createReport({
+          targetType: "inquiry",
+          targetId: "support",
+          targetLabel: trimmedTitle,
+          reasonCode: category,
+          detail: trimmedContent,
+        });
+      }
+
       toast.success("문의가 관리자에게 전달되었습니다.");
       onClose();
     } catch (error) {
@@ -91,7 +116,7 @@ export function MyPageInquiryModal({
               관리자에게 문의하기
             </h3>
             <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-              계정, 게시판, 채팅, 신고 처리 등 이용 중 불편한 점을 남겨 주세요.
+              계정 상태, 로그인 문제, 게시판/채팅 불편 사항을 관리자에게 직접 전달할 수 있습니다.
             </p>
           </div>
           <button
@@ -106,6 +131,21 @@ export function MyPageInquiryModal({
         </div>
 
         <div className="mt-5 space-y-4">
+          {requireEmail ? (
+            <div>
+              <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-slate-400">
+                가입 이메일
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="정지 또는 탈퇴 처리된 계정의 이메일"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-hp-300"
+              />
+            </div>
+          ) : null}
+
           <div>
             <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-slate-400">
               문의 분류
@@ -145,7 +185,7 @@ export function MyPageInquiryModal({
               onChange={(event) => setContent(event.target.value)}
               rows={7}
               maxLength={2000}
-              placeholder="상황을 이해할 수 있도록 구체적으로 적어 주세요. 최소 10자 이상 입력해 주세요."
+              placeholder="상황을 확인할 수 있도록 구체적으로 적어 주세요. 최소 10자 이상 입력해 주세요."
               className="w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium leading-6 text-slate-700 outline-none transition focus:border-hp-300"
             />
             <div className="mt-2 flex justify-between text-[11px] font-semibold text-slate-400">

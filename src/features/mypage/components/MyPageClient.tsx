@@ -19,7 +19,7 @@ import { MyPagePasswordModal } from "@/features/mypage/components/MyPagePassword
 import { MyPageProfileSection } from "@/features/mypage/components/MyPageProfileSection";
 import { MyPageBoardFilterTabs } from "@/features/mypage/components/MyPageBoardFilterTabs";
 import { MyPageWithdrawModal } from "@/features/mypage/components/MyPageWithdrawModal";
-import { MyPageInquiryModal } from "@/features/mypage/components/MyPageInquiryModal";
+import { SupportInquiryModal } from "@/features/support/components/SupportInquiryModal";
 import { logoutSession } from "@/services/auth/auth";
 
 type ProfileEditState = {
@@ -650,7 +650,7 @@ export default function MyPageClient({
         }}
         onConfirm={() => void confirmWithdraw()}
       />
-      <MyPageInquiryModal
+      <SupportInquiryModal
         open={inquiryOpen}
         submitting={inquirySubmitting}
         onSubmittingChange={setInquirySubmitting}

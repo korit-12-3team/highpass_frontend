@@ -266,37 +266,47 @@ export default function AdminPageClient() {
         prev.map((user) => (user.id === userId ? updatedUser : user)),
       );
       setApiStatus((prev) => ({ ...prev, users: "ready" }));
-    } catch {
+    } catch (error) {
+      const statusCode = (error as { response?: { status?: number } })?.response?.status;
+      if (statusCode === 401 || statusCode === 403) {
+        setAuthStatus("unauthorized");
+      }
       setApiStatus((prev) => ({ ...prev, users: "unavailable" }));
     }
   };
 
   const updatePostStatus = async (postId: string, status: PostStatus) => {
     try {
-      await updateAdminPostStatus(postId, status);
+      const updatedPost = await updateAdminPostStatus(postId, status);
+      setPosts((prev) =>
+        prev.map((post) => (post.id === postId ? updatedPost : post)),
+      );
       setApiStatus((prev) => ({ ...prev, posts: "ready" }));
-    } catch {
+    } catch (error) {
+      const statusCode = (error as { response?: { status?: number } })?.response?.status;
+      if (statusCode === 401 || statusCode === 403) {
+        setAuthStatus("unauthorized");
+      }
       setApiStatus((prev) => ({ ...prev, posts: "unavailable" }));
     }
-
-    setPosts((prev) =>
-      prev.map((post) => (post.id === postId ? { ...post, status } : post)),
-    );
   };
 
   const updateReportStatus = async (reportId: string, status: ReportStatus) => {
     try {
-      await updateAdminReportStatus(reportId, status);
+      const updatedReport = await updateAdminReportStatus(reportId, status);
+      setReports((prev) =>
+        prev.map((report) =>
+          report.id === reportId ? updatedReport : report,
+        ),
+      );
       setApiStatus((prev) => ({ ...prev, reports: "ready" }));
-    } catch {
+    } catch (error) {
+      const statusCode = (error as { response?: { status?: number } })?.response?.status;
+      if (statusCode === 401 || statusCode === 403) {
+        setAuthStatus("unauthorized");
+      }
       setApiStatus((prev) => ({ ...prev, reports: "unavailable" }));
     }
-
-    setReports((prev) =>
-      prev.map((report) =>
-        report.id === reportId ? { ...report, status } : report,
-      ),
-    );
   };
 
   const handleAdminLogout = async () => {
