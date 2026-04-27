@@ -123,6 +123,111 @@ function getEventKind(event: EventType): EventKind {
   return event.kind === "certificate" ? "certificate" : "general";
 }
 
+// 앱 캘린더 날짜/시간 → ISO 8601 변환
+function toIso(date: string, time?: string): string {
+  const base = time ? `${date}T${time}:00` : `${date}T00:00:00`;
+  return new Date(base).toISOString();
+}
+
+const KAKAO_COLOR_MAP: Record<string, string> = {}; // 카카오 색상은 항상 노란색으로 통일
+
+type KakaoEventRaw = Record<string, unknown>;
+
+// kakao event_id → calendar_id 매핑 (삭제 시 필요)
+const KAKAO_CAL_ID_MAP_KEY = "hp_kakao_cal_id_map";
+function getKakaoCalIdMap(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(KAKAO_CAL_ID_MAP_KEY) ?? "{}"); } catch { return {}; }
+}
+function saveKakaoCalIdMap(map: Record<string, string>) {
+  localStorage.setItem(KAKAO_CAL_ID_MAP_KEY, JSON.stringify(map));
+}
+
+function kakaoEventToEventType(e: KakaoEventRaw, index: number): EventType {
+  // 카카오 API 응답 필드명 유연하게 처리
+  const rawId    = (e.event_id ?? e.id ?? e.eventId ?? "") as string;
+  const rawTitle = (e.title ?? e.name ?? "") as string;
+  const time     = (e.time ?? {}) as Record<string, unknown>;
+  const startAt  = time.start_at ? new Date(time.start_at as string) : new Date();
+  const allDay   = (time.all_day ?? false) as boolean;
+  // 카카오 all-day 이벤트의 end_at은 다음날 자정(exclusive) → 하루 빼서 실제 종료일로 보정
+  const rawEndAt = time.end_at ? new Date(time.end_at as string) : startAt;
+  const endAt    = allDay && rawEndAt > startAt
+    ? new Date(rawEndAt.getTime() - 24 * 60 * 60 * 1000)
+    : rawEndAt;
+  const color    = (e.color ?? e.colorCode ?? "") as string;
+  const desc     = (e.description ?? e.memo ?? "") as string;
+
+  const toDate = (d: Date) => d.toISOString().slice(0, 10);
+  const toTime = (d: Date) =>
+    `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+
+  return {
+    id: `kakao_${rawId || index}_${startAt.getTime()}`,
+    title: `카카오 캘린더 : ${rawTitle || "(제목 없음)"}`,
+    content: desc,
+    month: startAt.getMonth() + 1,
+    startDay: startAt.getDate(),
+    endDay: endAt.getDate(),
+    startDate: toDate(startAt),
+    endDate: toDate(endAt),
+    color: "bg-yellow-400",
+    isAllDay: allDay,
+    startTime: allDay ? undefined : toTime(startAt),
+    endTime:   allDay ? undefined : toTime(endAt),
+    kind: "general",
+  };
+}
+
+const KAKAO_SYNC_MAP_KEY = "hp_kakao_sync_map";
+
+function getKakaoSyncMap(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(KAKAO_SYNC_MAP_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveKakaoSyncMap(map: Record<string, string>) {
+  localStorage.setItem(KAKAO_SYNC_MAP_KEY, JSON.stringify(map));
+}
+
+async function syncToKakaoCalendar(
+  appEventId: string,
+  payload: {
+    title: string;
+    startDate: string;
+    endDate: string;
+    isAllDay: boolean;
+    startTime?: string;
+    endTime?: string;
+    content?: string;
+  }
+) {
+  const res = await fetch("/api/kakao-cal/events/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({
+      title: payload.title,
+      startAt: toIso(payload.startDate, payload.isAllDay ? undefined : payload.startTime),
+      endAt:   toIso(payload.endDate,   payload.isAllDay ? undefined : payload.endTime),
+      allDay:  payload.isAllDay,
+      description: payload.content ?? "",
+    }),
+  });
+
+  if (res.ok) {
+    const data = await res.json().catch(() => ({})) as { event?: { event_id?: string } };
+    const kakaoEventId = data.event?.event_id;
+    if (kakaoEventId) {
+      const map = getKakaoSyncMap();
+      map[appEventId] = kakaoEventId;
+      saveKakaoSyncMap(map);
+    }
+  }
+}
+
 export default function CalendarPageClient() {
   const router = useRouter();
   const pathname = usePathname();
@@ -159,6 +264,7 @@ export default function CalendarPageClient() {
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [eventForm, setEventForm] = useState<EventFormState>(DEFAULT_EVENT_FORM);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>(null);
+  const [kakaoLoading, setKakaoLoading] = useState(false);
   const [visibleEventKinds, setVisibleEventKinds] = useState<Record<EventKind, boolean>>({
     general: true,
     certificate: true,
@@ -224,6 +330,41 @@ export default function CalendarPageClient() {
       router.replace(nextUrl, { scroll: false });
     }
   }, [currentMonth, currentYear, mounted, pathname, router, searchParamsString]);
+
+  // 카카오 로그인 직후: 앱 일정 비우고 카카오 캘린더 자동 로드
+  useEffect(() => {
+    if (!mounted || !currentUser) return;
+    if (searchParams.get("kakao_login") !== "1") return;
+
+    // URL에서 kakao_login 파라미터 제거
+    const params = new URLSearchParams(searchParamsString);
+    params.delete("kakao_login");
+    const nextUrl = params.toString() ? `${pathname}?${params}` : pathname;
+    router.replace(nextUrl, { scroll: false });
+
+    // 앱 일정 비우고 카카오 일정 로드
+    setEvents([]);
+    void (async () => {
+      setKakaoLoading(true);
+      try {
+        const from = new Date(currentYear, currentMonth, 1).toISOString();
+        const to   = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59).toISOString();
+        const res  = await fetch(`/api/kakao-cal/events/?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
+          credentials: "include",
+        });
+        const data = await res.json() as { events?: KakaoEventRaw[]; message?: string };
+        if (res.ok) {
+          const kakaoEvents = (data.events ?? []).map((e: KakaoEventRaw, i: number) => kakaoEventToEventType(e, i));
+          setEvents(kakaoEvents);
+          toast.success(`카카오 캘린더로 설정됐습니다. (${kakaoEvents.length}개 일정)`);
+        }
+      } catch {
+        toast.error("카카오 일정 불러오기 실패");
+      } finally {
+        setKakaoLoading(false);
+      }
+    })();
+  }, [mounted, currentUser, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const moveToMonth = (date: Date, nextSelectedDate?: number) => {
     setCurrentDate(new Date(date.getFullYear(), date.getMonth(), 1));
@@ -390,6 +531,43 @@ export default function CalendarPageClient() {
     resetTodoDragState();
   };
 
+  const loadKakaoEvents = async () => {
+    setKakaoLoading(true);
+    try {
+      const from = new Date(currentYear, currentMonth, 1).toISOString();
+      const to   = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59).toISOString();
+      const res  = await fetch(`/api/kakao-cal/events/?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
+        credentials: "include",
+      });
+      const data = await res.json() as { events?: KakaoEventRaw[]; message?: string };
+
+      if (!res.ok) throw new Error(data.message ?? "불러오기 실패");
+
+      const kakaoEvents = (data.events ?? []).map((e: KakaoEventRaw, i: number) => {
+        const ev = kakaoEventToEventType(e, i);
+        // calendar_id 저장 (삭제 시 필요)
+        const rawId = (e.event_id ?? e.id ?? e.eventId ?? "") as string;
+        const calId = (e.calendar_id ?? e.calendarId ?? "") as string;
+        if (rawId && calId) {
+          const m = getKakaoCalIdMap();
+          m[rawId] = calId;
+          saveKakaoCalIdMap(m);
+        }
+        return ev;
+      });
+      setEvents((prev) => {
+        const existingIds = new Set(prev.map((e) => e.id));
+        const newOnes = kakaoEvents.filter((e) => !existingIds.has(e.id));
+        return [...prev, ...newOnes];
+      });
+      toast.success(`카카오 일정 ${kakaoEvents.length}개를 불러왔습니다.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "카카오 일정 불러오기 실패");
+    } finally {
+      setKakaoLoading(false);
+    }
+  };
+
   const openCreateModal = () => {
     setCalendarError("");
     setEventForm(buildEventForm(selectedDateKey));
@@ -430,9 +608,31 @@ export default function CalendarPageClient() {
   const handleDeleteEvent = async (eventId: string) => {
     try {
       setCalendarError("");
-      await removeCalendarEvent(eventId);
-      setEvents((prev) => prev.filter((event) => event.id !== eventId));
-      setSelectedEvent((prev) => (prev?.id === eventId ? null : prev));
+
+      if (eventId.startsWith("kakao_")) {
+        // 카카오에서 불러온 일정: 앱에서만 제거 (카카오 API가 event_id를 반환하지 않아 카카오 측 삭제 불가)
+        setEvents((prev) => prev.filter((e) => e.id !== eventId));
+        setSelectedEvent((prev) => (prev?.id === eventId ? null : prev));
+      } else {
+        await removeCalendarEvent(eventId);
+
+        // TODO: 카카오 캘린더 삭제 연동 (카카오 API event_id 반환 문제로 임시 비활성화)
+        // const map = getKakaoSyncMap();
+        // const kakaoEventId = map[eventId];
+        // if (kakaoEventId) {
+        //   fetch("/api/kakao-cal/event-action/", {
+        //     method: "POST",
+        //     credentials: "include",
+        //     headers: { "Content-Type": "application/json" },
+        //     body: JSON.stringify({ action: "delete", eventId: kakaoEventId }),
+        //   }).then(async (res) => {
+        //     if (res.ok) { delete map[eventId]; saveKakaoSyncMap(map); }
+        //   }).catch(() => {});
+        // }
+
+        setEvents((prev) => prev.filter((e) => e.id !== eventId));
+        setSelectedEvent((prev) => (prev?.id === eventId ? null : prev));
+      }
     } catch (error) {
       setCalendarError(error instanceof Error ? error.message : "Failed to delete the event.");
     }
@@ -517,6 +717,28 @@ export default function CalendarPageClient() {
       const savedEvent = eventForm.id
         ? await updateCalendarEvent({ calendarId: eventForm.id, ...payload })
         : await createCalendarEvent({ userId: currentUser.id, ...payload });
+
+      if (!eventForm.id) {
+        // 신규 일정: 카카오 동기화 여부 확인
+        const syncPayload = { ...payload };
+        const newEventId = savedEvent.id;
+        setConfirmDialog({
+          title: "카카오톡 캘린더",
+          message: "카카오톡 캘린더에도 일정을 등록하시겠습니까?",
+          confirmLabel: "등록",
+          tone: "primary",
+          onConfirm: () => {
+            syncToKakaoCalendar(newEventId, syncPayload).catch(() => {
+              toast.error("카카오톡 캘린더 등록에 실패했습니다.");
+            });
+          },
+        });
+      } else {
+        // TODO: 카카오 캘린더 수정 연동 (카카오 API event_id 반환 문제로 임시 비활성화)
+        // const map = getKakaoSyncMap();
+        // const kakaoEventId = map[eventForm.id];
+        // if (kakaoEventId) { ... }
+      }
 
       setEvents((prev) =>
         eventForm.id ? prev.map((event) => (event.id === eventForm.id ? savedEvent : event)) : [...prev, savedEvent],
@@ -734,13 +956,22 @@ export default function CalendarPageClient() {
               </button>
             </div>
           </div>
-          <button
-            onClick={openCreateModal}
-            className="flex items-center gap-2 rounded-lg bg-hp-600 px-4 py-2 text-sm font-bold text-white hover:bg-hp-700"
-          >
-            <Plus size={16} />
-            일정 추가
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={loadKakaoEvents}
+              disabled={kakaoLoading}
+              className="flex items-center gap-2 rounded-lg border border-yellow-400 bg-yellow-400 px-4 py-2 text-sm font-bold text-slate-900 hover:bg-yellow-300 disabled:opacity-50"
+            >
+              {kakaoLoading ? "불러오는 중…" : "카카오 일정 불러오기"}
+            </button>
+            <button
+              onClick={openCreateModal}
+              className="flex items-center gap-2 rounded-lg bg-hp-600 px-4 py-2 text-sm font-bold text-white hover:bg-hp-700"
+            >
+              <Plus size={16} />
+              일정 추가
+            </button>
+          </div>
         </div>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-hp-100 bg-slate-50/70 px-4 py-3">
           <div className="flex flex-wrap items-center gap-2">
