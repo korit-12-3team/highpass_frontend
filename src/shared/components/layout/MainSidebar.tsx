@@ -51,7 +51,7 @@ export default function MainSidebar({
   onLogout,
 }: MainSidebarProps) {
   const unreadChatCount = chatRooms.reduce((sum, room) => sum + (room.unreadCount ?? 0), 0);
-  const unreadNotiCount = notifications.filter((notification) => !notification.isRead).length;
+  const unreadNotiCount = notifications?.filter((notification) => !notification.isRead).length ?? 0;
 
   return (
     <aside className="relative z-10 hidden w-64 flex-col border-r border-[#b8dff3] bg-[linear-gradient(180deg,#f8fcff_0%,#e8f6ff_48%,#d5ebf7_100%)] shadow-xl md:flex">

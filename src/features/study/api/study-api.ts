@@ -16,6 +16,7 @@ type StudyApiRecord = {
   likeCount?: unknown;
   likedByUser?: unknown;
   createdAt?: unknown;
+  chatRoomId?: unknown;
 };
 
 function unwrapData(payload: unknown) {
@@ -51,6 +52,7 @@ function mapStudyRecordToBoardPost(record: StudyApiRecord): BoardPost {
     lat: typeof record.latitude === "number" ? record.latitude : undefined,
     lng: typeof record.longitude === "number" ? record.longitude : undefined,
     likedByUser: typeof record.likedByUser === "boolean" ? record.likedByUser : undefined,
+    chatRoomId: typeof record.chatRoomId === "number" ? record.chatRoomId : undefined,
   };
 }
 
@@ -83,6 +85,7 @@ export async function createStudy(input: {
   latitude?: number;
   longitude?: number;
   placeId?: string;
+  createChatRoom?:boolean;
 }): Promise<BoardPost> {
   const userIdPath = encodeURIComponent(input.userId);
   const payload = {
@@ -94,6 +97,7 @@ export async function createStudy(input: {
     latitude: input.latitude ?? 0,
     longitude: input.longitude ?? 0,
     placeId: input.placeId ?? "LOCAL_PLACE",
+    createChatRoom: input.createChatRoom ?? false,
   };
 
   const response = await http.post(`/api/study/${userIdPath}`, payload);

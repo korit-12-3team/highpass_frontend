@@ -22,10 +22,12 @@ interface WritePostModalProps {
   setPostCertCategory: (value: string) => void;
   selectedPlace: SearchPlace | null;
   setSelectedPlace: (value: SearchPlace | null) => void;
+  createChatRoom: boolean;
+  setCreateChatRoom: (value: boolean) => void; 
   searchKeyword: string;
   setSearchKeyword: (value: string) => void;
   searchResults: SearchPlace[];
-  searchPlacesOnKakao: () => Promise<void>;
+  searchPlacesOnKakao: () => void;
   loadingKakao: boolean;
   errorKakao: unknown;
   onClose: () => void;
@@ -50,6 +52,8 @@ export default function WritePostModal(props: WritePostModalProps) {
     setPostCertCategory,
     selectedPlace,
     setSelectedPlace,
+    createChatRoom,
+    setCreateChatRoom,
     searchKeyword,
     setSearchKeyword,
     searchResults,
@@ -168,7 +172,25 @@ export default function WritePostModal(props: WritePostModalProps) {
             placeholder="내용을 작성해 주세요"
             disabled={saving}
           />
-
+          {writeType === "study" ? (
+            <div className="mb-4 flex items-center justify-between rounded-xl border border-hp-100 bg-hp-50 px-4 py-3">
+              <div>
+                <p className="text-sm font-bold text-slate-800">스터디 채팅방 생성</p>
+                <p className="text-xs text-slate-400">게시글과 함께 그룹 채팅방이 만들어집니다</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCreateChatRoom(!createChatRoom)}
+                className={`relative h-6 w-11 rounded-full transition-colors ${
+                  createChatRoom ? "bg-hp-600" : "bg-slate-200"
+                }`}
+              >
+                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                  createChatRoom ? "translate-x-5" : "translate-x-0.5"
+                }`} />
+              </button>
+            </div>
+          ) : null}
           {writeType === "study" ? (
             <div className="mt-4 rounded-xl border border-hp-700 bg-hp-900 p-4 text-white shadow-xl">
               <label className="mb-3 block text-sm font-bold text-slate-300">스터디 장소</label>
@@ -178,7 +200,7 @@ export default function WritePostModal(props: WritePostModalProps) {
                   value={searchKeyword}
                   onChange={(e) => setSearchKeyword(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") void searchPlacesOnKakao();
+                    if (e.key === "Enter") searchPlacesOnKakao();
                   }}
                   className="flex-1 rounded-lg border border-hp-600 bg-hp-800 p-2.5 text-sm text-white outline-none placeholder:text-hp-400"
                   placeholder="장소 검색 (예시: 강남 카페)"
@@ -186,9 +208,9 @@ export default function WritePostModal(props: WritePostModalProps) {
                 />
                 <button
                   type="button"
-                  onClick={() => void searchPlacesOnKakao()}
+                  onClick={searchPlacesOnKakao}
                   className="rounded-lg bg-hp-600 px-5 text-sm font-bold text-white transition-colors hover:bg-hp-500"
-                  disabled={saving || loadingKakao}
+                  disabled={saving}
                 >
                   검색
                 </button>
@@ -224,6 +246,7 @@ export default function WritePostModal(props: WritePostModalProps) {
                       <div className="p-4 text-center text-xs text-red-400">카카오 지도를 불러오지 못했습니다.</div>
                     ) : (
                       <KakaoMap
+                        apiKey="894423a9ffcffb29a1e5d50427ded82e"
                         markers={searchResults.map((result) => ({
                           lat: result.lat,
                           lng: result.lng,

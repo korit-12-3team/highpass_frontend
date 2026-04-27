@@ -7,6 +7,7 @@ import { fetchCurrentUserProfile, logoutSession, notifyAuthExpired, subscribeAut
 import { createBoard } from "@/features/free-board/api/boards";
 import { createStudy } from "@/features/study/api/study-api";
 import type { ChatRoom, EventType, SearchPlace, TodoMap, UserProfile } from "@/entities/common/types";
+import { CHAT_API_BASE_URL } from "@/services/config/config";
 
 interface AppContextType {
   currentUser: UserProfile | null;
@@ -45,6 +46,8 @@ interface AppContextType {
   setPostCertCategory: React.Dispatch<React.SetStateAction<string>>;
   selectedPlace: SearchPlace | null;
   setSelectedPlace: React.Dispatch<React.SetStateAction<SearchPlace | null>>;
+  createChatRoom : boolean;
+  setCreateChatRoom: React.Dispatch<React.SetStateAction<boolean>>; 
   searchKeyword: string;
   setSearchKeyword: React.Dispatch<React.SetStateAction<string>>;
   searchResults: SearchPlace[];
@@ -72,6 +75,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [postCert, setPostCert] = useState("");
   const [postCertCategory, setPostCertCategory] = useState("");
   const [selectedPlace, setSelectedPlace] = useState<SearchPlace | null>(null);
+  
+  const [createChatRoom, setCreateChatRoom] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [searchResults, setSearchResults] = useState<SearchPlace[]>([]);
 
@@ -152,6 +157,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             latitude: selectedPlace?.lat,
             longitude: selectedPlace?.lng,
             placeId: selectedPlace?.id,
+            createChatRoom,
           })
         : await createBoard({
             userId: numericUserId,
@@ -165,8 +171,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             lng: selectedPlace?.lng,
           });
 
-    return true;
-  }, [currentUser, postContent, postTitle, postCert, postCertCategory, selectedPlace, writeType]);
+
+      return true;
+  }, [currentUser, postContent, postTitle, postCert, postCertCategory, selectedPlace, writeType, createChatRoom]);
 
   return (
     <AppContext.Provider
@@ -203,6 +210,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setPostCertCategory,
         selectedPlace,
         setSelectedPlace,
+        createChatRoom,
+        setCreateChatRoom,
         searchKeyword,
         setSearchKeyword,
         searchResults,

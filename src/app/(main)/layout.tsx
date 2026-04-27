@@ -11,16 +11,11 @@ import ScheduleNotificationModal from "@/features/calendar/components/ScheduleNo
 import { useApp } from "@/shared/context/AppContext";
 import { createUserProfile, getUserProfile } from "@/features/mypage/api/profile";
 import { listCalendarEvents } from "@/features/calendar/api/calendar";
-import { listNotifications } from "@/features/notifications/api/notifications";
-import { CHAT_API_BASE_URL, KAKAO_MAP_APPKEY } from "@/services/config/config";
+import { CHAT_API_BASE_URL } from "@/services/config/config";
 import { createChatClient } from "@/services/realtime/stomp";
-import { waitForKakaoServices } from "@/shared/utils/kakao";
-import type {
-  EventType,
-  NotificationResponse,
-  SearchPlace,
-  UserProfile,
-} from "@/entities/common/types";
+import type { EventType, SearchPlace, UserProfile } from "@/entities/common/types";
+import { toast } from "sonner";
+import axios from "axios";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -53,6 +48,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     setPostCertCategory,
     selectedPlace,
     setSelectedPlace,
+    createChatRoom,
+    setCreateChatRoom,
     searchKeyword,
     setSearchKeyword,
     searchResults,
@@ -60,7 +57,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   } = useApp();
 
   const [loadingKakao, errorKakao] = useKakaoLoader({
-    appkey: KAKAO_MAP_APPKEY,
+    appkey: "894423a9ffcffb29a1e5d50427ded82e",
     libraries: ["services", "clusterer"],
   });
 
@@ -70,39 +67,29 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const chatClientRef = useRef<Client | null>(null);
   const chatRoomIdsKey = chatRooms.map((room) => room.id).join(",");
 
+
   const [showScheduleNotify, setShowScheduleNotify] = useState(false);
   const [startingEvents, setStartingEvents] = useState<EventType[]>([]);
   const [endingEvents, setEndingEvents] = useState<EventType[]>([]);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
 
-  // 알림 상태 추가
-  const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
-  const [showNotifications, setShowNotifications] = useState(false);
+  const activeChatRoomIdRef = useRef(activeChatRoomId);
+  const pathnameRef = useRef(pathname);
 
-  const ready = authReady && isAuthenticated && !!currentUser;
-
-  // 알림 목록 새로고침 함수
-  const refreshNotifications = async () => {
-    if (!currentUser?.id) return;
-    try {
-      const data = await listNotifications(String(currentUser.id));
-      setNotifications(data);
-    } catch (error) {
-      console.error("Failed to fetch notifications:", error);
-    }
-  };
-
+  useEffect(() => { activeChatRoomIdRef.current = activeChatRoomId; }, [activeChatRoomId]);
+  useEffect(() => { pathnameRef.current = pathname; }, [pathname]);
 
   useEffect(() => {
     if (authReady && !isAuthenticated) router.replace("/login");
   }, [authReady, isAuthenticated, router]);
 
-    // 초기 알림 로드
   useEffect(() => {
-    if (ready && currentUser?.id) {
-      void refreshNotifications();
+    if (typeof window !== "undefined" && "Notification" in window) {
+        if (Notification.permission === "default") {
+            void Notification.requestPermission();
+        }
     }
-  }, [ready, currentUser?.id]);
+    }, []);
 
   useEffect(() => {
     if (!authReady || !currentUser?.id) return;
@@ -208,37 +195,111 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (!currentUser?.id) return;
 
-    // createChatClient를 호출할 때 userId와 알림 콜백을 함께 전달합니다.
     const client = createChatClient(
-      currentUser.id, 
-      chatRooms.map((room) => Number(room.id)).filter(Number.isFinite), 
-      (newMessage) => {
-        // 기존 채팅 메시지 처리 로직
-        setChatRooms((prev) =>
-          prev.map((room) => {
-            if (Number(room.id) !== Number(newMessage.roomId)) return room;
+        Number(currentUser.id),
+        chatRooms.map((room) => Number(room.id)).filter(Number.isFinite),
+        (newMessage) => {
+              if (newMessage.type === "READ") {
+              setChatRooms((prev) =>
+                  prev.map((room) => {
+                      if (Number(room.id) !== Number(newMessage.roomId)) return room;
+                      return {
+                          ...room,
+                          unreadCount: 0,
+                          messages: room.messages.map((m) => ({
+                              ...m,
+                              unreadCount: Math.max(0, (m.unreadCount ?? 1) - 1),  
+                          })),
+                      };
+                  }),
+              );
+              return;
+          }
+            if (newMessage.type === "JOIN_REQUEST") {
+                setChatRooms((prev) => prev.map((room) => {
+                    if (Number(room.id) !== Number(newMessage.roomId)) return room;
+                    const alreadyExists = room.participants?.some((p) => p.userId === newMessage.senderId);
+                    if (alreadyExists) return room;
+                    return { ...room, participants: [...(room.participants ?? []), { userId: newMessage.senderId, nickname: newMessage.senderName ?? "", status: "PENDING" }] };
+                }));
+                return;
+            }
+            if (newMessage.type === "APPROVE") {
+                setChatRooms((prev) => prev.map((room) => {
+                    if (Number(room.id) !== Number(newMessage.roomId)) return room;
+                    return { ...room, participants: room.participants?.map((p) => p.userId === newMessage.senderId ? { ...p, status: "JOINED" } : p) };
+                }));
+                return;
+            }
+          
+if (
+    newMessage.type === "TALK" &&
+    pathnameRef.current.startsWith("/chat")&&
+    String(activeChatRoomIdRef.current) === String(newMessage.roomId) &&
+    Number(newMessage.senderId) !== Number(currentUser?.id)
+) {
+    void axios.post(`${CHAT_API_BASE_URL}/chat/rooms/${newMessage.roomId}/read`, null, {
+        params: { userId: currentUser?.id },
+    });
+}
+            if (
+          newMessage.type === "TALK" &&
+          Number(newMessage.senderId) !== Number(currentUser?.id)
+          ) {
+        console.log("자동 읽음 처리!", pathnameRef.current, activeChatRoomIdRef.current);
+        if (Notification.permission === "granted" && document.hidden) {
+            new Notification(newMessage.senderName ?? "새 메시지", {
+                body: newMessage.message,
+                icon: "/favicon.ico",
+            });
+        }
 
-            const roomMessages = Array.isArray(room.messages) ? room.messages : [];
-            const alreadyExists = roomMessages.some((message) => Number(message.id) === Number(newMessage.id));
-            const nextUnread =
-              pathname === "/chat" && String(activeChatRoomId) === String(room.id)
-                ? 0
-                : (room.unreadCount ?? 0) + (alreadyExists ? 0 : 1);
-
-            return {
-              ...room,
-              messages: alreadyExists ? roomMessages : [...roomMessages, newMessage],
-              lastMessage: newMessage.message,
-              unreadCount: nextUnread,
-            };
-          }),
-        );
-      },
-      (newNoti) => {
-        // 실시간 알림 수신 로직
-        console.log("실시간 알림 도착 데이터 전체:", newNoti);
-        setNotifications((prev) => [newNoti, ...prev]);
-      }
+        if (!document.hidden) {
+            toast(newMessage.senderName ?? "새 메시지", {
+                description: newMessage.message,
+                duration: 3000,
+                position: "bottom-right",
+                style: {
+                    background: '#f0f8ff',
+                    color: '#a9d6f7',
+                    border: '1px solid #ddeffc',
+                    borderRadius: '16px',
+                    padding: '12px 16px',
+                    boxShadow: '0 8px 30px rgba(63, 164, 242, 0.15)',
+                },
+                actionButtonStyle: {
+                    background: '#6ab8f5',
+                    color: 'white',
+                    borderRadius: '8px',
+                    border: 'none',
+                },
+                action: {
+                    label: "채팅 보기",
+                    onClick: () => router.push("/chat"),
+                },
+            });
+        }
+    }
+            setChatRooms((prev) =>
+                prev.map((room) => {
+                    if (Number(room.id) !== Number(newMessage.roomId)) return room;
+                    const roomMessages = Array.isArray(room.messages) ? room.messages : [];
+                    const alreadyExists = roomMessages.some((message) => Number(message.id) === Number(newMessage.id));
+                    const nextUnread =
+    pathnameRef.current.startsWith("/chat") && String(activeChatRoomIdRef.current) === String(room.id)  // === "/chat" → .startsWith("/chat")
+        ? 0
+        : Number(newMessage.senderId) === Number(currentUser?.id)
+        ? (room.unreadCount ?? 0)
+        : (room.unreadCount ?? 0) + (alreadyExists ? 0 : 1);
+                    return {
+                        ...room,
+                        messages: alreadyExists ? roomMessages : [...roomMessages, newMessage],
+                        lastMessage: newMessage.message,
+                        unreadCount: nextUnread,
+                    };
+                }),
+            );
+        }
     );
 
     client.activate();
@@ -246,12 +307,13 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     setChatClient(client);
 
     return () => {
-      chatClientRef.current = null;
-      setChatClient(null);
-      void client.deactivate();
+        chatClientRef.current = null;
+        setChatClient(null);
+        void client.deactivate();
     };
-  }, [chatRoomIdsKey, currentUser?.id, setChatClient, setChatRooms]);
+}, [chatRoomIdsKey, currentUser?.id, setChatClient, setChatRooms]);
 
+  const ready = authReady && isAuthenticated && !!currentUser;
   if (!ready || !currentUser) return null;
   const isAdminPath = pathname.startsWith("/admin");
 
@@ -284,56 +346,49 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     setSearchResults([]);
   };
 
-  const searchPlacesOnKakao = async () => {
+  const searchPlacesOnKakao = () => {
     if (typeof window === "undefined") return;
-    if (!KAKAO_MAP_APPKEY) {
-      alert("카카오 지도 앱키가 설정되지 않았습니다. NEXT_PUBLIC_KAKAO_MAP_APPKEY를 확인해 주세요.");
+    const kakaoMaps = window.kakao?.maps;
+    const services = kakaoMaps?.services;
+
+    if (!services) {
+      alert("지도 스크립트가 아직 로드되지 않았습니다.");
       return;
     }
-    try {
-      const services = await waitForKakaoServices();
-      const places = new services.Places();
-      places.keywordSearch(searchKeyword, (data, status) => {
-        if (status !== services.Status.OK) return;
-        setSearchResults(
-          data.map(
-            (item): SearchPlace => ({
-              id: item.id,
-              name: item.place_name,
-              address: item.road_address_name || item.address_name,
-              phone: item.phone,
-              category: item.category_group_name || item.category_name?.split(">").pop()?.trim(),
-              lat: parseFloat(item.y),
-              lng: parseFloat(item.x),
-            }),
-          ),
-        );
-      });
-      return;
-    } catch (error) {
-      alert(error instanceof Error ? error.message : "지도 스크립트를 불러오지 못했습니다.");
-      return;
-    }
+
+    const places = new services.Places();
+    places.keywordSearch(searchKeyword, (data, status) => {
+      if (status !== services.Status.OK) return;
+      setSearchResults(
+        data.map(
+          (item): SearchPlace => ({
+            id: item.id,
+            name: item.place_name,
+            address: item.road_address_name || item.address_name,
+            phone: item.phone,
+            category: item.category_group_name || item.category_name?.split(">").pop()?.trim(),
+            lat: parseFloat(item.y),
+            lng: parseFloat(item.x),
+          }),
+        ),
+      );
+    });
   };
 
   return (
     <div className="flex h-screen bg-hp-50 font-sans text-slate-800">
-      <MainSidebar
-        pathname={pathname}
-        currentUser={currentUser}
-        chatRooms={chatRooms}
-        notifications={notifications}
-        showNotifications={showNotifications}
-        setShowNotifications={setShowNotifications}
-        onRefreshNotifications={refreshNotifications}
-        onNavigate={(href) => router.push(href)}
-        onOpenProfile={() => setProfileModal(currentUser.id)}
-        onLogout={() => setLogoutConfirmOpen(true)}
-      />
+      {!isAdminPath && (
+        <MainSidebar
+          pathname={pathname}
+          currentUser={currentUser}
+          chatRooms={chatRooms}
+          onNavigate={(href) => router.push(href)}
+          onOpenProfile={() => setProfileModal(currentUser.id)}
+          onLogout={() => setLogoutConfirmOpen(true)}
+        />
+      )}
 
-      <main className={`app-scroll-container relative flex-1 ${isAdminPath ? "p-0" : "p-4 md:p-8"} transition-opacity ${showNotifications ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
-        {children}
-      </main>
+      <main className={`app-scroll-container relative flex-1 ${isAdminPath ? "p-0" : "p-4 md:p-8"}`}>{children}</main>
 
       <ProfileModal
         profile={profile}
@@ -350,40 +405,39 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           const existing = chatRooms.find((room) => room.partnerId === profile.id);
           if (existing) {
             setActiveChatRoomId(existing.id);
-            setProfileModal(null);
-            if (window.location.pathname !== "/chat") {
-              router.push("/chat");
-            }
           } else {
             try {
-              const response = await fetch(
-                `${CHAT_API_BASE_URL}/chat/room?userId=${currentUser.id}&partnerId=${profile.id}`,
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                },
-              );
-
-              if (response.ok) {
-                const dbRoom = await response.json();
-
-                setChatRooms((prev) => {
-                  const isIncluded = prev.some((room) => room.id === dbRoom.id);
-                  return isIncluded ? prev : [...prev, dbRoom];
-                });
-
-                setActiveChatRoomId(dbRoom.id);
-                setProfileModal(null);
-                router.push("/chat");
-              } else {
-                const errorMsg = await response.text();
-                console.error("서버 응답 에러:", errorMsg);
-              }
-            } catch (error) {
-              console.error("네트워크 에러:", error);
+              const response = await fetch(`${CHAT_API_BASE_URL}/chat/room?userId=${currentUser.id}&partnerId=${profile.id}`,
+            { 
+              method: 'POST', 
+              headers: { 'Content-Type': 'application/json' }
             }
+          );
+
+          if (response.ok) {
+            const dbRoom = await response.json();
+            
+            setChatRooms((prev) => {
+              const isIncluded = prev.some(r => r.id === dbRoom.id);
+              return isIncluded ? prev : [...prev, dbRoom];
+            });
+            
+            setActiveChatRoomId(dbRoom.id);
+            setProfileModal(null);
+            router.push("/chat");
+          } else {
+            const errorMsg = await response.text();
+            console.error("서버 응답 에러:", errorMsg);
           }
-        }}
+        } catch (error) {
+          console.error("네트워크 에러:", error);
+        }
+
+        setProfileModal(null);
+        if (window.location.pathname !== "/chat") {
+          router.push("/chat");
+        }
+      }}}
       />
 
       <WritePostModal
@@ -400,6 +454,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         setPostCertCategory={setPostCertCategory}
         selectedPlace={selectedPlace}
         setSelectedPlace={setSelectedPlace}
+        createChatRoom={createChatRoom}
+        setCreateChatRoom={setCreateChatRoom}
         searchKeyword={searchKeyword}
         setSearchKeyword={setSearchKeyword}
         searchResults={searchResults}

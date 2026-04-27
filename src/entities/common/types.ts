@@ -23,7 +23,6 @@ export interface UserProfile {
   ageRange: string;
   gender: string;
   location: string;
-  role?: "USER" | "ADMIN" | string;
   profileImage?: string | null;
   loginType?: string;
   socialProvider?: string;
@@ -58,17 +57,23 @@ export interface BoardPost {
   createdAt: string;
   cert: string | null;
   likedByUser?: boolean;
+  chatRoomId?: number; 
 }
 
 export interface ChatMessage {
   id: number;
   senderId: string;
-  text: string;
+  senderName?: string;
+  message: string;
+  type : string; 
   createdAt: string;
+  unreadCount?: number;
 }
 
 export interface ChatRoom {
+  type: string;
   id: string;
+  ownerId?: number; 
   partnerId: string;
   partnerNickname: string;
   messages: ChatMessage[];
@@ -76,6 +81,13 @@ export interface ChatRoom {
   name?: string;
   roomNickname?: string;
   lastMessage?: string;
+  participants?: ChatRoomParticipant[];
+}
+
+export interface ChatRoomParticipant {
+  userId: number;
+  nickname: string;
+  status: string;
 }
 
 export interface SearchPlace {
