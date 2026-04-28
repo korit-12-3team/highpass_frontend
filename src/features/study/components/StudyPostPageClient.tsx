@@ -11,7 +11,7 @@ import { CERT_DATA } from "@/shared/constants";
 import { deleteStudy, updateStudy } from "@/features/study/api/study-api";
 import { formatBoardCreatedAt, getInitial } from "@/features/boards/utils/detail-utils";
 import { useApp } from "@/shared/context/AppContext";
-import { CHAT_API_BASE_URL } from "@/services/config/config";
+import { getMyChatRooms, joinStudyChatRoom } from "@/services/realtime/stomp";
 
 
 const CUSTOM_CERT_FILTER = "기타";
@@ -28,7 +28,7 @@ export default function StudyPostPageClient({
   returnTo: string | null;
 }) {
   const router = useRouter();
-  const { currentUser, setProfileModal } = useApp();
+  const { currentUser, setProfileModal, setChatRooms, setActiveChatRoomId } = useApp();
   const [post, setPost] = useState<BoardPost | null>(() =>
     initialPost ? { ...initialPost, comments: initialComments } : null,
   );
@@ -842,17 +842,11 @@ export default function StudyPostPageClient({
                     return;
                   }
                   try {
-                    // post.chatRoomId 대신 post.id를 사용하거나, 
-                    // 서버에서 확실히 주는 필드명으로 변경
-                    const res = await fetch(
-                      `${CHAT_API_BASE_URL}/chat/room/${post.id}/join?userId=${currentUser.id}`,
-                      { method: "POST" }
-                    );
-                    if (res.ok) {
-                      router.push("/chat");
-                    } else {
-                      alert("채팅방 입장에 실패했습니다. (서버 응답 오류)");
-                    }
+                    const result = await joinStudyChatRoom(post.id);
+                    const rooms = await getMyChatRooms();
+                    setChatRooms(rooms);
+                    setActiveChatRoomId(String(result.roomId));
+                    router.push("/chat");
                   } catch (error) {
                     console.error("Join error:", error);
                     alert("채팅방 입장에 실패했습니다.");

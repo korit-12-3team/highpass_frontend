@@ -86,6 +86,24 @@ export const enterChatRoom = async (partnerId: number | string) => {
   return response.json();
 };
 
+export const joinStudyChatRoom = async (
+  studyId: number | string,
+): Promise<{ roomId: number; status: string }> => {
+  const numericStudyId = typeof studyId === "number" ? studyId : Number.parseInt(String(studyId), 10);
+
+  if (!Number.isFinite(numericStudyId) || numericStudyId <= 0) {
+    throw new Error("스터디 정보를 확인할 수 없습니다.");
+  }
+
+  const response = await fetchWithAuth(`${CHAT_API_BASE_URL}/chat/room/${numericStudyId}/join`, {
+    method: "POST",
+  });
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response, "채팅방 입장에 실패했습니다."));
+  }
+  return response.json();
+};
+
 export const leaveRoom = async (roomId: number) => {
   const response = await fetchWithAuth(`${CHAT_API_BASE_URL}/chat/rooms/${roomId}/leave`, {
     method: "DELETE",

@@ -643,7 +643,6 @@ export default function MyPageClient({
           description="댓글이나 좋아요 등 주요 활동에 대한 알림 수신 여부를 설정할 수 있습니다."
         >
           <div className="space-y-4">
-            <div className="flex flex-col gap-4 rounded-[24px] border border-slate-200 bg-white p-4">
             <NotificationSwitch
               label="전체 알림"
               description="댓글 알림과 좋아요 알림을 한 번에 켜거나 끕니다."
@@ -652,8 +651,6 @@ export default function MyPageClient({
               onToggle={handleAllNotificationToggle}
               disabled={notificationSaving}
             />
-            </div>
-            <div className="flex flex-col gap-4 rounded-[24px] border border-slate-200 bg-white p-4">
             <NotificationSwitch
               label="댓글 알림"
               description="내 게시글에 새로운 댓글이 달리면 알림을 받습니다."
@@ -670,7 +667,6 @@ export default function MyPageClient({
               onToggle={() => handleNotificationToggle("LIKE", likeNotification)}
               disabled={notificationSaving}
             />
-            </div>
           </div>
         </SectionCard>
       ) : null}
