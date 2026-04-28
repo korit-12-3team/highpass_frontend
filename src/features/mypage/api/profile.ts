@@ -1,3 +1,4 @@
+import axios from "axios";
 import { http } from "@/services/api/http";
 import type { UserProfile } from "@/entities/common/types";
 
@@ -134,7 +135,14 @@ export async function verifyUserPassword(
     currentPassword: string;
   },
 ): Promise<void> {
-  await http.post(`/api/users/${encodeURIComponent(userId)}/password/verify`, input);
+  try {
+    await http.post(`/api/users/${encodeURIComponent(userId)}/password/verify`, input);
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 400) {
+      throw new Error("비밀번호가 틀렸습니다.");
+    }
+    throw error;
+  }
 }
 
 export async function withdrawUser(userId: string): Promise<void> {

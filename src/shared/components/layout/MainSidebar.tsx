@@ -1,5 +1,6 @@
 "use client";
 
+import { startTransition } from "react";
 import Image from "next/image";
 import {
   Bell,
@@ -76,7 +77,7 @@ export default function MainSidebar({
           return (
             <button
               key={item.href}
-              onClick={() => onNavigate(item.href)}
+              onClick={() => startTransition(() => onNavigate(item.href))}
               className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left transition ${
                 active
                   ? "bg-[#123b5c] text-white shadow-sm shadow-[#0d3d62]/20"
@@ -102,7 +103,7 @@ export default function MainSidebar({
           return (
             <button
               key={item.href}
-              onClick={() => onNavigate(item.href)}
+              onClick={() => startTransition(() => onNavigate(item.href))}
               className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left transition ${
                 active
                   ? "bg-[#123b5c] text-white shadow-sm shadow-[#0d3d62]/20"

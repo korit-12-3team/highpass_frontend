@@ -133,6 +133,7 @@ export default function MyPageClient({
   const [profilePasswordModalOpen, setProfilePasswordModalOpen] = useState(false);
   const [profilePasswordDraft, setProfilePasswordDraft] = useState("");
   const [profilePasswordChecking, setProfilePasswordChecking] = useState(false);
+  const [profilePasswordError, setProfilePasswordError] = useState("");
   const [profileSaveError, setProfileSaveError] = useState("");
   const [profileSaveSuccess, setProfileSaveSuccess] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
@@ -418,6 +419,7 @@ export default function MyPageClient({
     });
     setCurrentPassword("");
     setProfilePasswordDraft("");
+    setProfilePasswordError("");
     setProfileSaveError("");
     setProfileSaveSuccess("");
   };
@@ -497,13 +499,13 @@ export default function MyPageClient({
   const confirmProfileEdit = async () => {
     const password = profilePasswordDraft.trim();
     if (!password) {
-      setProfileSaveError("비밀번호를 입력해 주세요.");
+      setProfilePasswordError("비밀번호를 입력해 주세요.");
       return;
     }
 
     try {
       setProfilePasswordChecking(true);
-      setProfileSaveError("");
+      setProfilePasswordError("");
       setProfileSaveSuccess("");
 
       await verifyUserPassword(currentUser.id, {
@@ -512,10 +514,11 @@ export default function MyPageClient({
 
       setCurrentPassword(password);
       setProfilePasswordDraft("");
+      setProfilePasswordError("");
       setProfilePasswordModalOpen(false);
       setProfileEditOpen(true);
     } catch (error) {
-      setProfileSaveError(error instanceof Error ? error.message : "비밀번호 확인에 실패했습니다.");
+      setProfilePasswordError(error instanceof Error ? error.message : "비밀번호 확인에 실패했습니다.");
     } finally {
       setProfilePasswordChecking(false);
     }
@@ -675,13 +678,13 @@ export default function MyPageClient({
       <MyPagePasswordModal
         open={profilePasswordModalOpen}
         password={profilePasswordDraft}
-        error={profileSaveError}
+        error={profilePasswordError}
         checking={profilePasswordChecking}
         onChangePassword={setProfilePasswordDraft}
         onClose={() => {
           setProfilePasswordModalOpen(false);
           setProfilePasswordDraft("");
-          setProfileSaveError("");
+          setProfilePasswordError("");
         }}
         onConfirm={() => void confirmProfileEdit()}
       />

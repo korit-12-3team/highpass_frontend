@@ -84,16 +84,20 @@ export function CommentList({ items, onOpenPost }: { items: MyCommentItem[]; onO
           onClick={() => onOpenPost(post)}
           className="block w-full rounded-[24px] border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-hp-300 hover:shadow-md"
         >
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-500">
             <PostTypeBadge type={post.type} />
-            <span className="text-xs font-semibold text-slate-400">{formatBoardDate(comment.createdAt)}</span>
+            <span className="min-w-0 truncate text-sm font-bold text-slate-900">{post.title}</span>
           </div>
-
-          <p className="mt-3 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Commented Post</p>
-          <h4 className="mt-1 text-base font-black text-slate-900">{post.title}</h4>
-          <p className="mt-3 whitespace-pre-wrap break-words rounded-2xl bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
-            {comment.text}
-          </p>
+          <div className="flex flex-wrap items-center justify-between">
+            <div>
+              <p className="ml-2 mt-2 whitespace-pre-wrap break-words text-base leading-7 text-slate-700">
+                {comment.text}
+              </p>
+            </div>
+            <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+              <Clock3 size={12} />{formatBoardDate(comment.createdAt)}
+            </span>
+          </div>
         </button>
       ))}
     </div>

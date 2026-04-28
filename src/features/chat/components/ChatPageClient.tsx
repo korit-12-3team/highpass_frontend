@@ -53,6 +53,7 @@ export default function ChatPageClient() {
   } = useApp();
   const [chatInput, setChatInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const initialReadHandledRef = useRef<string | null>(null);
   const [newRoomName, setNewRoomName] = useState("");
   const [isEditingName, setIsEditingName] = useState(false);
 
@@ -80,6 +81,42 @@ export default function ChatPageClient() {
       );
     }
   }, [activeRoom, setChatRooms]);
+
+  useEffect(() => {
+    if (!activeRoom || !activeChatRoomId || !currentUser?.id) return;
+
+    if (initialReadHandledRef.current === String(activeChatRoomId)) return;
+
+    const hasUnreadRoom = (activeRoom.unreadCount ?? 0) > 0;
+    const hasUnreadMessages = (activeRoom.messages ?? []).some(
+      (message) =>
+        Number(message.senderId) !== Number(currentUser.id) && (message.unreadCount ?? 0) > 0,
+    );
+
+    if (!hasUnreadRoom && !hasUnreadMessages) return;
+    initialReadHandledRef.current = String(activeChatRoomId);
+
+    void (async () => {
+      try {
+        await fetchWithAuth(`${CHAT_API_BASE_URL}/chat/rooms/${activeChatRoomId}/read`, {
+          method: "POST",
+        });
+        setChatRooms((prevRooms) =>
+          prevRooms.map((room) =>
+            String(room.id) === String(activeChatRoomId)
+              ? {
+                  ...room,
+                  unreadCount: 0,
+                }
+              : room,
+          ),
+        );
+      } catch (error) {
+        initialReadHandledRef.current = null;
+        console.error("채팅방 초기 읽음 처리에 실패했습니다.", error);
+      }
+    })();
+  }, [activeRoom, activeChatRoomId, currentUser?.id, setChatRooms]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -227,10 +264,6 @@ export default function ChatPageClient() {
               ? {
                   ...room,
                   unreadCount: 0,
-                  messages: (room.messages ?? []).map((message) => ({
-                    ...message,
-                    unreadCount: 0,
-                  })),
                 }
               : room,
           ),
@@ -403,11 +436,6 @@ export default function ChatPageClient() {
 
                               {!isMe && (
                                 <div className="mb-1 flex flex-col items-start gap-0.5">
-                                  {(message.unreadCount ?? 0) > 0 && (
-                                    <span className="text-[10px] font-bold text-hp-400">
-                                      {message.unreadCount}
-                                    </span>
-                                  )}
                                   {message.createdAt && (
                                     <span className="text-[10px] text-slate-400">
                                       {formatMessageTime(message.createdAt)}

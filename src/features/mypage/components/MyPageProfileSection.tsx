@@ -52,22 +52,9 @@ export function MyPageProfileSection({
   return (
     <SectionCard
       title="회원정보"
-      description="기본 정보를 확인하고, 비밀번호 확인 후 필요한 항목만 수정할 수 있습니다."
+      description="회원정보 수정 버튼 클릭 시 비밀번호 확인 후 필요한 항목만 수정할 수 있습니다."
     >
-      <div className="rounded-[28px] border border-slate-200 bg-slate-50/80 p-6">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
-            <h4 className="mt-3 text-2xl font-black text-slate-950">{user.nickname}</h4>
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-500">
-              <span className="inline-flex items-center gap-2">
-                <Mail size={15} className="text-hp-600" />
-                {user.email}
-              </span>
-              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600">
-                {accountTypeLabel}
-              </span>
-            </div>
-          </div>
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             {editOpen ? (
               <>
@@ -76,7 +63,7 @@ export function MyPageProfileSection({
                   onClick={onCancelEdit}
                   className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100"
                 >
-                  수정 취소
+                  취소
                 </button>
                 <button
                   type="button"
@@ -84,7 +71,7 @@ export function MyPageProfileSection({
                   disabled={saving}
                   className="rounded-full bg-hp-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-hp-700 disabled:opacity-60"
                 >
-                  {saving ? "저장 중..." : "정보 저장"}
+                  저장
                 </button>
               </>
             ) : (
@@ -95,7 +82,7 @@ export function MyPageProfileSection({
                   className="inline-flex items-center gap-2 rounded-full border border-hp-200 bg-white px-4 py-2 text-sm font-bold text-hp-700 transition hover:bg-hp-50"
                 >
                   <Headset size={16} />
-                  관리자 문의
+                  관리자에게 문의
                 </button>
                 <button
                   type="button"
@@ -111,13 +98,13 @@ export function MyPageProfileSection({
                   disabled={verifying}
                   className="rounded-full bg-hp-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-hp-700 disabled:opacity-60"
                 >
-                  {verifying ? "확인 중..." : "회원정보 수정"}
+                  회원정보 수정
                 </button>
               </>
             )}
           </div>
         </div>
-
+      
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <InfoField label="닉네임" value={user.nickname || "미등록"} icon={<UserRound size={16} />}>
             {editOpen ? (
@@ -195,40 +182,29 @@ export function MyPageProfileSection({
             ) : null}
           </InfoField>
         </div>
-      </div>
 
       {editOpen && !isSocialAccount ? (
-        <div className="mt-6 rounded-[24px] border border-hp-200 bg-hp-50/70 p-4">
+        
+        <div className="mt-6 rounded-[24px] border border-slate-200 bg-slate-50 p-4">
           <div>
-            <p className="text-sm font-bold text-slate-900">
-              프로필 정보를 직접 수정하고 바로 저장할 수 있습니다.
-            </p>
-            <p className="mt-1 text-sm text-slate-500">
-              새 비밀번호는 선택 입력이며, 비워두면 변경하지 않습니다.
-            </p>
+            <h4 className="text-xl font-black text-slate-950">비밀번호 변경</h4>
           </div>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <div className="rounded-[20px] border border-slate-200 bg-white p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">New Password</p>
               <input
                 type="password"
                 value={editState.newPassword}
                 onChange={(event) => onChange({ newPassword: event.target.value })}
                 placeholder="새 비밀번호"
-                className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-hp-500"
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-hp-500"
               />
-            </div>
-            <div className="rounded-[20px] border border-slate-200 bg-white p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Confirm Password</p>
               <input
                 type="password"
                 value={editState.newPasswordConfirm}
                 onChange={(event) => onChange({ newPasswordConfirm: event.target.value })}
                 placeholder="새 비밀번호 확인"
-                className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-hp-500"
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-hp-500"
               />
-            </div>
           </div>
 
           {saveError ? <p className="mt-3 text-sm font-semibold text-red-500">{saveError}</p> : null}
