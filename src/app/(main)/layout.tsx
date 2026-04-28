@@ -11,9 +11,10 @@ import ScheduleNotificationModal from "@/features/calendar/components/ScheduleNo
 import { useApp } from "@/shared/context/AppContext";
 import { createUserProfile, getUserProfile } from "@/features/mypage/api/profile";
 import { listCalendarEvents } from "@/features/calendar/api/calendar";
+import { listNotifications } from "@/features/notifications/api/notifications";
 import { CHAT_API_BASE_URL } from "@/services/config/config";
 import { createChatClient } from "@/services/realtime/stomp";
-import type { EventType, SearchPlace, UserProfile } from "@/entities/common/types";
+import type { EventType, NotificationResponse, SearchPlace, UserProfile } from "@/entities/common/types";
 import { toast } from "sonner";
 import axios from "axios";
 
@@ -67,11 +68,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const chatClientRef = useRef<Client | null>(null);
   const chatRoomIdsKey = chatRooms.map((room) => room.id).join(",");
 
-
   const [showScheduleNotify, setShowScheduleNotify] = useState(false);
   const [startingEvents, setStartingEvents] = useState<EventType[]>([]);
   const [endingEvents, setEndingEvents] = useState<EventType[]>([]);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+
+  // 알림 상태 추가
+  const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const activeChatRoomIdRef = useRef(activeChatRoomId);
   const pathnameRef = useRef(pathname);
@@ -79,9 +83,29 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   useEffect(() => { activeChatRoomIdRef.current = activeChatRoomId; }, [activeChatRoomId]);
   useEffect(() => { pathnameRef.current = pathname; }, [pathname]);
 
+  const ready = authReady && isAuthenticated && !!currentUser;
+
+  // 알림 목록 새로고침 함수
+  const refreshNotifications = async () => {
+    if (!currentUser?.id) return;
+    try {
+      const data = await listNotifications(String(currentUser.id));
+      setNotifications(data);
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+    }
+  };
+
   useEffect(() => {
     if (authReady && !isAuthenticated) router.replace("/login");
   }, [authReady, isAuthenticated, router]);
+
+  // 초기 알림 로드
+  useEffect(() => {
+    if (ready && currentUser?.id) {
+      void refreshNotifications();
+    }
+  }, [ready, currentUser?.id]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
@@ -102,7 +126,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         const day = String(now.getDate()).padStart(2, '0');
         const todayStrLocal = `${year}-${month}-${day}`;
 
-        // Only show if not hidden for today
         const hideUntil = localStorage.getItem(`hp_hide_schedule_notify_${currentUser.id}`);
         if (hideUntil === todayStrLocal) return;
 
@@ -183,7 +206,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         setChatRooms(rooms);
         setActiveChatRoomId((prev) => prev ?? (rooms[0]?.id ?? null));
       } catch {
-        // Keep app usable even if chat server is unavailable.
       }
     })();
 
@@ -232,65 +254,66 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 return;
             }
           
-if (
-    newMessage.type === "TALK" &&
-    pathnameRef.current.startsWith("/chat")&&
-    String(activeChatRoomIdRef.current) === String(newMessage.roomId) &&
-    Number(newMessage.senderId) !== Number(currentUser?.id)
-) {
-    void axios.post(`${CHAT_API_BASE_URL}/chat/rooms/${newMessage.roomId}/read`, null, {
-        params: { userId: currentUser?.id },
-    });
-}
             if (
-          newMessage.type === "TALK" &&
-          Number(newMessage.senderId) !== Number(currentUser?.id)
-          ) {
-        console.log("자동 읽음 처리!", pathnameRef.current, activeChatRoomIdRef.current);
-        if (Notification.permission === "granted" && document.hidden) {
-            new Notification(newMessage.senderName ?? "새 메시지", {
-                body: newMessage.message,
-                icon: "/favicon.ico",
-            });
-        }
+                newMessage.type === "TALK" &&
+                pathnameRef.current.startsWith("/chat")&&
+                String(activeChatRoomIdRef.current) === String(newMessage.roomId) &&
+                Number(newMessage.senderId) !== Number(currentUser?.id)
+            ) {
+                void axios.post(`${CHAT_API_BASE_URL}/chat/rooms/${newMessage.roomId}/read`, null, {
+                    params: { userId: currentUser?.id },
+                });
+            }
+            
+            if (
+                newMessage.type === "TALK" &&
+                Number(newMessage.senderId) !== Number(currentUser?.id)
+            ) {
+                if (Notification.permission === "granted" && document.hidden) {
+                    new Notification(newMessage.senderName ?? "새 메시지", {
+                        body: newMessage.message,
+                        icon: "/favicon.ico",
+                    });
+                }
 
-        if (!document.hidden) {
-            toast(newMessage.senderName ?? "새 메시지", {
-                description: newMessage.message,
-                duration: 3000,
-                position: "bottom-right",
-                style: {
-                    background: '#f0f8ff',
-                    color: '#a9d6f7',
-                    border: '1px solid #ddeffc',
-                    borderRadius: '16px',
-                    padding: '12px 16px',
-                    boxShadow: '0 8px 30px rgba(63, 164, 242, 0.15)',
-                },
-                actionButtonStyle: {
-                    background: '#6ab8f5',
-                    color: 'white',
-                    borderRadius: '8px',
-                    border: 'none',
-                },
-                action: {
-                    label: "채팅 보기",
-                    onClick: () => router.push("/chat"),
-                },
-            });
-        }
-    }
+                if (!document.hidden) {
+                    toast(newMessage.senderName ?? "새 메시지", {
+                        description: newMessage.message,
+                        duration: 3000,
+                        position: "bottom-right",
+                        style: {
+                            background: '#f0f8ff',
+                            color: '#a9d6f7',
+                            border: '1px solid #ddeffc',
+                            borderRadius: '16px',
+                            padding: '12px 16px',
+                            boxShadow: '0 8px 30px rgba(63, 164, 242, 0.15)',
+                        },
+                        actionButtonStyle: {
+                            background: '#6ab8f5',
+                            color: 'white',
+                            borderRadius: '8px',
+                            border: 'none',
+                        },
+                        action: {
+                            label: "채팅 보기",
+                            onClick: () => router.push("/chat"),
+                        },
+                    });
+                }
+            }
+
             setChatRooms((prev) =>
                 prev.map((room) => {
                     if (Number(room.id) !== Number(newMessage.roomId)) return room;
                     const roomMessages = Array.isArray(room.messages) ? room.messages : [];
                     const alreadyExists = roomMessages.some((message) => Number(message.id) === Number(newMessage.id));
                     const nextUnread =
-    pathnameRef.current.startsWith("/chat") && String(activeChatRoomIdRef.current) === String(room.id)  // === "/chat" → .startsWith("/chat")
-        ? 0
-        : Number(newMessage.senderId) === Number(currentUser?.id)
-        ? (room.unreadCount ?? 0)
-        : (room.unreadCount ?? 0) + (alreadyExists ? 0 : 1);
+                        pathnameRef.current.startsWith("/chat") && String(activeChatRoomIdRef.current) === String(room.id)
+                            ? 0
+                            : Number(newMessage.senderId) === Number(currentUser?.id)
+                            ? (room.unreadCount ?? 0)
+                            : (room.unreadCount ?? 0) + (alreadyExists ? 0 : 1);
                     return {
                         ...room,
                         messages: alreadyExists ? roomMessages : [...roomMessages, newMessage],
@@ -299,6 +322,11 @@ if (
                     };
                 }),
             );
+        },
+        (newNoti) => {
+            // 실시간 알림 수신 로직
+            console.log("실시간 알림 도착 데이터 전체:", newNoti);
+            setNotifications((prev) => [newNoti, ...prev]);
         }
     );
 
@@ -313,7 +341,6 @@ if (
     };
 }, [chatRoomIdsKey, currentUser?.id, setChatClient, setChatRooms]);
 
-  const ready = authReady && isAuthenticated && !!currentUser;
   if (!ready || !currentUser) return null;
   const isAdminPath = pathname.startsWith("/admin");
 
@@ -382,13 +409,19 @@ if (
           pathname={pathname}
           currentUser={currentUser}
           chatRooms={chatRooms}
+          notifications={notifications}
+          showNotifications={showNotifications}
+          setShowNotifications={setShowNotifications}
+          onRefreshNotifications={refreshNotifications}
           onNavigate={(href) => router.push(href)}
           onOpenProfile={() => setProfileModal(currentUser.id)}
           onLogout={() => setLogoutConfirmOpen(true)}
         />
       )}
 
-      <main className={`app-scroll-container relative flex-1 ${isAdminPath ? "p-0" : "p-4 md:p-8"}`}>{children}</main>
+      <main className={`app-scroll-container relative flex-1 transition-opacity ${isAdminPath ? "p-0" : "p-4 md:p-8"} ${showNotifications ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+        {children}
+      </main>
 
       <ProfileModal
         profile={profile}

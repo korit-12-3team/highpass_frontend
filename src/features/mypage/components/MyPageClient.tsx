@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Bell, MessageCircle, ThumbsUp } from "lucide-react";
+import { MessageCircle, ThumbsUp } from "lucide-react";
 import type { BoardPost, PostComment, UserProfile } from "@/entities/common/types";
 import { listComments } from "@/features/boards/api/comments";
 import { isPostLiked } from "@/features/boards/api/likes";
@@ -529,7 +529,7 @@ export default function MyPageClient({
 
       <MyPageTabNav
         activeTab={activeTab}
-        counts={{ posts: myPosts.length, comments: myComments.length, likes: likedPosts.length }}
+        counts={{ posts: myPosts.length, comments: myComments.length, likes: likedPosts.length, settings: 0 }}
         onChange={setActiveTab}
       />
 
