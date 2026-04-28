@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { MessageCircle, ThumbsUp } from "lucide-react";
+import { Bell, MessageCircle, ThumbsUp } from "lucide-react";
 import type { BoardPost, PostComment, UserProfile } from "@/entities/common/types";
 import { listComments } from "@/features/boards/api/comments";
 import { isPostLiked } from "@/features/boards/api/likes";
@@ -40,15 +40,21 @@ function NotificationSwitch({
   icon,
   isOn,
   onToggle,
+  disabled = false,
 }: {
   label: string;
   description: string;
   icon: React.ReactNode;
   isOn: boolean;
   onToggle: () => void;
+  disabled?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-[22px] border border-slate-200 bg-slate-50 p-5 transition-all hover:border-hp-200 hover:bg-white">
+    <div
+      className={`flex items-center justify-between rounded-[22px] border border-slate-200 p-5 transition-all ${
+        disabled ? "bg-slate-100 opacity-70" : "bg-slate-50 hover:border-hp-200 hover:bg-white"
+      }`}
+    >
       <div className="flex items-center gap-4">
         <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${isOn ? 'bg-hp-100 text-hp-600' : 'bg-slate-200 text-slate-500'}`}>
           {icon}
@@ -61,9 +67,10 @@ function NotificationSwitch({
       <button
         type="button"
         onClick={onToggle}
+        disabled={disabled}
         className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full px-1 transition-colors duration-200 ease-in-out focus:outline-none ${
           isOn ? "bg-hp-600" : "bg-slate-300"
-        }`}
+        } ${disabled ? "cursor-not-allowed" : ""}`}
       >
         <span
           className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
@@ -137,6 +144,7 @@ export default function MyPageClient({
   const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
   const [likeNotification, setLikeNotification] = useState(initialProfile?.isLikeNotiOn ?? true );
   const [commentNotification, setCommentNotification] = useState(initialProfile?.isCommentNotiOn ?? true);
+  const [notificationSaving, setNotificationSaving] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [editState, setEditState] = useState<ProfileEditState>({
     nickname: "",
@@ -149,10 +157,11 @@ export default function MyPageClient({
   });
 
   const handleNotificationToggle = async (type: "COMMENT" | "LIKE", currentIsOn: boolean) => {
-    if (!profileUser?.id) return;
+    if (!profileUser?.id || notificationSaving) return;
 
     const nextIsOn = !currentIsOn;
 
+    setNotificationSaving(true);
     if (type === "COMMENT") setCommentNotification(nextIsOn);
     else setLikeNotification(nextIsOn);
 
@@ -166,6 +175,32 @@ export default function MyPageClient({
       if (type === "COMMENT") setCommentNotification(currentIsOn);
       else setLikeNotification(currentIsOn);
       alert("설정 저장에 실패했습니다.");
+    } finally {
+      setNotificationSaving(false);
+    }
+  };
+
+  const handleAllNotificationToggle = async () => {
+    if (!profileUser?.id || notificationSaving) return;
+
+    const nextIsOn = !(commentNotification && likeNotification);
+    const prevComment = commentNotification;
+    const prevLike = likeNotification;
+
+    setNotificationSaving(true);
+    setCommentNotification(nextIsOn);
+    setLikeNotification(nextIsOn);
+
+    try {
+      await updateNotificationSettings(String(profileUser.id), { type: "COMMENT", isOn: nextIsOn });
+      await updateNotificationSettings(String(profileUser.id), { type: "LIKE", isOn: nextIsOn });
+      toast.success(nextIsOn ? "전체 알림을 켰습니다." : "전체 알림을 껐습니다.");
+    } catch {
+      setCommentNotification(prevComment);
+      setLikeNotification(prevLike);
+      alert("알림 설정 저장에 실패했습니다.");
+    } finally {
+      setNotificationSaving(false);
     }
   };
 
@@ -604,13 +639,25 @@ export default function MyPageClient({
           title="알림 설정"
           description="댓글이나 좋아요 등 주요 활동에 대한 알림 수신 여부를 설정할 수 있습니다."
         >
-          <div className="flex flex-col gap-4">
+          <div className="space-y-4">
+            <div className="flex flex-col gap-4 rounded-[24px] border border-slate-200 bg-white p-4">
+            <NotificationSwitch
+              label="전체 알림"
+              description="댓글 알림과 좋아요 알림을 한 번에 켜거나 끕니다."
+              icon={<Bell size={24} />}
+              isOn={commentNotification && likeNotification}
+              onToggle={handleAllNotificationToggle}
+              disabled={notificationSaving}
+            />
+            </div>
+            <div className="flex flex-col gap-4 rounded-[24px] border border-slate-200 bg-white p-4">
             <NotificationSwitch
               label="댓글 알림"
               description="내 게시글에 새로운 댓글이 달리면 알림을 받습니다."
               icon={<MessageCircle size={24} />}
               isOn={commentNotification}
               onToggle={() => handleNotificationToggle("COMMENT", commentNotification)}
+              disabled={notificationSaving}
             />
             <NotificationSwitch
               label="좋아요 알림"
@@ -618,7 +665,9 @@ export default function MyPageClient({
               icon={<ThumbsUp size={24} />}
               isOn={likeNotification}
               onToggle={() => handleNotificationToggle("LIKE", likeNotification)}
+              disabled={notificationSaving}
             />
+            </div>
           </div>
         </SectionCard>
       ) : null}

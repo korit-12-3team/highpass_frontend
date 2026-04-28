@@ -43,6 +43,7 @@ import { CalendarConfirmDialog } from "@/features/calendar/components/CalendarCo
 import { CalendarEventDetailModal } from "@/features/calendar/components/CalendarEventDetailModal";
 import { CalendarEventModal } from "@/features/calendar/components/CalendarEventModal";
 import { ConfirmDialogState, EventFormState } from "@/features/calendar/types";
+import { API_BASE_URL } from "@/services/config/config";
 
 const WEEK_DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 type TodayInfo = {
@@ -132,6 +133,11 @@ function toIso(date: string, time?: string): string {
 const KAKAO_COLOR_MAP: Record<string, string> = {}; // 카카오 색상은 항상 노란색으로 통일
 
 type KakaoEventRaw = Record<string, unknown>;
+type KakaoCalendarApiResponse = {
+  events?: KakaoEventRaw[];
+  message?: string;
+  connectUrl?: string;
+};
 
 // kakao event_id → calendar_id 매핑 (삭제 시 필요)
 const KAKAO_CAL_ID_MAP_KEY = "hp_kakao_cal_id_map";
@@ -269,6 +275,7 @@ export default function CalendarPageClient() {
     general: true,
     certificate: true,
   });
+  const kakaoCalendarConnectUrl = `${API_BASE_URL}/oauth2/authorization/kakao-calendar`;
 
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
@@ -352,11 +359,13 @@ export default function CalendarPageClient() {
         const res  = await fetch(`/api/kakao-cal/events/?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
           credentials: "include",
         });
-        const data = await res.json() as { events?: KakaoEventRaw[]; message?: string };
+        const data = await res.json() as KakaoCalendarApiResponse;
         if (res.ok) {
           const kakaoEvents = (data.events ?? []).map((e: KakaoEventRaw, i: number) => kakaoEventToEventType(e, i));
           setEvents(kakaoEvents);
           toast.success(`카카오 캘린더로 설정됐습니다. (${kakaoEvents.length}개 일정)`);
+        } else if (res.status === 401 && data.message) {
+          toast.error(data.message);
         }
       } catch {
         toast.error("카카오 일정 불러오기 실패");
@@ -539,7 +548,12 @@ export default function CalendarPageClient() {
       const res  = await fetch(`/api/kakao-cal/events/?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
         credentials: "include",
       });
-      const data = await res.json() as { events?: KakaoEventRaw[]; message?: string };
+      const data = await res.json() as KakaoCalendarApiResponse;
+
+      if (res.status === 401) {
+        window.location.href = data.connectUrl ?? kakaoCalendarConnectUrl;
+        return;
+      }
 
       if (!res.ok) throw new Error(data.message ?? "불러오기 실패");
 

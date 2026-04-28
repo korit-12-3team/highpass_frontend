@@ -788,7 +788,6 @@ export default function StudyPostPageClient({
                       <div className="flex min-h-56 flex-1 items-center justify-center overflow-hidden rounded-3xl border border-hp-100 bg-hp-50/40">
                         {selectedEditPlace && showMapPreview ? (
                           <KakaoMap
-                            apiKey="894423a9ffcffb29a1e5d50427ded82e"
                             markers={[{ lat: selectedEditPlace.lat, lng: selectedEditPlace.lng, locationName: selectedEditPlace.name }]}
                             center={{ lat: selectedEditPlace.lat, lng: selectedEditPlace.lng }}
                             level={3}
@@ -817,7 +816,6 @@ export default function StudyPostPageClient({
                     showMapPreview ? (
                       <div className="mt-4 overflow-hidden rounded-3xl border border-hp-100">
                         <KakaoMap
-                          apiKey="894423a9ffcffb29a1e5d50427ded82e"
                           markers={[{ lat: post.lat, lng: post.lng, locationName: post.location || "스터디 장소" }]}
                           center={{ lat: post.lat, lng: post.lng }}
                           level={3}

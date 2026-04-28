@@ -11,6 +11,10 @@ import {
   statusClass,
 } from "@/features/admin/components/AdminCommon";
 
+function reporterLabel(report: AdminReport) {
+  return report.reporter?.name || report.reporter?.email || "알 수 없음";
+}
+
 function targetTypeLabel(targetType: AdminReport["targetType"]) {
   switch (targetType) {
     case "post":
@@ -85,7 +89,7 @@ export function AdminReportsSection({
                     </p>
                   </td>
                   <td className="px-4 py-3 font-semibold text-slate-600">
-                    {report.reporter}
+                    {reporterLabel(report)}
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -185,7 +189,7 @@ function AdminReportDetailModal({
               {report.targetLabel}
             </h3>
             <p className="mt-2 text-sm font-semibold text-slate-500">
-              작성자 {report.reporter} · {formatAdminReportDate(report.createdAt)}
+              작성자 {reporterLabel(report)} · {formatAdminReportDate(report.createdAt)}
             </p>
           </div>
           <button

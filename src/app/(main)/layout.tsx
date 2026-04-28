@@ -350,9 +350,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     const chatProfile = chatRooms.find((room) => room.partnerId === profileId);
     if (chatProfile) {
       return createUserProfile({
-        id: chatProfile.partnerId,
-        nickname: chatProfile.partnerNickname,
-        name: chatProfile.partnerNickname,
+        id: chatProfile.partnerId ?? profileId,
+        nickname: chatProfile.partnerNickname ?? "사용자",
+        name: chatProfile.partnerNickname ?? "사용자",
       });
     }
 

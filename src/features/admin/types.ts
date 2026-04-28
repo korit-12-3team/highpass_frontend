@@ -45,7 +45,10 @@ export type AdminReport = {
   targetId: string;
   targetLabel: string;
   reason: string;
-  reporter: string;
+  reporter: {
+    name: string;
+    email: string;
+  };
   createdAt: string;
   status: ReportStatus;
 };

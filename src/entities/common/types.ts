@@ -23,6 +23,7 @@ export interface UserProfile {
   ageRange: string;
   gender: string;
   location: string;
+  role?: string;
   profileImage?: string | null;
   loginType?: string;
   socialProvider?: string;
@@ -74,12 +75,13 @@ export interface ChatRoom {
   type: string;
   id: string;
   ownerId?: number; 
-  partnerId: string;
-  partnerNickname: string;
+  partnerId?: string;
+  partnerNickname?: string;
   messages: ChatMessage[];
   unreadCount?: number;
   name?: string;
   roomNickname?: string;
+  displayName?: string;
   lastMessage?: string;
   participants?: ChatRoomParticipant[];
 }

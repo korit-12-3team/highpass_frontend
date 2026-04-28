@@ -246,7 +246,6 @@ export default function WritePostModal(props: WritePostModalProps) {
                       <div className="p-4 text-center text-xs text-red-400">카카오 지도를 불러오지 못했습니다.</div>
                     ) : (
                       <KakaoMap
-                        apiKey="894423a9ffcffb29a1e5d50427ded82e"
                         markers={searchResults.map((result) => ({
                           lat: result.lat,
                           lng: result.lng,

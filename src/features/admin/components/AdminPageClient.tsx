@@ -233,9 +233,12 @@ export default function AdminPageClient() {
       reports.filter((report) => {
         const matchesStatus =
           reportFilter === "all" || report.status === reportFilter;
+        const reporterQuery = [report.reporter?.name, report.reporter?.email]
+          .filter(Boolean)
+          .join(" ");
         const matchesQuery =
           !normalizedQuery ||
-          [report.targetLabel, report.reason, report.reporter].some((value) =>
+          [report.targetLabel, report.reason, reporterQuery].some((value) =>
             value.toLowerCase().includes(normalizedQuery),
           );
         return matchesStatus && matchesQuery;
