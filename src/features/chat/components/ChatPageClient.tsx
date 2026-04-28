@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, MessageCircle, Clock, LogOut } from "lucide-react";
+import { ArrowRight, MessageCircle, Clock, LogOut, PanelLeft } from "lucide-react";
 import { useApp } from "@/shared/context/AppContext";
 import { getChatRoom, sendMessage, leaveRoom, kickParticipant } from "@/services/realtime/stomp";
 import { CHAT_API_BASE_URL } from "@/services/config/config";
@@ -56,6 +56,7 @@ export default function ChatPageClient() {
   const initialReadHandledRef = useRef<string | null>(null);
   const [newRoomName, setNewRoomName] = useState("");
   const [isEditingName, setIsEditingName] = useState(false);
+  const [showRooms, setShowRooms] = useState(false);
 
   const activeRoom = useMemo(
     () => chatRooms.find((room) => String(room.id) === String(activeChatRoomId)) ?? null,
@@ -236,6 +237,7 @@ export default function ChatPageClient() {
 
   const handleRoomClick = async (roomId: number | string) => {
     setActiveChatRoomId(String(roomId));
+    setShowRooms(false);
 
     try {
       const latestRoom = await getChatRoom(Number(roomId));
@@ -301,8 +303,18 @@ export default function ChatPageClient() {
   };
 
   return (
-    <div className="mx-auto flex h-full max-w-6xl animate-in fade-in flex-col duration-500">
-      <h2 className="mb-6 text-2xl font-bold">채팅방</h2>
+    <div className="mx-auto flex h-full min-h-0 max-w-6xl animate-in fade-in flex-col duration-500">
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <h2 className="text-2xl font-bold">채팅방</h2>
+        <button
+          type="button"
+          onClick={() => setShowRooms((prev) => !prev)}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+        >
+          <PanelLeft size={16} />
+          {showRooms ? "목록 닫기" : "목록 보기"}
+        </button>
+      </div>
 
       {chatRooms.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border bg-white p-12 text-center shadow-sm">
@@ -310,17 +322,19 @@ export default function ChatPageClient() {
           <p className="text-lg font-bold text-slate-500">참여중인 채팅방이 없습니다</p>
         </div>
       ) : (
-        <div className="flex gap-4" style={{ height: "calc(100vh - 11rem)" }}>
-          <div className="flex w-64 shrink-0 flex-col overflow-hidden rounded-2xl border bg-white shadow-sm">
+        <div className="flex min-h-[calc(100vh-11rem)] flex-col gap-4 lg:h-[calc(100vh-11rem)] lg:min-h-0 lg:flex-row">
+          {/* 채팅방 목록 */}
+          {showRooms ? (
+          <div className="flex w-full shrink-0 flex-col overflow-hidden rounded-2xl border bg-white shadow-sm lg:h-full lg:w-72 lg:max-w-[18rem]">
             <div className="border-b p-4">
               <p className="font-bold text-slate-800">Rooms</p>
             </div>
-            <div className="flex-1 divide-y divide-slate-50 overflow-y-auto">
+            <div className="max-h-64 flex-1 divide-y divide-slate-50 overflow-y-auto lg:max-h-none">
               {chatRooms.map((room) => (
                 <button
                   key={room.id}
                   onClick={() => void handleRoomClick(room.id)}
-                  className={`flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-slate-50 ${
+                  className={`flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-slate-50 sm:p-4 ${
                     String(activeChatRoomId) === String(room.id) ? "bg-slate-50" : ""
                   }`}
                 >
@@ -342,10 +356,12 @@ export default function ChatPageClient() {
               ))}
             </div>
           </div>
+          ) : null}
 
           {activeRoom ? (
-            <>
-              <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border bg-white shadow-sm">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 xl:flex-row">
+              <div className="flex min-h-[24rem] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-white shadow-sm lg:min-h-0">
+                {/* 채팅방 헤더 */}
                 <div className="flex items-center gap-3 border-b p-4">
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-hp-100 text-sm font-bold text-hp-600">
                     {getRoomDisplayName(activeRoom).substring(0, 1) || "R"}
@@ -366,7 +382,7 @@ export default function ChatPageClient() {
                   </div>
                 ) : (
                   <>
-                    <div ref={scrollRef} className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
+                    <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4 sm:p-5">
                       {(activeRoom.messages || []).map((message, idx) => {
                         const isMe = Number(message.senderId) === Number(currentUser?.id);
                         const isSystemMsg =
@@ -421,7 +437,7 @@ export default function ChatPageClient() {
                               )}
 
                               <div
-                                className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-sm ${
+                                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm sm:max-w-[78%] xl:max-w-[70%] ${
                                   isMe
                                     ? "rounded-br-sm bg-hp-600 text-white"
                                     : "rounded-bl-sm bg-slate-100 text-slate-800"
@@ -445,18 +461,18 @@ export default function ChatPageClient() {
                       })}
                     </div>
 
-                    <div className="flex gap-2 border-t p-4">
+                    <div className="flex flex-col gap-2 border-t p-3 sm:flex-row sm:p-4">
                       <input
                         type="text"
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && void handleSendMessage()}
                         placeholder="메시지를 입력하세요..."
-                        className="flex-1 rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-hp-500"
+                        className="w-full flex-1 rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-hp-500"
                       />
                       <button
                         onClick={() => void handleSendMessage()}
-                        className="rounded-xl bg-hp-600 px-4 py-2.5 font-bold text-white hover:bg-hp-700"
+                        className="flex items-center justify-center rounded-xl bg-hp-600 px-4 py-2.5 font-bold text-white hover:bg-hp-700 sm:px-5"
                       >
                         <ArrowRight size={18} />
                       </button>
@@ -466,12 +482,13 @@ export default function ChatPageClient() {
               </div>
 
               {activeRoom.type === "GROUP" && (
-                <div className="flex w-56 shrink-0 flex-col overflow-hidden rounded-2xl border bg-white shadow-sm">
+                <div className="flex w-full shrink-0 flex-col overflow-hidden rounded-2xl border bg-white shadow-sm xl:h-full xl:w-64 xl:max-w-[16rem]">
                   <div className="border-b p-4">
                     <p className="font-bold text-slate-800">Room info</p>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto p-3">
+                  <div className="max-h-80 flex-1 overflow-y-auto p-3 xl:max-h-none">
+                    {/* 방장 전용: 참여 승인 요청 목록 */}
                     {activeRoom.ownerId === Number(currentUser?.id) && (
                       <>
                         <div className="mb-2 flex items-center gap-1 text-[11px] font-bold uppercase text-slate-400">
@@ -618,9 +635,9 @@ export default function ChatPageClient() {
                   </div>
                 </div>
               )}
-            </>
+            </div>
           ) : (
-            <div className="flex flex-1 items-center justify-center rounded-2xl border bg-white text-sm text-slate-400 shadow-sm">
+            <div className="flex min-h-[24rem] flex-1 items-center justify-center rounded-2xl border bg-white text-sm text-slate-400 shadow-sm lg:min-h-0">
               왼쪽에서 채팅방을 선택해 대화를 시작하세요.
             </div>
           )}

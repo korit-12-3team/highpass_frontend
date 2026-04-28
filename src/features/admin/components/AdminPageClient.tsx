@@ -3,11 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Ban,
+  CheckCircle2,
+  Clock3,
+  Eye,
   FileText,
   MessageSquareWarning,
   Search,
   ShieldCheck,
+  UserMinus,
   Users,
+  XCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -197,7 +202,7 @@ export default function AdminPageClient() {
             userFilter === "all" || user.status === userFilter;
           const matchesQuery =
             !normalizedQuery ||
-            [user.email, user.nickname, user.name, user.region].some((value) =>
+            [user.email, user.nickname, user.region].some((value) =>
               value.toLowerCase().includes(normalizedQuery),
             );
           return matchesStatus && matchesQuery;
@@ -206,7 +211,7 @@ export default function AdminPageClient() {
           const statusDiff = userStatusOrder[a.status] - userStatusOrder[b.status];
           if (statusDiff !== 0) return statusDiff;
           if (Boolean(a.online) !== Boolean(b.online)) return a.online ? -1 : 1;
-          return new Date(b.joinedAt).getTime() - new Date(a.joinedAt).getTime();
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
         }),
     [normalizedQuery, userFilter, visibleUsers],
   );
@@ -247,20 +252,81 @@ export default function AdminPageClient() {
   );
 
   const reportCount = reports.filter((report) => report.status === "pending").length;
+  const hiddenPostCount = posts.filter((post) => post.status === "hidden").length;
+  const deletedPostCount = posts.filter((post) => post.status === "deleted").length;
+  const resolvedReportCount = reports.filter((report) => report.status === "resolved").length;
+  const dismissedReportCount = reports.filter((report) => report.status === "dismissed").length;
 
   const sectionTitle =
     activeSection === "users"
       ? "회원 관리"
       : activeSection === "posts"
         ? "게시글 관리"
-        : "신고처리";
+        : "신고 및 문의 처리";
 
   const searchPlaceholder =
     activeSection === "users"
       ? "회원 이름, 이메일 검색"
       : activeSection === "posts"
         ? "게시글 제목, 작성자 검색"
-        : "신고 대상, 내용, 작성자 검색";
+        : "신고·문의 대상, 내용, 작성자 검색";
+
+  const statCards = useMemo(() => {
+    if (activeSection === "users") {
+      return [
+        { id: "users-total", icon: <Users size={18} />, label: "총 회원", value: visibleUsers.length },
+        {
+          id: "users-active",
+          icon: <CheckCircle2 size={18} />,
+          label: "정상",
+          value: visibleUsers.filter((user) => user.status === "active").length,
+        },
+        {
+          id: "users-suspended",
+          icon: <Ban size={18} />,
+          label: "정지",
+          value: visibleUsers.filter((user) => user.status === "suspended").length,
+        },
+        {
+          id: "users-deleted",
+          icon: <UserMinus size={18} />,
+          label: "탈퇴",
+          value: visibleUsers.filter((user) => user.status === "deleted").length,
+        },
+      ];
+    }
+
+    if (activeSection === "posts") {
+      return [
+        { id: "posts-total", icon: <FileText size={18} />, label: "전체 게시글", value: posts.length },
+        {
+          id: "posts-visible",
+          icon: <Eye size={18} />,
+          label: "공개",
+          value: posts.filter((post) => post.status === "visible").length,
+        },
+        { id: "posts-hidden", icon: <Ban size={18} />, label: "숨김", value: hiddenPostCount },
+        { id: "posts-deleted", icon: <XCircle size={18} />, label: "삭제", value: deletedPostCount },
+      ];
+    }
+
+    return [
+      { id: "reports-total", icon: <MessageSquareWarning size={18} />, label: "전체 신고/문의", value: reports.length },
+      { id: "reports-pending", icon: <Clock3 size={18} />, label: "대기", value: reportCount },
+      { id: "reports-resolved", icon: <CheckCircle2 size={18} />, label: "처리", value: resolvedReportCount },
+      { id: "reports-dismissed", icon: <XCircle size={18} />, label: "반려", value: dismissedReportCount },
+    ];
+  }, [
+    activeSection,
+    deletedPostCount,
+    dismissedReportCount,
+    hiddenPostCount,
+    posts,
+    reportCount,
+    reports.length,
+    resolvedReportCount,
+    visibleUsers,
+  ]);
 
   const updateUserStatus = async (userId: string, status: UserStatus) => {
     try {
@@ -380,37 +446,19 @@ export default function AdminPageClient() {
       <main className="min-w-0 flex-1 overflow-y-auto p-4 md:p-8">
         <header className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-hp-700">
-              관리자 콘솔
-            </p>
-            <h2 className="mt-2 text-3xl font-black text-slate-950">
+            <h2 className="mt-2 mb-5 text-3xl font-black text-slate-950">
               {sectionTitle}
             </h2>
-            <p className="mt-1 text-sm font-semibold text-slate-500">
-              운영에 필요한 회원, 게시글, 신고 상태를 확인합니다.
-            </p>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:min-w-[520px]">
-            <AdminStat
-              icon={<Users size={18} />}
-              label="회원"
-              value={visibleUsers.filter((user) => user.status !== "deleted").length}
-            />
-            <AdminStat
-              icon={<Ban size={18} />}
-              label="정지"
-              value={visibleUsers.filter((user) => user.status === "suspended").length}
-            />
-            <AdminStat
-              icon={<FileText size={18} />}
-              label="게시글"
-              value={posts.filter((post) => post.status !== "deleted").length}
-            />
-            <AdminStat
-              icon={<MessageSquareWarning size={18} />}
-              label="대기"
-              value={reportCount}
-            />
+            {statCards.map((card) => (
+              <AdminStat
+                key={card.id}
+                icon={card.icon}
+                label={card.label}
+                value={card.value}
+              />
+            ))}
           </div>
         </header>
 
@@ -451,7 +499,7 @@ export default function AdminPageClient() {
                   className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 outline-none"
                 >
                   <option value="all">전체 종류</option>
-                  <option value="free">자유게시판</option>
+                  <option value="free">자유 게시판</option>
                   <option value="study">스터디 모집</option>
                 </select>
                 <select
@@ -589,7 +637,7 @@ function AdminPostPreviewModal({
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-hp-50 px-2.5 py-1 text-xs font-black text-hp-700">
-                {post.type === "study" ? "스터디 모집" : "자유 게시글"}
+                {post.type === "study" ? "스터디 모집" : "자유 게시판"}
               </span>
               <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700">
                 {postStatusLabel[post.status]}
@@ -599,16 +647,9 @@ function AdminPostPreviewModal({
               {post.title}
             </h3>
             <p className="mt-2 text-sm font-semibold text-slate-500">
-              {post.author} · {formatAdminPreviewDate(post.createdAt)} · 조회 {post.views}
+              {post.author} · {formatAdminPreviewDate(post.createdAt)} · 조회수 {post.views}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 transition hover:bg-slate-50"
-          >
-            닫기
-          </button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
@@ -673,7 +714,7 @@ function AdminPostPreviewModal({
             onClick={onClose}
             className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50"
           >
-            취소
+            닫기
           </button>
           <button
             type="button"

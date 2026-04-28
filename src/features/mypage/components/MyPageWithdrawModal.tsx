@@ -22,7 +22,6 @@ export function MyPageWithdrawModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-rose-500">Withdraw</p>
         <h3 className="mt-2 text-xl font-black text-slate-950">회원 탈퇴</h3>
         <p className="mt-3 text-sm leading-6 text-slate-600">
           탈퇴 처리 후 계정은 로그인할 수 없으며, 작성한 게시글과 댓글의 작성자는 탈퇴한 계정으로 표시됩니다.

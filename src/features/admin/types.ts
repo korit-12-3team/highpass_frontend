@@ -10,10 +10,9 @@ export type AdminUser = {
   id: string;
   email: string;
   nickname: string;
-  name: string;
   role: "USER" | "ADMIN";
   status: UserStatus;
-  joinedAt: string;
+  createdAt: string;
   lastSeenAt?: string;
   deletedAt?: string;
   region: string;
@@ -23,6 +22,8 @@ export type AdminUser = {
   posts: number;
   comments: number;
   reports: number;
+  gender: string;
+  ageRange: string;
 };
 
 export type AdminPost = {

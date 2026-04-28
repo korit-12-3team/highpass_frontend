@@ -5,6 +5,7 @@ import Image from "next/image";
 import {
   Bell,
   Calendar as CalendarIcon,
+  LogOut,
   MessageCircle,
   MessageSquare,
   Search,
@@ -169,8 +170,8 @@ export default function MainSidebar({
           title="로그아웃"
         >
           <span className="flex items-center justify-center gap-2.5 xl:pr-1">
-            <X size={15} className="shrink-0 text-[#2e668d]" />
-            <span className="hidden xl:inline min-w-[68px] text-left">로그아웃</span>
+            <LogOut size={15} className="shrink-0 text-[#2e668d]" />
+            <span className="hidden xl:inline min-w-[68px] text-center">로그아웃</span>
           </span>
         </button>
       </div>

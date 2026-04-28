@@ -20,7 +20,6 @@ import { MyPageProfileSection } from "@/features/mypage/components/MyPageProfile
 import { MyPageBoardFilterTabs } from "@/features/mypage/components/MyPageBoardFilterTabs";
 import { MyPageWithdrawModal } from "@/features/mypage/components/MyPageWithdrawModal";
 import { SupportInquiryModal } from "@/features/support/components/SupportInquiryModal";
-import { logoutSession } from "@/services/auth/auth";
 
 type ProfileEditState = {
   nickname: string;
@@ -484,7 +483,6 @@ export default function MyPageClient({
       setProfileEditOpen(false);
       setCurrentPassword("");
       setEditState((prev) => ({ ...prev, newPassword: "", newPasswordConfirm: "" }));
-      setProfileSaveSuccess("회원정보가 업데이트되었습니다.");
       toast.success("회원정보가 업데이트되었습니다.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "회원정보 수정에 실패했습니다.";
@@ -534,7 +532,6 @@ export default function MyPageClient({
       setWithdrawSubmitting(true);
       setWithdrawError("");
       await withdrawUser(currentUser.id);
-      await logoutSession();
       setCurrentUser(null);
       toast.success("회원 탈퇴가 처리되었습니다.");
       router.replace("/login");

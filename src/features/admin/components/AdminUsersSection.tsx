@@ -37,7 +37,6 @@ export function AdminUsersSection({
 
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-black uppercase text-slate-400">Member Detail</p>
             <h3 className="mt-2 text-2xl font-black text-slate-950">{selectedUser.nickname}</h3>
             <p className="mt-1 text-sm font-semibold text-slate-500">{selectedUser.email}</p>
           </div>
@@ -47,14 +46,14 @@ export function AdminUsersSection({
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-2 text-sm">
-          <InfoTile label="이름" value={selectedUser.name} />
+          <InfoTile label="연령" value={selectedUser.ageRange} />
+          <InfoTile label="성별" value={selectedUser.gender} />
           <InfoTile label="지역" value={selectedUser.region} />
-          <InfoTile label="신고" value={`${selectedUser.reports}건`} />
-          <InfoTile label="권한" value={selectedUser.role} />
+          <InfoTile label="신고된 기록" value={`${selectedUser.reports}건`} />
           <InfoTile label="가입 유형" value={getLoginTypeLabel(selectedUser)} />
-          <InfoTile label="가입일" value={formatDateOnly(selectedUser.joinedAt)} />
-          <InfoTile label="접속 상태" value={getLastSeenLabel(selectedUser)} />
-          {selectedUser.status === "deleted" ? <InfoTile label="탈퇴일" value={selectedUser.deletedAt ? formatDateOnly(selectedUser.deletedAt) : "-"} /> : null}
+          <InfoTile label="최근 접속" value={getLastSeenLabel(selectedUser)} />
+          <InfoTile label="가입일" value={formatDateOnly(selectedUser.createdAt)} />
+          <InfoTile label="탈퇴일" value={selectedUser.deletedAt ? formatDateOnly(selectedUser.deletedAt) : "-"} />
         </div>
 
         <div className="mt-5 overflow-hidden rounded-lg border border-slate-200 bg-white">
@@ -159,7 +158,7 @@ export function AdminUsersSection({
                     {userStatusLabel[user.status]}
                   </span>
                 </td>
-                <td className="px-4 py-3 font-semibold text-slate-600">{formatDateOnly(user.joinedAt)}</td>
+                <td className="px-4 py-3 font-semibold text-slate-600">{formatDateOnly(user.createdAt)}</td>
                 <td className="px-4 py-3 font-semibold text-slate-600">
                   {user.status === "deleted" && user.deletedAt ? formatDateOnly(user.deletedAt) : "-"}
                 </td>

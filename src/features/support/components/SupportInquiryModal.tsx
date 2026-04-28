@@ -6,9 +6,8 @@ import { toast } from "sonner";
 import { createReport, createSupportInquiry } from "@/features/reports/api/reports";
 
 const CATEGORY_OPTIONS = [
-  { value: "account", label: "계정 및 로그인" },
+  { value: "account", label: "계정" },
   { value: "board", label: "게시판 및 커뮤니티" },
-  { value: "chat", label: "채팅 및 신고" },
   { value: "service", label: "서비스 이용 문의" },
   { value: "other", label: "기타" },
 ];
@@ -108,15 +107,11 @@ export function SupportInquiryModal({
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-hp-500">
-              <Headset size={13} />
-              Support
-            </p>
             <h3 className="mt-2 text-xl font-black text-slate-950">
               관리자에게 문의하기
             </h3>
             <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-              계정 상태, 로그인 문제, 게시판/채팅 불편 사항을 관리자에게 직접 전달할 수 있습니다.
+              계정 상태, 로그인 문제, 게시판 불편 사항을 관리자에게 직접 문의할 수 있습니다.
             </p>
           </div>
           <button
@@ -162,18 +157,26 @@ export function SupportInquiryModal({
               ))}
             </select>
           </div>
-
+            
           <div>
             <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-slate-400">
               문의 제목
             </label>
-            <input
+            {requireEmail ? (
+              <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               maxLength={120}
               placeholder="예: 정지 계정 해제 문의"
               className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-hp-300"
             />
+          ) : <input
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              maxLength={120}
+              placeholder="예: 버그 관련 문의"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-hp-300"
+            />}
           </div>
 
           <div>
@@ -210,7 +213,7 @@ export function SupportInquiryModal({
             disabled={submitting}
             className="rounded-full bg-hp-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-hp-700 disabled:opacity-60"
           >
-            {submitting ? "전달 중..." : "문의 전달"}
+            작성
           </button>
         </div>
       </div>
