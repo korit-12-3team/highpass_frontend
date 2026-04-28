@@ -315,7 +315,12 @@ export default function FreePostPageClient({
         <div className="border-t border-hp-100 px-4 py-4">
           <div className="mb-3 text-sm font-semibold text-slate-900">댓글</div>
 
-          <div className="mb-4 flex items-center gap-3 rounded-2xl border border-black/10 bg-slate-50 px-4 py-3">
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              void addComment();
+            }} className="mb-4 flex items-center gap-3 rounded-2xl border border-black/10 bg-slate-50 px-4 py-3">
+
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
               {getInitial(currentUser?.nickname || "U")}
             </div>
@@ -326,13 +331,13 @@ export default function FreePostPageClient({
               className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
             />
             <button
-              onClick={() => void addComment()}
+              type="submit"
               disabled={commentSubmitting || !commentText.trim()}
               className="text-sm font-semibold text-hp-600 disabled:text-slate-300"
             >
               등록
             </button>
-          </div>
+          </form>
 
           {commentError && <p className="mb-4 text-sm text-red-500">{commentError}</p>}
 

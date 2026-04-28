@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowRight, CheckCircle2, Circle, GripVertical, Pencil, Plus, Trash2, Zap,} from "lucide-react";
+import { ArrowRight, CheckCircle2, Circle, GripVertical, Pencil, Plus, Trash2, Zap, MessageCircle} from "lucide-react";
 import { EventType, TodoItem, useApp } from "@/shared/context/AppContext";
 import {
   createCalendarEvent,
@@ -898,7 +898,7 @@ export default function CalendarPageClient() {
   return (
     <div className="animate-in fade-in flex h-full flex-col gap-4 duration-500 lg:flex-row">
       <div className="flex flex-1 flex-col rounded-2xl border border-hp-100 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-y-4">
           <div className="flex items-center gap-4">
             <div className="w-[210px] shrink-0">
               <button
@@ -970,17 +970,20 @@ export default function CalendarPageClient() {
               </button>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 flex-nowrap">
             <button
               onClick={loadKakaoEvents}
-              disabled={kakaoLoading}
-              className="flex items-center gap-2 rounded-lg border border-yellow-400 bg-yellow-400 px-4 py-2 text-sm font-bold text-slate-900 hover:bg-yellow-300 disabled:opacity-50"
+              disabled={kakaoLoading}            
+              className="flex h-10 shrink-0 items-center gap-2 rounded-lg bg-[#FEE500] px-4 text-sm font-bold text-[#191919]
+      whitespace-nowrap transition-colors hover:bg-[#FADA00] disabled:opacity-50"
             >
-              {kakaoLoading ? "불러오는 중…" : "카카오 일정 불러오기"}
+              <MessageCircle size={16} fill="currenColor" />
+              {kakaoLoading ? "불러오는 중…" : "카카오 일정"}
             </button>
             <button
               onClick={openCreateModal}
-              className="flex items-center gap-2 rounded-lg bg-hp-600 px-4 py-2 text-sm font-bold text-white hover:bg-hp-700"
+              className="flex h-10 shrink-0 items-center gap-2 rounded-lg bg-hp-600 px-4 text-sm font-bold text-white whitespace-nowrap
+      transition-colors hover:bg-hp-700"
             >
               <Plus size={16} />
               일정 추가
@@ -1034,7 +1037,7 @@ export default function CalendarPageClient() {
                 </div>
               ))}
             </div>
-            <div className="grid min-h-[32rem] flex-1 auto-rows-fr grid-cols-7 overflow-hidden rounded-b-2xl border border-hp-100">
+            <div className="grid flex-1 auto-rows-fr grid-cols-7 overflow-hidden rounded-b-2xl border border-hp-100">
               {calendarDays.map((day, index) => {
                 const cellDate = getCellDate(day, currentYear, currentMonth);
                 const cellDateKey = formatDateKey(cellDate.getFullYear(), cellDate.getMonth(), cellDate.getDate());
@@ -1059,7 +1062,7 @@ export default function CalendarPageClient() {
                       setCurrentDate(new Date(cellDate.getFullYear(), cellDate.getMonth(), 1));
                       setSelectedDate(cellDate.getDate());
                     }}
-                    className={`relative min-h-28 border-r border-b border-hp-100 p-2 text-left transition-colors ${
+                    className={`relative aspect-[1/0.8] min-h-0 border-r border-b border-hp-100 p-1.5 text-left transition-colors ${
                       day.currentMonth
                         ? isSelected
                           ? "bg-hp-50"
