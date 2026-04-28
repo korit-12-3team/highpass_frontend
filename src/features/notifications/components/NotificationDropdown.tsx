@@ -75,13 +75,11 @@ export default function NotificationDropdown({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
-      {/* 배경 투명하게 (클릭 시 닫힘을 위해 투명한 레이어 유지) */}
       <div 
         className="absolute inset-0 pointer-events-auto" 
         onClick={onClose}
       />
       
-      {/* 알림 팝업 창 (이 부분만 클릭 이벤트 발생) */}
       <div
         ref={modalRef}
         className="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] animate-in fade-in zoom-in duration-200 pointer-events-auto"

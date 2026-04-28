@@ -195,13 +195,11 @@ export default function KakaoCalendarPanel() {
 
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-yellow-300 bg-yellow-50 p-4">
-      {/* Header */}
       <div className="flex items-center gap-2">
         <span className="text-xl">💛</span>
         <h2 className="text-base font-semibold text-yellow-800">카카오톡 캘린더 연동</h2>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-1 rounded-xl bg-yellow-100 p-1">
         {tabs.map((t) => (
           <button
@@ -219,17 +217,14 @@ export default function KakaoCalendarPanel() {
         ))}
       </div>
 
-      {/* Loading bar */}
       {state.loading && (
         <div className="h-1 w-full overflow-hidden rounded-full bg-yellow-200">
           <div className="h-full w-1/2 animate-pulse rounded-full bg-yellow-400" />
         </div>
       )}
 
-      {/* Panel: 일정 */}
       {tab === "events" && (
         <div className="flex flex-col gap-4">
-          {/* Create Event */}
           <form onSubmit={handleCreateEvent} className="flex flex-col gap-2 rounded-xl border border-yellow-200 bg-white p-3">
             <p className="text-sm font-medium text-yellow-800">새 일정 추가</p>
             <input
@@ -282,7 +277,6 @@ export default function KakaoCalendarPanel() {
             </button>
           </form>
 
-          {/* Get Events */}
           <div className="flex flex-col gap-2 rounded-xl border border-yellow-200 bg-white p-3">
             <p className="text-sm font-medium text-yellow-800">일정 조회</p>
             <div className="flex gap-2">
@@ -323,10 +317,8 @@ export default function KakaoCalendarPanel() {
         </div>
       )}
 
-      {/* Panel: 할 일 */}
       {tab === "tasks" && (
         <div className="flex flex-col gap-4">
-          {/* Create Task */}
           <form onSubmit={handleCreateTask} className="flex flex-col gap-2 rounded-xl border border-yellow-200 bg-white p-3">
             <p className="text-sm font-medium text-yellow-800">새 할 일 추가</p>
             <input
@@ -357,7 +349,6 @@ export default function KakaoCalendarPanel() {
             </button>
           </form>
 
-          {/* Get Tasks */}
           <div className="flex flex-col gap-2 rounded-xl border border-yellow-200 bg-white p-3">
             <p className="text-sm font-medium text-yellow-800">할 일 조회</p>
             <div className="flex gap-2">
@@ -395,7 +386,6 @@ export default function KakaoCalendarPanel() {
         </div>
       )}
 
-      {/* Panel: 생일 */}
       {tab === "birthdays" && (
         <div className="flex flex-col gap-3 rounded-xl border border-yellow-200 bg-white p-3">
           <p className="text-sm font-medium text-yellow-800">친구 생일 조회</p>
@@ -422,7 +412,6 @@ export default function KakaoCalendarPanel() {
         </div>
       )}
 
-      {/* Panel: 현재 시각 */}
       {tab === "time" && (
         <div className="flex flex-col items-center gap-4 rounded-xl border border-yellow-200 bg-white p-6">
           <p className="text-sm font-medium text-yellow-800">카카오 서버 현재 시각</p>

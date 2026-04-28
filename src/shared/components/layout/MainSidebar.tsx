@@ -55,20 +55,20 @@ export default function MainSidebar({
   const unreadNotiCount = notifications?.filter((notification) => !notification.isRead).length ?? 0;
 
   return (
-    <aside className="relative z-10 hidden w-64 flex-col border-r border-[#b8dff3] bg-[linear-gradient(180deg,#f8fcff_0%,#e8f6ff_48%,#d5ebf7_100%)] shadow-xl md:flex">
-      <div className="p-5">
-        <h1 className="flex items-center gap-3 p-3 text-2xl font-black text-[#123b5c]">
+    <aside className="relative z-10 hidden w-20 flex-col border-r border-[#b8dff3] bg-[linear-gradient(180deg,#f8fcff_0%,#e8f6ff_48%,#d5ebf7_100%)] shadow-xl transition-all duration-300 ease-in-out md:flex xl:w-64 group">
+      <div className="p-5 flex flex-col items-center xl:items-start">
+        <h1 className="flex items-center gap-3 p-3 text-2xl font-black text-[#123b5c] overflow-hidden">
           <Image
             src="/images/Highpass_icon.png"
             alt="HighPass"
             width={40}
             height={40}
-            className="h-10 w-10 object-contain"
+            className="h-10 w-10 shrink-0 object-contain"
             priority
           />
-          HIGHPASS
+          <span className="hidden xl:inline">HIGHPASS</span>
         </h1>
-        <div className="mt-3 border-t border-[#b8dff3]/90" />
+        <div className="mt-3 w-full border-t border-[#b8dff3]/90" />
       </div>
 
       <nav className="flex-1 space-y-1.5 overflow-y-auto px-4">
@@ -78,24 +78,26 @@ export default function MainSidebar({
             <button
               key={item.href}
               onClick={() => startTransition(() => onNavigate(item.href))}
-              className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left transition ${
+              className={`flex w-full items-center justify-center xl:justify-start gap-3 rounded-lg px-4 py-3 text-left transition-all ${
                 active
                   ? "bg-[#123b5c] text-white shadow-sm shadow-[#0d3d62]/20"
                   : "text-slate-700 hover:bg-white/75 hover:text-[#123b5c]"
               }`}
+              title={item.label}
             >
-              <span className={active ? "text-[#8ccaf7]" : "text-[#2e668d]"}>
+              <span className={`shrink-0 ${active ? "text-[#8ccaf7]" : "text-[#2e668d]"}`}>
                 {item.icon}
               </span>
-              <span className="min-w-0 text-sm font-black">{item.label}</span>
+              <span className="min-w-0 text-sm font-black hidden xl:inline">{item.label}</span>
             </button>
           );
         })}
 
-        <div className="pb-2 pt-5">
-          <p className="px-4 text-[10px] font-black uppercase tracking-widest text-[#5f8bab]">
+        <div className="pb-2 pt-5 flex justify-center xl:justify-start">
+          <p className="px-4 text-[10px] font-black uppercase tracking-widest text-[#5f8bab] hidden xl:block">
             Community
           </p>
+          <div className="h-px w-8 bg-[#b8dff3]/50 xl:hidden" />
         </div>
 
         {communityItems.map((item) => {
@@ -104,28 +106,31 @@ export default function MainSidebar({
             <button
               key={item.href}
               onClick={() => startTransition(() => onNavigate(item.href))}
-              className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left transition ${
+              className={`flex w-full items-center justify-center xl:justify-start gap-3 rounded-lg px-4 py-3 text-left transition-all ${
                 active
                   ? "bg-[#123b5c] text-white shadow-sm shadow-[#0d3d62]/20"
                   : "text-slate-700 hover:bg-white/75 hover:text-[#123b5c]"
               }`}
+              title={item.label}
             >
-              <span className={active ? "text-[#8ccaf7]" : "text-[#2e668d]"}>
+              <span className={`shrink-0 ${active ? "text-[#8ccaf7]" : "text-[#2e668d]"}`}>
                 {item.icon}
               </span>
-              <span className="min-w-0 text-sm font-black">{item.label}</span>
+              <span className="min-w-0 text-sm font-black hidden xl:inline">{item.label}</span>
               {item.href === "/chat" && unreadChatCount > 0 ? (
-                <span className="ml-auto rounded-full bg-[#1b7fba] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                <span className="ml-auto rounded-full bg-[#1b7fba] px-1.5 py-0.5 text-[10px] font-bold text-white xl:block hidden">
                   {unreadChatCount > 99 ? "99+" : unreadChatCount}
                 </span>
+              ) : null}
+              {item.href === "/chat" && unreadChatCount > 0 ? (
+                <span className="absolute top-2 right-2 flex h-2 w-2 rounded-full bg-red-500 xl:hidden" />
               ) : null}
             </button>
           );
         })}
       </nav>
-
-      {/* 알림 버튼 추가 */}
-      <div className="mx-4 mb-2 flex justify-end">
+ 
+      <div className="mx-4 mb-2 flex justify-center xl:justify-end">
         <div className="relative">
           <button
             onClick={() => setShowNotifications(!showNotifications)}
@@ -159,12 +164,13 @@ export default function MainSidebar({
         <button
           type="button"
           onClick={onLogout}
-          className="flex w-full items-center rounded-2xl border border-[#dcecf7] bg-white/80 px-4 py-3 text-sm font-black text-[#123b5c] shadow-sm shadow-[#0d3d62]/8 transition hover:border-[#b7d8ec] hover:bg-white hover:text-[#0d3d62]"
+          className="flex w-full items-center justify-center xl:justify-start rounded-2xl border border-[#dcecf7] bg-white/80 px-4 py-3 text-sm font-black text-[#123b5c] shadow-sm shadow-[#0d3d62]/8 transition hover:border-[#b7d8ec] hover:bg-white hover:text-[#0d3d62]"
           aria-label="로그아웃"
+          title="로그아웃"
         >
-          <span className="flex w-full items-center justify-center gap-2.5 pr-1">
+          <span className="flex items-center justify-center gap-2.5 xl:pr-1">
             <X size={15} className="shrink-0 text-[#2e668d]" />
-            <span className="min-w-[68px] text-left">로그아웃</span>
+            <span className="hidden xl:inline min-w-[68px] text-left">로그아웃</span>
           </span>
         </button>
       </div>

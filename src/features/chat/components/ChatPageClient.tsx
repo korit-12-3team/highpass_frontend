@@ -311,7 +311,6 @@ export default function ChatPageClient() {
         </div>
       ) : (
         <div className="flex gap-4" style={{ height: "calc(100vh - 11rem)" }}>
-          {/* 채팅방 목록 */}
           <div className="flex w-64 shrink-0 flex-col overflow-hidden rounded-2xl border bg-white shadow-sm">
             <div className="border-b p-4">
               <p className="font-bold text-slate-800">Rooms</p>
@@ -344,11 +343,9 @@ export default function ChatPageClient() {
             </div>
           </div>
 
-          {/* 활성 채팅방 */}
           {activeRoom ? (
             <>
               <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border bg-white shadow-sm">
-                {/* 채팅방 헤더 */}
                 <div className="flex items-center gap-3 border-b p-4">
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-hp-100 text-sm font-bold text-hp-600">
                     {getRoomDisplayName(activeRoom).substring(0, 1) || "R"}
@@ -356,7 +353,6 @@ export default function ChatPageClient() {
                   <p className="flex-1 font-bold text-slate-800">{getRoomDisplayName(activeRoom)}</p>
                 </div>
 
-                {/* 참여 승인 대기 상태 */}
                 {activeRoom.participants?.find((participant) => Number(participant.userId) === Number(currentUser?.id))
                   ?.status === "PENDING" ? (
                   <div className="flex flex-1 flex-col items-center justify-center bg-slate-50 p-10 text-center">
@@ -469,7 +465,6 @@ export default function ChatPageClient() {
                 )}
               </div>
 
-              {/* 그룹 채팅방 정보 패널 */}
               {activeRoom.type === "GROUP" && (
                 <div className="flex w-56 shrink-0 flex-col overflow-hidden rounded-2xl border bg-white shadow-sm">
                   <div className="border-b p-4">
@@ -477,7 +472,6 @@ export default function ChatPageClient() {
                   </div>
 
                   <div className="flex-1 overflow-y-auto p-3">
-                    {/* 방장 전용: 참여 승인 요청 목록 */}
                     {activeRoom.ownerId === Number(currentUser?.id) && (
                       <>
                         <div className="mb-2 flex items-center gap-1 text-[11px] font-bold uppercase text-slate-400">
@@ -526,7 +520,6 @@ export default function ChatPageClient() {
                       </>
                     )}
 
-                    {/* 참여자 목록 */}
                     <div className="mb-2 text-[11px] font-bold uppercase text-slate-400">Participants</div>
                     <div className="mb-3 space-y-1">
                       {activeRoom.participants?.filter((participant) => participant.status === "JOINED").map((participant) => (
@@ -565,7 +558,6 @@ export default function ChatPageClient() {
                       ))}
                     </div>
 
-                    {/* 방장 전용: 채팅방 이름 변경 */}
                     {activeRoom.ownerId === Number(currentUser?.id) && (
                       <>
                         <div className="mb-3 border-t border-slate-100" />
@@ -615,7 +607,6 @@ export default function ChatPageClient() {
                     )}
                   </div>
 
-                  {/* 나가기 버튼 */}
                   <div className="border-t p-3">
                     <button
                       onClick={() => void handleLeaveRoom()}

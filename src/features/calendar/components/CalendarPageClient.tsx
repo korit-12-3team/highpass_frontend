@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowRight, CheckCircle2, Circle, GripVertical, Pencil, Plus, Trash2, Zap, MessageCircle} from "lucide-react";
+import { ArrowRight, CheckCircle2, Circle, GripVertical, Pencil, Plus, Trash2, Zap, MessageCircle, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { EventType, TodoItem, useApp } from "@/shared/context/AppContext";
 import {
   createCalendarEvent,
@@ -241,6 +241,8 @@ export default function CalendarPageClient() {
   const { currentUser, events, setEvents, todos, setTodos } = useApp();
   const inputRef = useRef<HTMLInputElement>(null);
   const monthInputRef = useRef<HTMLInputElement>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isOverlay, setIsOverlay] = useState(false);
   const requestedYear = searchParams.get("year");
   const requestedMonth = searchParams.get("month");
   const searchParamsString = searchParams.toString();
@@ -276,6 +278,20 @@ export default function CalendarPageClient() {
     certificate: true,
   });
   const kakaoCalendarConnectUrl = `${API_BASE_URL}/oauth2/authorization/kakao-calendar`;
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      const shouldBeOverlay = width <= 1000;
+      
+      setIsOverlay(shouldBeOverlay);
+      setIsSidebarOpen(!shouldBeOverlay); // 1000px 초과면 열기, 이하면 닫기
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
@@ -896,8 +912,8 @@ export default function CalendarPageClient() {
   if (!mounted) return null;
 
   return (
-    <div className="animate-in fade-in flex h-full flex-col gap-4 duration-500 lg:flex-row">
-      <div className="flex flex-1 flex-col rounded-2xl border border-hp-100 bg-white p-5 shadow-sm">
+    <div className="animate-in fade-in flex h-full flex-col gap-4 duration-500 md:flex-row">
+      <div className="flex flex-1 flex-col rounded-2xl border border-hp-100 bg-white p-5 shadow-sm transition-all duration-300">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-y-4">
           <div className="flex items-center gap-4">
             <div className="w-[210px] shrink-0">
@@ -977,7 +993,7 @@ export default function CalendarPageClient() {
               className="flex h-10 shrink-0 items-center gap-2 rounded-lg bg-[#FEE500] px-4 text-sm font-bold text-[#191919]
       whitespace-nowrap transition-colors hover:bg-[#FADA00] disabled:opacity-50"
             >
-              <MessageCircle size={16} fill="currenColor" />
+              <MessageCircle size={16} fill="currentColor" />
               {kakaoLoading ? "불러오는 중…" : "카카오 일정"}
             </button>
             <button
@@ -1144,92 +1160,120 @@ export default function CalendarPageClient() {
         )}
       </div>
 
-      <aside className="relative z-20 flex h-[calc(100vh-4rem)] w-full flex-col overflow-hidden rounded-2xl border border-hp-100 bg-white p-5 shadow-2xl lg:w-80">
-          <div className="-m-5 mb-3 border-b border-hp-100 bg-gradient-to-r from-hp-50 via-white to-white px-5 py-4">
-            <h3 className="mt-1 text-lg font-black text-slate-900">일정 및 할 일</h3>
-          </div>
-          <div className="mt-2 flex flex-1 flex-col overflow-hidden">
-            <div className="mb-2 flex items-center justify-between px-1">
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Events</p>
-              <span className="rounded-full bg-hp-100 px-2.5 py-1 text-[11px] font-bold text-hp-700">{selectedEvents.length}</span>
+      {isOverlay && !isSidebarOpen && (
+        <button
+          onClick={() => setIsSidebarOpen(true)}
+          className="fixed bottom-8 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-hp-600 text-white shadow-2xl transition-transform hover:scale-110 active:scale-95 md:bottom-12 md:right-10"
+          aria-label="Todo 열기"
+        >
+          <ChevronLeft size={28} />
+        </button>
+      )}
+
+      <div className={isOverlay ? "contents" : `relative flex transition-all duration-300 ease-in-out ${isSidebarOpen ? "w-80" : "w-0 overflow-visible"}`}>
+        {isOverlay && isSidebarOpen && (
+          <div className="fixed inset-0 z-40 bg-slate-900/10 backdrop-blur-[2px]" onClick={() => setIsSidebarOpen(false)} />
+        )}
+        <aside className={isOverlay 
+          ? `fixed inset-y-0 right-0 z-50 flex w-80 flex-col bg-white p-5 shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.1)] transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "translate-x-full"}`
+          : `relative z-20 flex h-full flex-col overflow-hidden rounded-2xl border border-hp-100 bg-white shadow-2xl transition-all duration-300 ${isSidebarOpen ? "w-80 p-5 opacity-100" : "w-0 p-0 opacity-0 border-0"}`
+        }>
+          {isOverlay && (
+            <button 
+              onClick={() => setIsSidebarOpen(false)} 
+              className="absolute right-4 top-4 rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+            >
+              <X size={20} />
+            </button>
+          )}
+          <div className="w-72">
+            <div className="-m-5 mb-3 border-b border-hp-100 bg-gradient-to-r from-hp-50 via-white to-white px-5 py-4">
+              <h3 className="mt-1 text-lg font-black text-slate-900">일정 및 할 일</h3>
             </div>
-            <div className="max-h-[38%] overflow-y-auto rounded-2xl bg-slate-50/80 p-2 pr-1">
-            {calendarLoading ? <div className="mb-4 rounded-xl border border-dashed border-hp-200 p-4 text-sm text-slate-500">
-              일정을 불러오는 중입니다...
-              </div> : selectedEvents.length === 0 ? 
-                <div className="mb-4 rounded-xl border border-dashed border-hp-200 p-4 text-sm text-slate-500">
-                  선택한 날짜에 등록된 일정이 없습니다.
-                  </div> : selectedEvents.map((event) => (
-                    <div key={event.id} onClick={() => setSelectedEvent(event)} className="group relative mb-3 flex cursor-pointer gap-3 overflow-hidden rounded-xl border border-hp-100 bg-white p-3.5 shadow-sm transition-colors hover:border-hp-300">
-                      <div className={`w-1.5 rounded-full ${getDisplayEventColor(event)}`}></div>
-                      <div className="flex-1">
-                        <p className="mb-1 text-[10px] font-bold text-slate-400">
-                          {event.isAllDay ? "종일" : `${event.startTime} ~ ${event.endTime}`}
-                        </p>
-                        <p className="text-sm font-bold">{event.title}</p>
-                      </div>
-                      <div className="absolute right-3 top-3 flex gap-1 opacity-0 transition-all group-hover:opacity-100">
-                        <button onClick={(e) => { e.stopPropagation(); openEditModal(event); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-hp-600"><Pencil size={16} /></button>
-                        <button onClick={(e) => { e.stopPropagation(); requestDeleteEvent(event); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-red-500"><Trash2 size={16} /></button>
-                      </div>
-                    </div>
-            ))}
-            </div>
-            <div className="mt-3 flex flex-1 flex-col overflow-hidden">
+            <div className="mt-2 flex flex-1 flex-col overflow-hidden">
               <div className="mb-2 flex items-center justify-between px-1">
-                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Todos</p>
-                <span className="rounded-full bg-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700">{selectedTodos.length}</span>
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Events</p>
+                <span className="rounded-full bg-hp-100 px-2.5 py-1 text-[11px] font-bold text-hp-700">{selectedEvents.length}</span>
               </div>
-              <div className="mb-4 flex-1 overflow-y-auto rounded-2xl bg-slate-50/80 p-2 pr-1">
-                <div className="space-y-2">
-                {selectedTodos.length === 0 ? <div className="flex h-full flex-col items-center justify-center text-slate-400 opacity-60"><Zap size={32} className="mb-3" /><p className="text-sm font-medium">이 날짜에 등록된 할 일이 없습니다.</p></div> : selectedTodos.map((todo) => (
-                  <div
-                    key={todo.id}
-                    draggable={editingTodoId !== todo.id}
-                    onDragStart={(event) => handleTodoDragStart(event, todo.id)}
-                    onDragOver={(event) => handleTodoDragOver(event, todo.id)}
-                    onDrop={(event) => handleTodoDrop(event, todo.id)}
-                    onDragEnd={resetTodoDragState}
-                    className={`group flex items-start gap-3 rounded-xl border border-hp-100 bg-white p-3.5 shadow-sm transition ${todo.done ? "opacity-50" : ""} ${draggedTodoId === todo.id ? "scale-[0.98] border-hp-300 opacity-70" : ""} ${dropTargetTodoId === todo.id && draggedTodoId !== todo.id ? "border-hp-500 ring-2 ring-hp-100" : ""}`}
-                  >
-                    <div className={`mt-0.5 cursor-grab text-slate-300 active:cursor-grabbing ${editingTodoId === todo.id ? "pointer-events-none opacity-30" : "hover:text-hp-500"}`} aria-hidden="true">
-                      <GripVertical size={18} />
+              <div className="max-h-[38%] overflow-y-auto rounded-2xl bg-slate-50/80 p-2 pr-1">
+              {calendarLoading ? <div className="mb-4 rounded-xl border border-dashed border-hp-200 p-4 text-sm text-slate-500">
+                일정을 불러오는 중입니다...
+                </div> : selectedEvents.length === 0 ? 
+                  <div className="mb-4 rounded-xl border border-dashed border-hp-200 p-4 text-sm text-slate-500">
+                    선택한 날짜에 등록된 일정이 없습니다.
+                    </div> : selectedEvents.map((event) => (
+                      <div key={event.id} onClick={() => setSelectedEvent(event)} className="group relative mb-3 flex cursor-pointer gap-3 overflow-hidden rounded-xl border border-hp-100 bg-white p-3.5 shadow-sm transition-colors hover:border-hp-300">
+                        <div className={`w-1.5 rounded-full ${getDisplayEventColor(event)}`}></div>
+                        <div className="flex-1">
+                          <p className="mb-1 text-[10px] font-bold text-slate-400">
+                            {event.isAllDay ? "종일" : `${event.startTime} ~ ${event.endTime}`}
+                          </p>
+                          <p className="text-sm font-bold">{event.title}</p>
+                        </div>
+                        <div className="absolute right-3 top-3 flex gap-1 opacity-0 transition-all group-hover:opacity-100">
+                          <button onClick={(e) => { e.stopPropagation(); openEditModal(event); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-hp-600"><Pencil size={16} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); requestDeleteEvent(event); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-red-500"><Trash2 size={16} /></button>
+                        </div>
+                      </div>
+              ))}
+              </div>
+              <div className="mt-3 flex flex-1 flex-col overflow-hidden">
+                <div className="mb-2 flex items-center justify-between px-1">
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Todos</p>
+                  <span className="rounded-full bg-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700">{selectedTodos.length}</span>
+                </div>
+                <div className="mb-4 flex-1 overflow-y-auto rounded-2xl bg-slate-50/80 p-2 pr-1">
+                  <div className="space-y-2">
+                  {selectedTodos.length === 0 ? <div className="flex h-full flex-col items-center justify-center text-slate-400 opacity-60"><Zap size={32} className="mb-3" /><p className="text-sm font-medium">이 날짜에 등록된 할 일이 없습니다.</p></div> : selectedTodos.map((todo) => (
+                    <div
+                      key={todo.id}
+                      draggable={editingTodoId !== todo.id}
+                      onDragStart={(event) => handleTodoDragStart(event, todo.id)}
+                      onDragOver={(event) => handleTodoDragOver(event, todo.id)}
+                      onDrop={(event) => handleTodoDrop(event, todo.id)}
+                      onDragEnd={resetTodoDragState}
+                      className={`group flex items-start gap-3 rounded-xl border border-hp-100 bg-white p-3.5 shadow-sm transition ${todo.done ? "opacity-50" : ""} ${draggedTodoId === todo.id ? "scale-[0.98] border-hp-300 opacity-70" : ""} ${dropTargetTodoId === todo.id && draggedTodoId !== todo.id ? "border-hp-500 ring-2 ring-hp-100" : ""}`}
+                    >
+                      <div className={`mt-0.5 cursor-grab text-slate-300 active:cursor-grabbing ${editingTodoId === todo.id ? "pointer-events-none opacity-30" : "hover:text-hp-500"}`} aria-hidden="true">
+                        <GripVertical size={18} />
+                      </div>
+                      <button onClick={() => handleToggleTodo(todo.id)} className="mt-0.5">
+                        {todo.done ? <CheckCircle2 size={20} className="text-slate-500" /> : <Circle size={20} className="text-slate-300" />}
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        {editingTodoId === todo.id ? <input type="text" value={editingTodoText} onChange={(e) => setEditingTodoText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void handleSubmitTodoEdit(); } if (e.key === "Escape") cancelTodoEdit(); }} className="w-full rounded-lg border border-hp-200 px-2.5 py-1.5 text-sm font-medium outline-none focus:border-hp-500" autoFocus /> : <p className={`text-sm ${todo.done ? "line-through text-slate-500" : "font-bold"}`}>{todo.text}</p>}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {editingTodoId === todo.id ? 
+                        <>
+                          <button onClick={() => void handleSubmitTodoEdit()} className="rounded-md px-2 py-1 text-[11px] font-bold text-hp-600 hover:bg-hp-50">
+                            저장
+                          </button>
+                          <button onClick={cancelTodoEdit} className="rounded-md px-2 py-1 text-[11px] font-bold text-slate-400 hover:bg-slate-100">
+                            취소
+                          </button>
+                        </> : 
+                        <>
+                          <button onClick={() => startTodoEdit(todo)} className="text-slate-300 opacity-0 hover:text-hp-600 group-hover:opacity-100">
+                            <Pencil size={16} />
+                          </button>
+                          <button onClick={() => requestDeleteTodo(todo)} className="text-slate-300 opacity-0 hover:text-red-500 group-hover:opacity-100">
+                            <Trash2 size={16} /></button>
+                        </>}
+                      </div>
                     </div>
-                    <button onClick={() => handleToggleTodo(todo.id)} className="mt-0.5">
-                      {todo.done ? <CheckCircle2 size={20} className="text-slate-500" /> : <Circle size={20} className="text-slate-300" />}
-                    </button>
-                    <div className="min-w-0 flex-1">
-                      {editingTodoId === todo.id ? <input type="text" value={editingTodoText} onChange={(e) => setEditingTodoText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void handleSubmitTodoEdit(); } if (e.key === "Escape") cancelTodoEdit(); }} className="w-full rounded-lg border border-hp-200 px-2.5 py-1.5 text-sm font-medium outline-none focus:border-hp-500" autoFocus /> : <p className={`text-sm ${todo.done ? "line-through text-slate-500" : "font-bold"}`}>{todo.text}</p>}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {editingTodoId === todo.id ? 
-                      <>
-                        <button onClick={() => void handleSubmitTodoEdit()} className="rounded-md px-2 py-1 text-[11px] font-bold text-hp-600 hover:bg-hp-50">
-                          저장
-                        </button>
-                        <button onClick={cancelTodoEdit} className="rounded-md px-2 py-1 text-[11px] font-bold text-slate-400 hover:bg-slate-100">
-                          취소
-                        </button>
-                      </> : 
-                      <>
-                        <button onClick={() => startTodoEdit(todo)} className="text-slate-300 opacity-0 hover:text-hp-600 group-hover:opacity-100">
-                          <Pencil size={16} />
-                        </button>
-                        <button onClick={() => requestDeleteTodo(todo)} className="text-slate-300 opacity-0 hover:text-red-500 group-hover:opacity-100">
-                          <Trash2 size={16} /></button>
-                      </>}
-                    </div>
+                  ))}
                   </div>
-                ))}
+                </div>
+                <div className="mt-auto flex items-center rounded-xl border-2 border-hp-200 bg-hp-50 px-3 shadow-sm focus-within:border-hp-600">
+                  <Plus size={20} className="text-slate-400" />
+                  <input ref={inputRef} type="text" value={newTodoText} onChange={(e) => setNewTodoText(e.target.value)} onKeyDown={handleAddTodo} placeholder="할 일을 입력하고 Enter를 누르세요" className="w-full bg-transparent px-2 py-4 text-sm font-bold outline-none placeholder:font-normal" />
                 </div>
               </div>
-              <div className="mt-auto flex items-center rounded-xl border-2 border-hp-200 bg-hp-50 px-3 shadow-sm focus-within:border-hp-600">
-                <Plus size={20} className="text-slate-400" />
-                <input ref={inputRef} type="text" value={newTodoText} onChange={(e) => setNewTodoText(e.target.value)} onKeyDown={handleAddTodo} placeholder="할 일을 입력하고 Enter를 누르세요" className="w-full bg-transparent px-2 py-4 text-sm font-bold outline-none placeholder:font-normal" />
-              </div>
             </div>
           </div>
-      </aside>
+        </aside>
+      </div>
 
       <CalendarEventModal
         open={eventModalOpen}
