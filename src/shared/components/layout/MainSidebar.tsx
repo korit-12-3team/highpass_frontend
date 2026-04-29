@@ -114,17 +114,21 @@ export default function MainSidebar({
               }`}
               title={item.label}
             >
-              <span className={`shrink-0 ${active ? "text-[#8ccaf7]" : "text-[#2e668d]"}`}>
-                {item.icon}
-              </span>
+              <div className="relative">
+                <span className={`shrink-0 ${active ? "text-[#8ccaf7]" : "text-[#2e668d]"}`}>
+                  {item.icon}
+                </span>
+                {item.href === "/chat" && unreadChatCount > 0 && (
+                  <span className="absolute -right-2 -top-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#1b7fba] px-1 text-[9px] font-bold text-white xl:hidden shadow-sm">
+                    {unreadChatCount > 99 ? "99+" : unreadChatCount}
+                  </span>
+                )}
+              </div>
               <span className="min-w-0 text-sm font-black hidden xl:inline">{item.label}</span>
               {item.href === "/chat" && unreadChatCount > 0 ? (
                 <span className="ml-auto rounded-full bg-[#1b7fba] px-1.5 py-0.5 text-[10px] font-bold text-white xl:block hidden">
                   {unreadChatCount > 99 ? "99+" : unreadChatCount}
                 </span>
-              ) : null}
-              {item.href === "/chat" && unreadChatCount > 0 ? (
-                <span className="absolute top-2 right-2 flex h-2 w-2 rounded-full bg-red-500 xl:hidden" />
               ) : null}
             </button>
           );

@@ -128,6 +128,39 @@ export async function listCalendarEvents(userId: string): Promise<EventType[]> {
   return payload.map(mapApiRecordToEvent);
 }
 
+export interface HolidayDto {
+  date: string;
+  localName: string;
+}
+
+export async function listHolidays(year: number): Promise<EventType[]> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/api/calendar/holidays/${year}`, {
+    method: "GET",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to load holidays.");
+  }
+
+  const data = (await response.json()) as HolidayDto[];
+  return data.map((holiday) => {
+    const date = new Date(holiday.date);
+    return {
+      id: `holiday-${holiday.date}`,
+      title: holiday.localName,
+      content: "공휴일",
+      month: date.getMonth(),
+      startDay: date.getDate(),
+      endDay: date.getDate(),
+      startDate: holiday.date,
+      endDate: holiday.date,
+      color: "bg-red-500", // 공휴일은 빨간색 배경으로 표시
+      isAllDay: true,
+      kind: "general",
+    };
+  });
+}
+
 export async function createCalendarEvent(input: CreateCalendarEventInput): Promise<EventType> {
   const response = await fetchWithAuth(`${API_BASE_URL}/api/calendar/${input.userId}`, {
     method: "POST",

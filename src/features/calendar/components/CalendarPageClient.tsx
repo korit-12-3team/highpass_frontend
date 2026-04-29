@@ -8,6 +8,7 @@ import { EventType, TodoItem, useApp } from "@/shared/context/AppContext";
 import {
   createCalendarEvent,
   listCalendarEvents,
+  listHolidays,
   removeCalendarEvent,
   updateCalendarEvent,
 } from "@/features/calendar/api/calendar";
@@ -266,6 +267,7 @@ export default function CalendarPageClient() {
   const [editingTodoText, setEditingTodoText] = useState("");
   const [draggedTodoId, setDraggedTodoId] = useState<number | null>(null);
   const [dropTargetTodoId, setDropTargetTodoId] = useState<number | null>(null);
+  const [draggedEventId, setDraggedEventId] = useState<string | null>(null);
   const [calendarError, setCalendarError] = useState("");
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [savingEvent, setSavingEvent] = useState(false);
@@ -354,7 +356,6 @@ export default function CalendarPageClient() {
     }
   }, [currentMonth, currentYear, mounted, pathname, router, searchParamsString]);
 
-  // 카카오 로그인 직후: 앱 일정 비우고 카카오 캘린더 자동 로드
   useEffect(() => {
     if (!mounted || !currentUser) return;
     if (searchParams.get("kakao_login") !== "1") return;
@@ -365,7 +366,6 @@ export default function CalendarPageClient() {
     const nextUrl = params.toString() ? `${pathname}?${params}` : pathname;
     router.replace(nextUrl, { scroll: false });
 
-    // 앱 일정 비우고 카카오 일정 로드
     setEvents([]);
     void (async () => {
       setKakaoLoading(true);
@@ -436,8 +436,11 @@ export default function CalendarPageClient() {
       try {
         setCalendarLoading(true);
         setCalendarError("");
-        const loaded = await listCalendarEvents(currentUser.id);
-        if (!cancelled) setEvents(loaded);
+        const [loadedEvents, loadedHolidays] = await Promise.all([
+          listCalendarEvents(currentUser.id),
+          listHolidays(currentYear),
+        ]);
+        if (!cancelled) setEvents([...loadedEvents, ...loadedHolidays]);
       } catch (error) {
         if (!cancelled) {
           setCalendarError(error instanceof Error ? error.message : "Failed to load calendar events.");
@@ -450,7 +453,7 @@ export default function CalendarPageClient() {
     return () => {
       cancelled = true;
     };
-  }, [currentUser, setEvents]);
+  }, [currentUser, setEvents, currentYear]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -554,6 +557,65 @@ export default function CalendarPageClient() {
 
     syncTodoList(selectedDateKey, (items: TodoItem[]) => reorderTodos(items, sourceId, todoId));
     resetTodoDragState();
+  };
+
+  const handleEventDragStart = (e: React.DragEvent, eventId: string) => {
+    const event = events.find((ev) => ev.id === eventId);
+    if (!event || eventId.startsWith("holiday-") || eventId.startsWith("kakao_") || event.kind === "certificate") {
+      e.preventDefault();
+      return;
+    }
+    setDraggedEventId(eventId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", eventId);
+  };
+
+  const handleEventDragOver = (e: React.DragEvent) => {
+    if (draggedEventId) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+    }
+  };
+
+  const handleEventDrop = async (e: React.DragEvent, targetDateKey: string) => {
+    e.preventDefault();
+    if (!draggedEventId) return;
+
+    const eventToMove = events.find((ev) => ev.id === draggedEventId);
+    if (!eventToMove || !eventToMove.startDate) {
+      setDraggedEventId(null);
+      return;
+    }
+
+    const oldStart = new Date(eventToMove.startDate);
+    const newStart = new Date(targetDateKey);
+    const diffTime = newStart.getTime() - oldStart.getTime();
+    
+    const nextStartDate = targetDateKey;
+    const nextEndDate = eventToMove.endDate 
+      ? formatDateKey(new Date(new Date(eventToMove.endDate).getTime() + diffTime).getFullYear(), new Date(new Date(eventToMove.endDate).getTime() + diffTime).getMonth(), new Date(new Date(eventToMove.endDate).getTime() + diffTime).getDate())
+      : targetDateKey;
+
+    try {
+      const updated = await updateCalendarEvent({
+        calendarId: eventToMove.id,
+        title: eventToMove.title,
+        content: eventToMove.content,
+        startDate: nextStartDate,
+        endDate: nextEndDate,
+        isAllDay: eventToMove.isAllDay,
+        startTime: eventToMove.startTime,
+        endTime: eventToMove.endTime,
+        kind: eventToMove.kind,
+      });
+
+      setEvents((prev) => prev.map((ev) => (ev.id === draggedEventId ? updated : ev)));
+      toast.success("일정이 이동되었습니다.");
+    } catch (error) {
+      toast.error("일정 이동에 실패했습니다.");
+    } finally {
+      setDraggedEventId(null);
+    }
   };
 
   const loadKakaoEvents = async () => {
@@ -1078,6 +1140,8 @@ export default function CalendarPageClient() {
                       setCurrentDate(new Date(cellDate.getFullYear(), cellDate.getMonth(), 1));
                       setSelectedDate(cellDate.getDate());
                     }}
+                    onDragOver={handleEventDragOver}
+                    onDrop={(e) => handleEventDrop(e, cellDateKey)}
                     className={`relative aspect-[1/0.8] min-h-0 border-r border-b border-hp-100 p-1.5 text-left transition-colors ${
                       day.currentMonth
                         ? isSelected
@@ -1125,14 +1189,18 @@ export default function CalendarPageClient() {
                           const isSingleDay = segment.startsToday && segment.endsToday;
                           const labelStyle = getEventLabelStyle(event, cellDateKey, weekStartDate, currentYear);
                           const showMultiDayLabel = shouldShowEventLabel(event, cellDateKey, weekStartDate, currentYear);
+                          const isDraggable = !event.id.startsWith("holiday-") && !event.id.startsWith("kakao_") && event.kind !== "certificate";
+
                           return (
                             <div
                               key={`${day.key}-${event.id}`}
-                              className={`relative flex h-5 items-center text-[10px] font-semibold text-white ${getDisplayEventColor(event)} ${day.currentMonth ? "" : "opacity-45"} ${isSingleDay ? "overflow-hidden rounded-md" : segment.startsToday ? "z-10 -mr-3 overflow-visible rounded-l-md rounded-r-none pr-3" : segment.endsToday ? "-ml-3 overflow-hidden rounded-l-none rounded-r-md pl-3" : "-mx-3 overflow-hidden rounded-none px-3"}`}
+                              draggable={isDraggable}
+                              onDragStart={(e) => handleEventDragStart(e, event.id)}
+                              className={`relative flex h-5 items-center text-[10px] font-semibold text-white ${getDisplayEventColor(event)} ${day.currentMonth ? "" : "opacity-45"} ${isSingleDay ? "overflow-hidden rounded-md" : segment.startsToday ? "z-10 -mr-3 overflow-visible rounded-l-md rounded-r-none pr-3" : segment.endsToday ? "-ml-3 overflow-hidden rounded-l-none rounded-r-md pl-3" : "-mx-3 overflow-hidden rounded-none px-3"} ${isDraggable ? "cursor-move" : ""}`}
                             >
                               {isSingleDay ? (
                                 <span className="truncate px-1">{event.title}</span>
-                              ) : showMultiDayLabel ? (
+                              ) : segment.startsToday ? (
                                 <span
                                   className="pointer-events-none absolute z-20 truncate px-1 leading-5"
                                   style={labelStyle}
@@ -1192,7 +1260,7 @@ export default function CalendarPageClient() {
             </div>
             <div className="mt-2 flex flex-1 flex-col overflow-hidden">
               <div className="mb-2 flex items-center justify-between px-1">
-                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Events</p>
+                <p className="text-[13px] font-black uppercase tracking-[0.18em] text-slate-500">- 일정 -</p>
                 <span className="rounded-full bg-hp-100 px-2.5 py-1 text-[11px] font-bold text-hp-700">{selectedEvents.length}</span>
               </div>
               <div className="max-h-[38%] overflow-y-auto rounded-2xl bg-slate-50/80 p-2 pr-1">
@@ -1219,7 +1287,7 @@ export default function CalendarPageClient() {
               </div>
               <div className="mt-3 flex flex-1 flex-col overflow-hidden">
                 <div className="mb-2 flex items-center justify-between px-1">
-                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Todos</p>
+                  <p className="text-[13px] font-black uppercase tracking-[0.18em] text-slate-500">- 오늘 할 일 -</p>
                   <span className="rounded-full bg-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700">{selectedTodos.length}</span>
                 </div>
                 <div className="mb-4 flex-1 overflow-y-auto rounded-2xl bg-slate-50/80 p-2 pr-1">
