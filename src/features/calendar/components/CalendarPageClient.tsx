@@ -53,12 +53,14 @@ type TodayInfo = {
   date: number;
 };
 
-type EventKind = NonNullable<EventType["kind"]>;
+type EventKind = "general" | "certificate" | "holiday";
 
 const EVENT_KIND_FILTERS: { kind: EventKind; label: string; colorClass: string }[] = [
   { kind: "general", label: "일반 일정", colorClass: "bg-hp-500" },
   { kind: "certificate", label: "자격증 일정", colorClass: "bg-amber-500" },
+  { kind: "holiday", label: "공휴일", colorClass: "bg-rose-400" },
 ];
+
 
 const DEFAULT_EVENT_FORM: EventFormState = {
   id: null,
@@ -122,6 +124,7 @@ function getDisplayEventColor(event: EventType) {
 }
 
 function getEventKind(event: EventType): EventKind {
+  if (event.id.startsWith("holiday-")) return "holiday";
   return event.kind === "certificate" ? "certificate" : "general";
 }
 
@@ -278,6 +281,7 @@ export default function CalendarPageClient() {
   const [visibleEventKinds, setVisibleEventKinds] = useState<Record<EventKind, boolean>>({
     general: true,
     certificate: true,
+    holiday: true,
   });
   const kakaoCalendarConnectUrl = `${API_BASE_URL}/oauth2/authorization/kakao-calendar`;
 
@@ -1070,32 +1074,41 @@ export default function CalendarPageClient() {
         </div>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-hp-100 bg-slate-50/70 px-4 py-3">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Calendars</span>
-            {EVENT_KIND_FILTERS.map((filter) => (
-              <label
-                key={filter.kind}
-                className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-hp-50 hover:ring-hp-200"
-              >
-                <input
-                  type="checkbox"
-                  checked={visibleEventKinds[filter.kind]}
-                  onChange={(event) =>
-                    setVisibleEventKinds((prev) => ({
-                      ...prev,
-                      [filter.kind]: event.target.checked,
-                    }))
-                  }
-                  className="h-3.5 w-3.5 rounded border-slate-300 accent-hp-600"
-                />
-                <span className={`h-2.5 w-2.5 rounded-full ${filter.colorClass}`} />
-                <span>{filter.label}</span>
-                <span className="text-slate-400">{eventKindCounts[filter.kind] ?? 0}</span>
-              </label>
-            ))}
+            
+            {EVENT_KIND_FILTERS.map((filter) => {
+              const isActive = visibleEventKinds[filter.kind];
+              return (
+                <label
+                  key={filter.kind}
+                  className={`inline-flex cursor-pointer items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold transition-all shadow-sm ring-1 ${
+                    isActive 
+                      ? "bg-white text-slate-700 ring-hp-500" 
+                      : "bg-slate-100 text-slate-400 ring-slate-200 opacity-60 hover:opacity-100"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isActive}
+                    onChange={(event) =>
+                      setVisibleEventKinds((prev) => ({
+                        ...prev,
+                        [filter.kind]: event.target.checked,
+                      }))
+                    }
+                    className="sr-only"
+                  />
+                  <span className={`h-2.5 w-2.5 rounded-full ${filter.colorClass} ${!isActive && "grayscale"}`} />
+                  <span>{filter.label}</span>
+                  <span className={isActive ? "text-hp-600" : "text-slate-400"}>
+                    {eventKindCounts[filter.kind] ?? 0}
+                  </span>
+                </label>
+              );
+            })}
           </div>
           <button
             type="button"
-            onClick={() => setVisibleEventKinds({ general: true, certificate: true })}
+            onClick={() => setVisibleEventKinds({ general: true, certificate: true, holiday: true })}
             className="text-xs font-bold text-hp-600 transition hover:text-hp-700"
           >
             전체 보기
@@ -1109,8 +1122,13 @@ export default function CalendarPageClient() {
         ) : (
           <>
             <div className="grid grid-cols-7 overflow-hidden rounded-t-2xl border border-b-0 border-hp-100 bg-slate-50 text-xs font-bold text-slate-400">
-              {WEEK_DAYS.map((day) => (
-                <div key={day} className="border-r border-hp-100 py-3 text-center last:border-r-0">
+              {WEEK_DAYS.map((day, idx) => (
+                <div 
+                  key={day} 
+                  className={`border-r border-hp-100 py-3 text-center last:border-r-0 ${
+                    idx === 0 ? "text-rose-400" : idx === 6 ? "text-blue-400" : ""
+                  }`}
+                >
                   {day}
                 </div>
               ))}
@@ -1132,6 +1150,10 @@ export default function CalendarPageClient() {
                   todayInfo?.year === currentYear &&
                   todayInfo?.month === currentMonth &&
                   todayInfo?.date === day.date;
+                const isHoliday = filteredEvents.some(
+                  (ev) => ev.id.startsWith("holiday-") && eventOverlapsDate(ev, cellDateKey, currentYear)
+                );
+                const dayOfWeek = cellDate.getDay();
                 return (
                   <button
                     key={day.key}
@@ -1139,6 +1161,13 @@ export default function CalendarPageClient() {
                     onClick={() => {
                       setCurrentDate(new Date(cellDate.getFullYear(), cellDate.getMonth(), 1));
                       setSelectedDate(cellDate.getDate());
+                    }}
+                    onDoubleClick={() => {
+                      setCurrentDate(new Date(cellDate.getFullYear(), cellDate.getMonth(), 1));
+                      setSelectedDate(cellDate.getDate());
+                      setCalendarError("");
+                      setEventForm(buildEventForm(cellDateKey));
+                      setEventModalOpen(true);
                     }}
                     onDragOver={handleEventDragOver}
                     onDrop={(e) => handleEventDrop(e, cellDateKey)}
@@ -1160,10 +1189,12 @@ export default function CalendarPageClient() {
                           ? "bg-hp-600 text-white"
                           : isSelected
                             ? "bg-white text-hp-700 ring-1 ring-hp-200"
-                            : day.currentMonth
-                              ? "text-slate-700"
-                              : "text-slate-300"
-                      }`}
+                            : isHoliday || dayOfWeek === 0
+                              ? "text-rose-400"
+                              : dayOfWeek === 6
+                                ? "text-blue-400"
+                                : "text-slate-700"
+                      } ${day.currentMonth || isToday || isSelected ? "" : "opacity-45"}`}
                     >
                       {day.date}
                     </span>

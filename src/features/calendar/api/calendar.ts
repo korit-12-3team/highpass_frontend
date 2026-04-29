@@ -154,7 +154,7 @@ export async function listHolidays(year: number): Promise<EventType[]> {
       endDay: date.getDate(),
       startDate: holiday.date,
       endDate: holiday.date,
-      color: "bg-red-500", // 공휴일은 빨간색 배경으로 표시
+      color: "bg-rose-400", // 공휴일은 연한 빨간색(rose) 배경으로 표시
       isAllDay: true,
       kind: "general",
     };
