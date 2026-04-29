@@ -12,6 +12,7 @@ import { useApp } from "@/shared/context/AppContext";
 import { createUserProfile, getUserProfile } from "@/features/mypage/api/profile";
 import { listCalendarEvents } from "@/features/calendar/api/calendar";
 import { listNotifications } from "@/features/notifications/api/notifications";
+import { KAKAO_MAP_APPKEY } from "@/services/config/config";
 import {
   createChatClient,
   enterChatRoom,
@@ -65,7 +66,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   } = useApp();
 
   const [loadingKakao, errorKakao] = useKakaoLoader({
-    appkey: "894423a9ffcffb29a1e5d50427ded82e",
+    appkey: KAKAO_MAP_APPKEY,
     libraries: ["services", "clusterer"],
   });
 

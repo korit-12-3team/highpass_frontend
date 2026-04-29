@@ -223,8 +223,7 @@ export default function StudyPostPageClient({
     }
   };
 
-  const showMapPreview =
-    typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1";
+  const showMapPreview = true;
   const canManagePost = !!currentUser && currentUser.id === post?.authorId;
 
   const cancelPostEdit = () => {
@@ -786,7 +785,7 @@ export default function StudyPostPageClient({
                       </div>
 
                       <div className="flex min-h-56 flex-1 items-center justify-center overflow-hidden rounded-3xl border border-hp-100 bg-hp-50/40">
-                        {selectedEditPlace && showMapPreview ? (
+                        {selectedEditPlace ? (
                           <KakaoMap
                             markers={[{ lat: selectedEditPlace.lat, lng: selectedEditPlace.lng, locationName: selectedEditPlace.name }]}
                             center={{ lat: selectedEditPlace.lat, lng: selectedEditPlace.lng }}
