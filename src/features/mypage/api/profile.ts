@@ -1,6 +1,9 @@
 import axios from "axios";
 import { http } from "@/services/api/http";
 import type { UserProfile } from "@/entities/common/types";
+import { safeString, unwrapData } from "@/shared/utils/api-mappers";
+
+export { unwrapData };
 
 export const AGE_RANGE_OPTIONS = ["10대", "20대", "30대", "40대", "50대+"];
 export const GENDER_OPTIONS = ["남성", "여성"];
@@ -26,16 +29,6 @@ export type UserApiRecord = {
   isCommentNotiOn?: unknown;
   isLikeNotiOn?: unknown;
 };
-
-function safeString(value: unknown, fallback = "") {
-  return typeof value === "string" ? value : value == null ? fallback : String(value);
-}
-
-export function unwrapData(payload: unknown) {
-  if (!payload || typeof payload !== "object") return payload;
-  if (!("data" in payload)) return payload;
-  return (payload as { data?: unknown }).data;
-}
 
 function buildLocation(siDo?: unknown, gunGu?: unknown, location?: unknown) {
   return safeString(location, "") || `${safeString(siDo, "")} ${safeString(gunGu, "")}`.trim();
@@ -99,7 +92,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
 }
 
 export async function updateUserProfile(
-  userId: string,
+  _userId: string,
   input: {
     currentPassword?: string;
     nickname: string;
@@ -109,7 +102,7 @@ export async function updateUserProfile(
     gunGu: string;
   },
 ): Promise<UserProfile> {
-  const response = await http.patch(`/api/users/${encodeURIComponent(userId)}`, input);
+  const response = await http.patch("/api/users/me", input);
   const payload = unwrapData(response.data);
 
   if (!payload || typeof payload !== "object") {
@@ -119,23 +112,23 @@ export async function updateUserProfile(
   return mapApiRecordToUserProfile(payload as UserApiRecord);
 }
 export async function updateUserPassword(
-  userId: string,
+  _userId: string,
   input: {
     currentPassword: string;
     newPassword: string;
   },
 ): Promise<void> {
-  await http.patch(`/api/users/${encodeURIComponent(userId)}/password`, input);
+  await http.patch("/api/users/me/password", input);
 }
 
 export async function verifyUserPassword(
-  userId: string,
+  _userId: string,
   input: {
     currentPassword: string;
   },
 ): Promise<void> {
   try {
-    await http.post(`/api/users/${encodeURIComponent(userId)}/password/verify`, input);
+    await http.post("/api/users/me/password/verify", input);
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 400) {
       throw new Error("비밀번호가 틀렸습니다.");
@@ -144,8 +137,8 @@ export async function verifyUserPassword(
   }
 }
 
-export async function withdrawUser(userId: string): Promise<void> {
-  await http.delete(`/api/users/${encodeURIComponent(userId)}`);
+export async function withdrawUser(_userId: string): Promise<void> {
+  await http.delete("/api/users/me");
 }
 
 export interface NotificationSettingPayload {
@@ -154,8 +147,8 @@ export interface NotificationSettingPayload {
 }
 
 export async function updateNotificationSettings(
-  userId: string,
+  _userId: string,
   payload: {type: "COMMENT" | "LIKE"; isOn: boolean},
 ): Promise<void> {
-  await http.patch(`/api/notifications/settings/${encodeURIComponent(userId)}`, payload);
+  await http.patch("/api/notifications/settings", payload);
 }

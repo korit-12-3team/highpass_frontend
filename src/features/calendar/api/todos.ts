@@ -30,8 +30,8 @@ async function getErrorMessage(response: Response, fallback: string) {
   }
 }
 
-export async function listTodosByDate(userId: string, date: string): Promise<TodoItem[]> {
-  const response = await fetchWithAuth(`${API_BASE_URL}/api/todos/${userId}`, {
+export async function listTodosByDate(_userId: string, date: string): Promise<TodoItem[]> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/api/todos`, {
     method: "GET",
   });
 
@@ -44,8 +44,8 @@ export async function listTodosByDate(userId: string, date: string): Promise<Tod
   return data.map(mapTodo).filter((todo) => todo.createdAt === date);
 }
 
-export async function listTodos(userId: string): Promise<TodoItem[]> {
-  const response = await fetchWithAuth(`${API_BASE_URL}/api/todos/${userId}`, {
+export async function listTodos(_userId: string): Promise<TodoItem[]> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/api/todos`, {
     method: "GET",
   });
 
@@ -58,8 +58,8 @@ export async function listTodos(userId: string): Promise<TodoItem[]> {
   return data.map(mapTodo);
 }
 
-export async function createTodo(userId: string, content: string, date: string): Promise<TodoItem> {
-  const response = await fetchWithAuth(`${API_BASE_URL}/api/todos/${userId}`, {
+export async function createTodo(_userId: string, content: string, date: string): Promise<TodoItem> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/api/todos`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

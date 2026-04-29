@@ -1,6 +1,7 @@
 import { fetchWithAuth } from "@/services/auth/auth";
 import { API_BASE_URL } from "@/services/config/config";
 import { http } from "@/services/api/http";
+import { optionalDate, optionalString, safeNumber, safeString, unwrapData } from "@/shared/utils/api-mappers";
 
 export type CertificateSchedule = {
   id: string;
@@ -73,29 +74,6 @@ type CertificateApiRecord = {
   practicalResultDate?: unknown;
 };
 
-function unwrapData(payload: unknown) {
-  if (!payload || typeof payload !== "object") return payload;
-  if (!("data" in payload)) return payload;
-  return (payload as { data: unknown }).data;
-}
-
-function safeString(value: unknown, fallback = "") {
-  return typeof value === "string" ? value : value == null ? fallback : String(value);
-}
-
-function safeNumber(value: unknown, fallback = 0) {
-  const parsed = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-function optionalDate(value: unknown) {
-  return typeof value === "string" && value.trim() ? value : undefined;
-}
-
-function optionalText(value: unknown) {
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
-
 function mapQnetSchedule(record: CertificateApiRecord): CertificateSchedule {
   return {
     id: safeString(record.id, String(Date.now())),
@@ -123,10 +101,10 @@ function mapDataIndustrySchedule(record: CertificateApiRecord): CertificateSched
     examYear: safeNumber(record.examYear ?? record.year),
     round: safeNumber(record.examRound ?? record.round),
     sourceType: "data-industry",
-    examCategory: optionalText(record.examCategory),
-    examStartTime: optionalText(record.examStartTime),
-    examPlace: optionalText(record.examPlace),
-    examType: optionalText(record.examType),
+    examCategory: optionalString(record.examCategory),
+    examStartTime: optionalString(record.examStartTime),
+    examPlace: optionalString(record.examPlace),
+    examType: optionalString(record.examType),
     writtenApplyStart: optionalDate(record.applyStartDate),
     writtenApplyEnd: optionalDate(record.applyEndDate),
     writtenExamDate: optionalDate(record.examDate),
@@ -199,9 +177,9 @@ export async function syncCertificateSchedules(): Promise<CertificateSyncResult>
   };
 }
 
-export async function saveUserCertificate(userId: string, certificateScheduleId: string): Promise<UserCertificateRecord> {
+export async function saveUserCertificate(_userId: string, certificateScheduleId: string): Promise<UserCertificateRecord> {
   const parsedScheduleId = Number(certificateScheduleId);
-  const response = await fetchWithAuth(`${API_BASE_URL}/api/user-certificates/${userId}`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/api/user-certificates`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

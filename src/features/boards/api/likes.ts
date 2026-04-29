@@ -38,6 +38,6 @@ export function saveLikedPost(userId: string, targetType: "FREE" | "STUDY", targ
   window.localStorage.setItem(getStorageKey(userId), JSON.stringify(nextMap));
 }
 
-export async function toggleBoardLike(targetType: "FREE" | "STUDY", targetId: number, userId: number) {
-  await http.post(`/api/likes/${encodeURIComponent(targetType)}/${encodeURIComponent(String(targetId))}/${encodeURIComponent(String(userId))}`);
+export async function toggleBoardLike(targetType: "FREE" | "STUDY", targetId: number, _userId: number) {
+  await http.post(`/api/likes/${encodeURIComponent(targetType)}/${encodeURIComponent(String(targetId))}`);
 }

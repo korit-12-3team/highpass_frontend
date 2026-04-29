@@ -1,38 +1,6 @@
 import type { PostComment } from "@/entities/common/types";
+import { mapApiRecordToComment, unwrapData, type CommentApiRecord } from "@/features/boards/api/mappers";
 import { http } from "@/services/api/http";
-
-type CommentApiRecord = {
-  id?: unknown;
-  content?: unknown;
-  nickname?: unknown;
-  userId?: unknown;
-  createdAt?: unknown;
-};
-
-function safeString(value: unknown, fallback = "") {
-  return typeof value === "string" ? value : value == null ? fallback : String(value);
-}
-
-function safeNumber(value: unknown, fallback = 0) {
-  const num = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(num) ? num : fallback;
-}
-
-function unwrapData(payload: unknown) {
-  if (!payload || typeof payload !== "object") return payload;
-  if (!("data" in payload)) return payload;
-  return (payload as { data: unknown }).data;
-}
-
-function mapApiRecordToComment(record: CommentApiRecord): PostComment {
-  return {
-    id: safeNumber(record.id, Date.now()),
-    author: safeString(record.nickname, "Unknown"),
-    authorId: safeString(record.userId),
-    text: safeString(record.content),
-    createdAt: typeof record.createdAt === "string" ? record.createdAt : undefined,
-  };
-}
 
 export async function listComments(targetType: "FREE" | "STUDY", targetId: string): Promise<PostComment[]> {
   const response = await http.get(`/api/comments/${encodeURIComponent(targetType)}/${encodeURIComponent(targetId)}`);
@@ -45,9 +13,13 @@ export async function createComment(input: {
   content: string;
   targetType: "FREE" | "STUDY";
   targetId: number;
-  userId: number;
+  userId?: number;
 }): Promise<PostComment> {
-  const response = await http.post("/api/comments", input);
+  const response = await http.post("/api/comments", {
+    content: input.content,
+    targetType: input.targetType,
+    targetId: input.targetId,
+  });
   const payload = unwrapData(response.data);
   if (!payload || typeof payload !== "object") {
     return {
@@ -62,16 +34,16 @@ export async function createComment(input: {
 
 export async function updateComment(
   commentId: number,
-  userId: number,
+  _userId: number,
   input: {
     content: string;
     targetType: "FREE" | "STUDY";
     targetId: number;
-    userId: number;
+    userId?: number;
   },
 ): Promise<PostComment> {
   const response = await http.patch(
-    `/api/comments/${encodeURIComponent(String(commentId))}/${encodeURIComponent(String(userId))}`,
+    `/api/comments/${encodeURIComponent(String(commentId))}`,
     input,
   );
   const payload = unwrapData(response.data);
@@ -86,6 +58,6 @@ export async function updateComment(
   return mapApiRecordToComment(payload as CommentApiRecord);
 }
 
-export async function deleteComment(commentId: number, userId: number) {
-  await http.delete(`/api/comments/${encodeURIComponent(String(commentId))}/${encodeURIComponent(String(userId))}`);
+export async function deleteComment(commentId: number, _userId: number) {
+  await http.delete(`/api/comments/${encodeURIComponent(String(commentId))}`);
 }

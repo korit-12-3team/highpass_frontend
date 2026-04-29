@@ -7,7 +7,6 @@ import { fetchCurrentUserProfile, logoutSession, notifyAuthExpired, subscribeAut
 import { createBoard } from "@/features/free-board/api/boards";
 import { createStudy } from "@/features/study/api/study-api";
 import type { ChatRoom, EventType, SearchPlace, TodoMap, UserProfile } from "@/entities/common/types";
-import { CHAT_API_BASE_URL } from "@/services/config/config";
 
 interface AppContextType {
   currentUser: UserProfile | null;
@@ -137,42 +136,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!currentUser) return false;
     if (!postContent.trim() && !postTitle.trim()) return false;
 
-    const numericUserId = String(currentUser.id).trim();
-    if (!/^\d+$/.test(numericUserId)) {
-      throw new Error(`Board POST requires numeric userId. Current user id: "${currentUser.id}"`);
-    }
-
     const certValue = writeType === "study" ? postCert || postCertCategory || null : null;
 
-    const created =
-      writeType === "study"
-        ? await createStudy({
-            userId: numericUserId,
-            author: currentUser.nickname,
-            title: postTitle.trim(),
-            content: postContent.trim(),
-            cert: certValue,
-            locationName: selectedPlace?.name,
-            address: selectedPlace?.address,
-            latitude: selectedPlace?.lat,
-            longitude: selectedPlace?.lng,
-            placeId: selectedPlace?.id,
-            createChatRoom,
-          })
-        : await createBoard({
-            userId: numericUserId,
-            author: currentUser.nickname,
-            type: writeType,
-            title: postTitle.trim(),
-            content: postContent.trim(),
-            cert: certValue,
-            location: selectedPlace?.address,
-            lat: selectedPlace?.lat,
-            lng: selectedPlace?.lng,
-          });
+    if (writeType === "study") {
+      await createStudy({
+        userId: String(currentUser.id),
+        author: currentUser.nickname,
+        title: postTitle.trim(),
+        content: postContent.trim(),
+        cert: certValue,
+        locationName: selectedPlace?.name,
+        address: selectedPlace?.address,
+        latitude: selectedPlace?.lat,
+        longitude: selectedPlace?.lng,
+        placeId: selectedPlace?.id,
+        createChatRoom,
+      });
+    } else {
+      await createBoard({
+        userId: String(currentUser.id),
+        author: currentUser.nickname,
+        type: writeType,
+        title: postTitle.trim(),
+        content: postContent.trim(),
+        cert: certValue,
+        location: selectedPlace?.address,
+        lat: selectedPlace?.lat,
+        lng: selectedPlace?.lng,
+      });
+    }
 
-
-      return true;
+    return true;
   }, [currentUser, postContent, postTitle, postCert, postCertCategory, selectedPlace, writeType, createChatRoom]);
 
   return (

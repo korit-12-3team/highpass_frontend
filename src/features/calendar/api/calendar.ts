@@ -106,8 +106,8 @@ async function parseCalendarResponse(response: Response) {
   return parsed as CalendarApiRecord;
 }
 
-export async function listCalendarEvents(userId: string): Promise<EventType[]> {
-  const response = await fetchWithAuth(`${API_BASE_URL}/api/calendar/${userId}`, {
+export async function listCalendarEvents(_userId?: string): Promise<EventType[]> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/api/calendar`, {
     method: "GET",
   });
 
@@ -162,7 +162,7 @@ export async function listHolidays(year: number): Promise<EventType[]> {
 }
 
 export async function createCalendarEvent(input: CreateCalendarEventInput): Promise<EventType> {
-  const response = await fetchWithAuth(`${API_BASE_URL}/api/calendar/${input.userId}`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/api/calendar`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
