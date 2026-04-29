@@ -5,11 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import AuthShell from "@/features/auth/components/AuthShell";
+import { AGE_RANGE_OPTIONS, GENDER_OPTIONS, createUserProfile } from "@/features/mypage/api/profile";
 import { useApp } from "@/shared/context/AppContext";
+import { REGION_DATA } from "@/shared/constants";
 import { fetchCurrentUserProfile } from "@/services/auth/auth";
 import { API_BASE_URL } from "@/services/config/config";
-import { REGION_DATA } from "@/shared/constants";
-import { AGE_RANGE_OPTIONS, GENDER_OPTIONS, createUserProfile } from "@/features/mypage/api/profile";
 
 interface SignupFormProps {
   isSocialSignup: boolean;
@@ -33,6 +33,25 @@ type SignupApiResponse = {
   redirectUrl?: string;
   message?: string;
 };
+
+const EMAIL_DOMAIN_OPTIONS = [
+  "naver.com",
+  "gmail.com",
+  "daum.net",
+  "hanmail.net",
+  "nate.com",
+  "kakao.com",
+] as const;
+const MIN_PASSWORD_LENGTH = 8;
+
+function splitEmailParts(value: string) {
+  const [localPart = "", domain = ""] = value.split("@");
+  return { localPart, domain };
+}
+
+function stripAllWhitespace(value: string) {
+  return value.replace(/\s+/g, "");
+}
 
 function mapSignupResponseToUser(payload: SignupApiResponse) {
   const id = payload.userId ?? payload.id ?? "";
@@ -59,11 +78,20 @@ export default function SignupForm({ isSocialSignup, socialSignupData }: SignupF
   const socialEmail = socialSignupData?.email ?? "";
   const socialProvider = socialSignupData?.provider ?? "";
   const socialProviderId = socialSignupData?.providerId ?? "";
+  const initialEmailParts = splitEmailParts(isSocialSignup ? socialEmail : "");
 
-  const [email, setEmail] = useState(isSocialSignup ? socialEmail : "");
+  const [emailLocalPart, setEmailLocalPart] = useState(initialEmailParts.localPart);
+  const [emailDomain, setEmailDomain] = useState(
+    EMAIL_DOMAIN_OPTIONS.includes(initialEmailParts.domain as (typeof EMAIL_DOMAIN_OPTIONS)[number])
+      ? initialEmailParts.domain
+      : "",
+  );
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
-  const [nickname, setNickname] = useState(socialSignupData?.nickname ?? "");
+  const [passwordBlurred, setPasswordBlurred] = useState(false);
+  const [passwordConfirmBlurred, setPasswordConfirmBlurred] = useState(false);
+  const [passwordConfirmFocused, setPasswordConfirmFocused] = useState(false);
+  const [nickname, setNickname] = useState(stripAllWhitespace(socialSignupData?.nickname ?? ""));
   const [ageRange, setAgeRange] = useState("");
   const [gender, setGender] = useState("");
   const [siDo, setSiDo] = useState("");
@@ -75,6 +103,19 @@ export default function SignupForm({ isSocialSignup, socialSignupData }: SignupF
     () => !isSocialSignup && passwordConfirm.length > 0 && password !== passwordConfirm,
     [isSocialSignup, password, passwordConfirm],
   );
+  const isPasswordTooShort = useMemo(
+    () => !isSocialSignup && password.length > 0 && password.length < MIN_PASSWORD_LENGTH,
+    [isSocialSignup, password],
+  );
+  const showPasswordTooShort = passwordBlurred && isPasswordTooShort;
+  const showPasswordMismatch = passwordConfirmBlurred && !passwordConfirmFocused && isPasswordMismatch;
+  const sanitizedNickname = useMemo(() => stripAllWhitespace(nickname), [nickname]);
+  const email = useMemo(() => {
+    if (isSocialSignup) return socialEmail;
+    const localPart = emailLocalPart.trim();
+    const domain = emailDomain.trim();
+    return localPart && domain ? `${localPart}@${domain}` : "";
+  }, [emailDomain, emailLocalPart, isSocialSignup, socialEmail]);
 
   useEffect(() => {
     if (!authReady || !isAuthenticated) return;
@@ -83,14 +124,26 @@ export default function SignupForm({ isSocialSignup, socialSignupData }: SignupF
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setPasswordBlurred(true);
+    setPasswordConfirmBlurred(true);
+
+    if (!sanitizedNickname) {
+      setError("닉네임을 입력해 주세요.");
+      return;
+    }
 
     if (isPasswordMismatch) {
       setError("비밀번호가 일치하지 않습니다.");
       return;
     }
 
+    if (!isSocialSignup && password.length < MIN_PASSWORD_LENGTH) {
+      setError(`비밀번호는 ${MIN_PASSWORD_LENGTH}자 이상이어야 합니다.`);
+      return;
+    }
+
     if (isSocialSignup && (!socialEmail || !socialProvider || !socialProviderId)) {
-      setError("소셜 회원가입 정보가 누락되었습니다. 소셜 로그인을 다시 시도해 주세요.");
+      setError("소셜 회원가입 정보가 올바르지 않습니다. 다시 시도해 주세요.");
       return;
     }
 
@@ -102,7 +155,7 @@ export default function SignupForm({ isSocialSignup, socialSignupData }: SignupF
       const payload = isSocialSignup
         ? {
             email: socialEmail,
-            nickname,
+            nickname: sanitizedNickname,
             ageRange,
             gender,
             siDo,
@@ -113,7 +166,7 @@ export default function SignupForm({ isSocialSignup, socialSignupData }: SignupF
         : {
             email,
             password,
-            nickname,
+            nickname: sanitizedNickname,
             ageRange,
             gender,
             siDo,
@@ -145,7 +198,7 @@ export default function SignupForm({ isSocialSignup, socialSignupData }: SignupF
       toast.success("회원가입이 완료되었습니다.");
       router.replace(payloadResponse?.redirectUrl || "/calendar");
     } catch {
-      setError("서버에 연결할 수 없습니다. API 주소 또는 서버 상태를 확인해 주세요.");
+      setError("서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setLoading(false);
     }
@@ -154,23 +207,39 @@ export default function SignupForm({ isSocialSignup, socialSignupData }: SignupF
   return (
     <AuthShell
       title="회원가입"
-      subtitle={isSocialSignup ? "소셜 계정 인증이 완료되었습니다. 추가 정보만 입력해 주세요." : "계정을 생성해 주세요."}
+      subtitle={isSocialSignup ? "소셜 계정 인증이 완료되었습니다. 추가 정보를 입력해 주세요." : "계정을 생성해 주세요."}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {isSocialSignup ? (
           <div className="rounded-xl border border-hp-200 bg-hp-50 px-4 py-3 text-sm text-slate-600">
             <p className="font-medium text-slate-800">{socialEmail || "이메일 정보를 가져오지 못했습니다."}</p>
-            <p className="mt-1 text-xs text-slate-500">이메일과 비밀번호는 이미 소셜 계정 인증에 사용되었습니다.</p>
+            <p className="mt-1 text-xs text-slate-500">이메일과 비밀번호는 소셜 계정 인증값을 사용합니다.</p>
           </div>
         ) : (
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="이메일"
-            className="w-full rounded-xl border border-hp-200 bg-hp-50 px-4 py-3 text-slate-800 outline-none focus:border-hp-500"
-            required
-          />
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(140px,180px)] gap-2">
+            <input
+              type="text"
+              value={emailLocalPart}
+              onChange={(e) => setEmailLocalPart(stripAllWhitespace(e.target.value))}
+              placeholder="email"
+              className="w-full rounded-xl border border-hp-200 bg-hp-50 px-4 py-3 text-slate-800 outline-none focus:border-hp-500"
+              required
+            />
+            <div className="flex items-center justify-center text-slate-500">@</div>
+            <select
+              value={emailDomain}
+              onChange={(e) => setEmailDomain(e.target.value)}
+              className="appearance-none rounded-xl border border-hp-200 bg-hp-50 px-3 py-3 text-slate-800 outline-none focus:border-hp-500"
+              required
+            >
+              <option value="">선택</option>
+              {EMAIL_DOMAIN_OPTIONS.map((domain) => (
+                <option key={domain} value={domain}>
+                  {domain}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
 
         {!isSocialSignup ? (
@@ -178,16 +247,30 @@ export default function SignupForm({ isSocialSignup, socialSignupData }: SignupF
             <input
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError("");
+              }}
+              onBlur={() => setPasswordBlurred(true)}
               placeholder="비밀번호"
+              minLength={MIN_PASSWORD_LENGTH}
               className="w-full rounded-xl border border-hp-200 bg-hp-50 px-4 py-3 text-slate-800 outline-none focus:border-hp-500"
               required
             />
             <input
               type="password"
               value={passwordConfirm}
-              onChange={(e) => setPasswordConfirm(e.target.value)}
+              onChange={(e) => {
+                setPasswordConfirm(e.target.value);
+                setError("");
+              }}
+              onFocus={() => setPasswordConfirmFocused(true)}
+              onBlur={() => {
+                setPasswordConfirmFocused(false);
+                setPasswordConfirmBlurred(true);
+              }}
               placeholder="비밀번호 확인"
+              minLength={MIN_PASSWORD_LENGTH}
               className="w-full rounded-xl border border-hp-200 bg-hp-50 px-4 py-3 text-slate-800 outline-none focus:border-hp-500"
               required
             />
@@ -197,7 +280,11 @@ export default function SignupForm({ isSocialSignup, socialSignupData }: SignupF
         <input
           type="text"
           value={nickname}
-          onChange={(e) => setNickname(e.target.value)}
+          onChange={(e) => {
+            setNickname(stripAllWhitespace(e.target.value));
+            setError("");
+          }}
+          onBlur={() => setNickname((prev) => stripAllWhitespace(prev))}
           placeholder="닉네임"
           className="w-full rounded-xl border border-hp-200 bg-hp-50 px-4 py-3 text-slate-800 outline-none focus:border-hp-500"
           required
@@ -272,8 +359,14 @@ export default function SignupForm({ isSocialSignup, socialSignupData }: SignupF
           </div>
         </div>
 
-        {(error || isPasswordMismatch) ? (
-          <p className="text-sm text-red-500">{isPasswordMismatch ? "비밀번호가 일치하지 않습니다." : error}</p>
+        {error || showPasswordMismatch || showPasswordTooShort ? (
+          <p className="text-sm text-red-500">
+            {showPasswordMismatch
+              ? "비밀번호가 일치하지 않습니다."
+              : showPasswordTooShort
+                ? `비밀번호는 ${MIN_PASSWORD_LENGTH}자 이상이어야 합니다.`
+                : error}
+          </p>
         ) : null}
 
         <button
@@ -281,7 +374,7 @@ export default function SignupForm({ isSocialSignup, socialSignupData }: SignupF
           disabled={
             loading ||
             isPasswordMismatch ||
-            !nickname ||
+            !sanitizedNickname ||
             !ageRange ||
             !gender ||
             !siDo ||

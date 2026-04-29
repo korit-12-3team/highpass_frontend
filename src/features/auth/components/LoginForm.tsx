@@ -44,6 +44,10 @@ function mapLoginResponseToUser(payload: LoginApiResponse) {
   });
 }
 
+function stripAllWhitespace(value: string) {
+  return value.replace(/\s+/g, "");
+}
+
 export default function LoginForm() {
   const { handleAuthSuccess, isAuthenticated, authReady } = useApp();
   const router = useRouter();
@@ -113,7 +117,7 @@ export default function LoginForm() {
         <input
           type="email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => setEmail(stripAllWhitespace(e.target.value))}
           placeholder="이메일"
           className="w-full rounded-xl border border-hp-200 bg-hp-50 px-4 py-3 text-slate-800 outline-none focus:border-hp-500"
           required

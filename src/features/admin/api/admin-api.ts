@@ -11,8 +11,10 @@ function readArray<T>(payload: unknown, key: string): T[] {
   return [];
 }
 
-export async function loadAdminSection<T>(section: AdminSection): Promise<T[]> {
-  const paths: Record<AdminSection, { path: string; key: string }> = {
+type LoadableAdminSection = Extract<AdminSection, "users" | "posts" | "reports">;
+
+export async function loadAdminSection<T>(section: LoadableAdminSection): Promise<T[]> {
+  const paths: Record<LoadableAdminSection, { path: string; key: string }> = {
     users: { path: "/api/admin/users", key: "users" },
     posts: { path: "/api/admin/posts", key: "posts" },
     reports: { path: "/api/admin/reports", key: "reports" },

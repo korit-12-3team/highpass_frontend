@@ -2,6 +2,8 @@ import { CertificateSchedule } from "@/features/search/api/certificates";
 
 export type CertScheduleType = "written" | "practical";
 export type ScheduleTab = "upcoming" | "past";
+export type ScheduleSourceTab = "qnet" | "data-industry";
+
 export type CalendarSelectionState = {
   apply: boolean;
   exam: boolean;
@@ -16,10 +18,15 @@ export type ApplyRange = {
 
 export type MergedCertificateSchedule = {
   id: string;
+  sourceType: ScheduleSourceTab;
   sourceSchedules: CertificateSchedule[];
   certificateName: string;
   examYear: number;
   round: number;
+  examCategory?: string;
+  examStartTime?: string;
+  examPlace?: string;
+  examType?: string;
   writtenExamDate?: string;
   writtenResultDate?: string;
   practicalExamDate?: string;
@@ -40,6 +47,7 @@ export function buildEventTitle(name: string, scheduleType: CertScheduleType, su
 
 function makeMergeKey(item: CertificateSchedule) {
   return [
+    item.sourceType || "qnet",
     item.examYear,
     item.round,
     item.certificateName.trim(),
@@ -96,21 +104,34 @@ export function mergeSchedules(schedules: CertificateSchedule[]): MergedCertific
     if (!existing) {
       grouped.set(key, {
         id: key,
+        sourceType: item.sourceType || "qnet",
         sourceSchedules: [item],
         certificateName: item.certificateName,
         examYear: item.examYear,
         round: item.round,
+        examCategory: item.examCategory,
+        examStartTime: item.examStartTime,
+        examPlace: item.examPlace,
+        examType: item.examType,
         writtenExamDate: item.writtenExamDate,
         writtenResultDate: item.writtenResultDate,
         practicalExamDate: item.practicalExamDate,
         practicalResultDate: item.practicalResultDate,
-        writtenApplyRanges: mergeApplyRanges([{ start: item.writtenApplyStart, end: item.writtenApplyEnd, label: "정기접수" }]),
-        practicalApplyRanges: mergeApplyRanges([{ start: item.practicalApplyStart, end: item.practicalApplyEnd, label: "정기접수" }]),
+        writtenApplyRanges: mergeApplyRanges([
+          { start: item.writtenApplyStart, end: item.writtenApplyEnd, label: "정기접수" },
+        ]),
+        practicalApplyRanges: mergeApplyRanges([
+          { start: item.practicalApplyStart, end: item.practicalApplyEnd, label: "정기접수" },
+        ]),
       });
       return;
     }
 
     existing.sourceSchedules.push(item);
+    existing.examCategory = existing.examCategory || item.examCategory;
+    existing.examStartTime = existing.examStartTime || item.examStartTime;
+    existing.examPlace = existing.examPlace || item.examPlace;
+    existing.examType = existing.examType || item.examType;
     existing.writtenApplyRanges = mergeApplyRanges([
       ...existing.writtenApplyRanges,
       {

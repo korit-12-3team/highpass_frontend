@@ -1,4 +1,4 @@
-export type AdminSection = "users" | "posts" | "reports";
+export type AdminSection = "users" | "posts" | "reports" | "certificates";
 export type UserStatus = "active" | "suspended" | "deleted";
 export type PostStatus = "visible" | "hidden" | "deleted";
 export type PostType = "free" | "study";

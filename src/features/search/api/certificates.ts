@@ -7,6 +7,11 @@ export type CertificateSchedule = {
   certificateName: string;
   examYear: number;
   round: number;
+  sourceType?: "qnet" | "data-industry";
+  examCategory?: string;
+  examStartTime?: string;
+  examPlace?: string;
+  examType?: string;
   writtenApplyStart?: string;
   writtenApplyEnd?: string;
   writtenExamDate?: string;
@@ -45,9 +50,19 @@ type CertificateApiRecord = {
   id?: unknown;
   certificateScheduleId?: unknown;
   certificateName?: unknown;
+  examName?: unknown;
   examYear?: unknown;
   year?: unknown;
   round?: unknown;
+  examRound?: unknown;
+  examCategory?: unknown;
+  examStartTime?: unknown;
+  examPlace?: unknown;
+  examType?: unknown;
+  applyStartDate?: unknown;
+  applyEndDate?: unknown;
+  examDate?: unknown;
+  resultAnnouncementDate?: unknown;
   writtenApplyStart?: unknown;
   writtenApplyEnd?: unknown;
   writtenExamDate?: unknown;
@@ -77,12 +92,17 @@ function optionalDate(value: unknown) {
   return typeof value === "string" && value.trim() ? value : undefined;
 }
 
-function mapCertificateSchedule(record: CertificateApiRecord): CertificateSchedule {
+function optionalText(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function mapQnetSchedule(record: CertificateApiRecord): CertificateSchedule {
   return {
     id: safeString(record.id, String(Date.now())),
     certificateName: safeString(record.certificateName, "자격증"),
     examYear: safeNumber(record.examYear ?? record.year),
     round: safeNumber(record.round),
+    sourceType: "qnet",
     writtenApplyStart: optionalDate(record.writtenApplyStart),
     writtenApplyEnd: optionalDate(record.writtenApplyEnd),
     writtenExamDate: optionalDate(record.writtenExamDate),
@@ -91,6 +111,26 @@ function mapCertificateSchedule(record: CertificateApiRecord): CertificateSchedu
     practicalApplyEnd: optionalDate(record.practicalApplyEnd),
     practicalExamDate: optionalDate(record.practicalExamDate),
     practicalResultDate: optionalDate(record.practicalResultDate),
+  };
+}
+
+function mapDataIndustrySchedule(record: CertificateApiRecord): CertificateSchedule {
+  const id = safeString(record.id, String(Date.now()));
+
+  return {
+    id: `data-industry-${id}`,
+    certificateName: safeString(record.examName ?? record.certificateName, "데이터 자격검정"),
+    examYear: safeNumber(record.examYear ?? record.year),
+    round: safeNumber(record.examRound ?? record.round),
+    sourceType: "data-industry",
+    examCategory: optionalText(record.examCategory),
+    examStartTime: optionalText(record.examStartTime),
+    examPlace: optionalText(record.examPlace),
+    examType: optionalText(record.examType),
+    writtenApplyStart: optionalDate(record.applyStartDate),
+    writtenApplyEnd: optionalDate(record.applyEndDate),
+    writtenExamDate: optionalDate(record.examDate),
+    writtenResultDate: optionalDate(record.resultAnnouncementDate),
   };
 }
 
@@ -113,21 +153,40 @@ function mapUserCertificate(record: CertificateApiRecord): UserCertificateRecord
 }
 
 export async function listCertificateSchedules(): Promise<CertificateSchedule[]> {
-  const response = await http.get("/api/certificates/schedules");
-  if (typeof response.data === "string" && response.data.trim().startsWith("<")) {
-    throw new Error("자격증 일정 API가 JSON 대신 HTML을 반환했습니다. 백엔드 인증/보안 설정을 확인해 주세요.");
+  const [qnetResponse, dataIndustryResponse] = await Promise.all([
+    http.get("/api/certificates/schedules"),
+    http.get("/api/certificates/data-industry-schedules"),
+  ]);
+
+  if (typeof qnetResponse.data === "string" && qnetResponse.data.trim().startsWith("<")) {
+    throw new Error("자격증 일정 API가 JSON 대신 HTML을 반환했습니다. 백엔드 인증 또는 보안 설정을 확인해 주세요.");
   }
-  const payload = unwrapData(response.data);
-  if (!Array.isArray(payload)) {
+
+  if (typeof dataIndustryResponse.data === "string" && dataIndustryResponse.data.trim().startsWith("<")) {
+    throw new Error("데이터 자격검정 일정 API가 JSON 대신 HTML을 반환했습니다.");
+  }
+
+  const qnetPayload = unwrapData(qnetResponse.data);
+  const dataIndustryPayload = unwrapData(dataIndustryResponse.data);
+
+  if (!Array.isArray(qnetPayload)) {
     throw new Error("자격증 일정 API 응답 형식이 올바르지 않습니다.");
   }
-  return payload.map((item) => mapCertificateSchedule(item as CertificateApiRecord));
+
+  if (!Array.isArray(dataIndustryPayload)) {
+    throw new Error("데이터 자격검정 일정 API 응답 형식이 올바르지 않습니다.");
+  }
+
+  return [
+    ...qnetPayload.map((item) => mapQnetSchedule(item as CertificateApiRecord)),
+    ...dataIndustryPayload.map((item) => mapDataIndustrySchedule(item as CertificateApiRecord)),
+  ];
 }
 
 export async function syncCertificateSchedules(): Promise<CertificateSyncResult> {
   const response = await http.post("/api/certificates/admin/sync");
   if (typeof response.data === "string" && response.data.trim().startsWith("<")) {
-    throw new Error("자격증 동기화 API가 JSON 대신 HTML을 반환했습니다. 백엔드 인증/보안 설정을 확인해 주세요.");
+    throw new Error("자격증 동기화 API가 JSON 대신 HTML을 반환했습니다. 백엔드 인증 또는 보안 설정을 확인해 주세요.");
   }
   const payload = unwrapData(response.data) as Partial<CertificateSyncResult> | undefined;
 

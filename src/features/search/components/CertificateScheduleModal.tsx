@@ -62,7 +62,8 @@ export function CertificateScheduleModal({
       onSetSaving(true);
       onSetError("");
 
-      const primaryScheduleId = schedule.sourceSchedules[0]?.id;
+      const primarySchedule = schedule.sourceSchedules.find((item) => item.sourceType !== "data-industry");
+      const primaryScheduleId = primarySchedule?.id;
       if (primaryScheduleId) {
         await saveUserCertificate(currentUserId, primaryScheduleId);
       }

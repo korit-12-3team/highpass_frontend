@@ -1,5 +1,6 @@
 import Image from "next/image";
 import {
+  CalendarDays,
   FileText,
   LogOut,
   MessageSquareWarning,
@@ -34,6 +35,12 @@ export function AdminSidebar({
       label: "신고 및 문의",
       description: "신고, 문의 처리",
       icon: <MessageSquareWarning size={19} />,
+    },
+    {
+      id: "certificates" as const,
+      label: "자격증 일정",
+      description: "일정 갱신",
+      icon: <CalendarDays size={19} />,
     },
   ];
 

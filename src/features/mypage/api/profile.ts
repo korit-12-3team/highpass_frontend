@@ -118,7 +118,6 @@ export async function updateUserProfile(
 
   return mapApiRecordToUserProfile(payload as UserApiRecord);
 }
-
 export async function updateUserPassword(
   userId: string,
   input: {

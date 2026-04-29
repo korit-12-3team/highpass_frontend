@@ -19,6 +19,11 @@ export function MyPagePasswordModal({
 }) {
   if (!open) return null;
 
+  const handleConfirm = () => {
+    if (checking) return;
+    onConfirm();
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
       <div className="w-full max-w-md rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.24)]">
@@ -32,6 +37,11 @@ export function MyPagePasswordModal({
             type="password"
             value={password}
             onChange={(event) => onChangePassword(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              event.preventDefault();
+              handleConfirm();
+            }}
             placeholder="현재 비밀번호"
             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-hp-500"
           />
@@ -49,7 +59,7 @@ export function MyPagePasswordModal({
           </button>
           <button
             type="button"
-            onClick={onConfirm}
+            onClick={handleConfirm}
             disabled={checking}
             className="rounded-full bg-hp-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-hp-700 disabled:opacity-60"
           >

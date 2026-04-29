@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -21,6 +21,7 @@ import {
   updateAdminReportStatus,
   updateAdminUserStatus,
 } from "@/features/admin/api/admin-api";
+import { AdminCertificatesSection } from "@/features/admin/components/AdminCertificatesSection";
 import {
   AdminStat,
   ApiNotice,
@@ -31,6 +32,7 @@ import { AdminReportsSection } from "@/features/admin/components/AdminReportsSec
 import { AdminSidebar } from "@/features/admin/components/AdminSidebar";
 import { AdminUsersSection } from "@/features/admin/components/AdminUsersSection";
 import { listComments } from "@/features/boards/api/comments";
+import { listCertificateSchedules, syncCertificateSchedules, type CertificateSchedule } from "@/features/search/api/certificates";
 import type { PostComment } from "@/entities/common/types";
 import type {
   AdminPost,
@@ -58,7 +60,7 @@ const ADMIN_SELECTED_POST_STORAGE_KEY = "highpass-admin-selected-post";
 const ADMIN_PREVIEW_POST_STORAGE_KEY = "highpass-admin-preview-post";
 
 function isAdminSection(value: unknown): value is AdminSection {
-  return value === "users" || value === "posts" || value === "reports";
+  return value === "users" || value === "posts" || value === "reports" || value === "certificates";
 }
 
 function getStoredAdminSection(): AdminSection {
@@ -87,12 +89,17 @@ export default function AdminPageClient() {
     users: "idle",
     posts: "idle",
     reports: "idle",
+    certificates: "idle",
   });
   const [activeSection, setActiveSection] =
     useState<AdminSection>(getStoredAdminSection);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [posts, setPosts] = useState<AdminPost[]>([]);
   const [reports, setReports] = useState<AdminReport[]>([]);
+  const [certificateSchedules, setCertificateSchedules] = useState<CertificateSchedule[]>([]);
+  const [certificateSyncing, setCertificateSyncing] = useState(false);
+  const [certificateSyncMessage, setCertificateSyncMessage] = useState("");
+  const [certificateSyncError, setCertificateSyncError] = useState("");
   const [selectedUserId, setSelectedUserId] = useState(() =>
     getStoredText(ADMIN_SELECTED_USER_STORAGE_KEY),
   );
@@ -131,7 +138,7 @@ export default function AdminPageClient() {
     let cancelled = false;
 
     const loadSection = async <T,>(
-      section: AdminSection,
+      section: Extract<AdminSection, "users" | "posts" | "reports">,
       applyData: (items: T[]) => void,
     ) => {
       setApiStatus((prev) => ({ ...prev, [section]: "loading" }));
@@ -154,6 +161,17 @@ export default function AdminPageClient() {
     void loadSection<AdminUser>("users", setUsers);
     void loadSection<AdminPost>("posts", setPosts);
     void loadSection<AdminReport>("reports", setReports);
+    setApiStatus((prev) => ({ ...prev, certificates: "loading" }));
+    void listCertificateSchedules()
+      .then((items) => {
+        if (cancelled) return;
+        setCertificateSchedules(items);
+        setApiStatus((prev) => ({ ...prev, certificates: "ready" }));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setApiStatus((prev) => ({ ...prev, certificates: "unavailable" }));
+      });
 
     return () => {
       cancelled = true;
@@ -262,7 +280,9 @@ export default function AdminPageClient() {
       ? "회원 관리"
       : activeSection === "posts"
         ? "게시글 관리"
-        : "신고 및 문의 처리";
+        : activeSection === "reports"
+          ? "신고 및 문의 처리"
+          : "자격증 일정";
 
   const searchPlaceholder =
     activeSection === "users"
@@ -274,7 +294,7 @@ export default function AdminPageClient() {
   const statCards = useMemo(() => {
     if (activeSection === "users") {
       return [
-        { id: "users-total", icon: <Users size={18} />, label: "총 회원", value: visibleUsers.length },
+        { id: "users-total", icon: <Users size={18} />, label: "전체 회원", value: visibleUsers.length },
         {
           id: "users-active",
           icon: <CheckCircle2 size={18} />,
@@ -310,6 +330,13 @@ export default function AdminPageClient() {
       ];
     }
 
+    if (activeSection === "certificates") {
+      return [
+        { id: "certificates-total", icon: <FileText size={18} />, label: "저장 일정", value: certificateSchedules.length },
+        { id: "certificates-sync", icon: <CheckCircle2 size={18} />, label: "갱신 상태", value: certificateSyncing ? "진행 중" : "대기" },
+      ];
+    }
+
     return [
       { id: "reports-total", icon: <MessageSquareWarning size={18} />, label: "전체 신고/문의", value: reports.length },
       { id: "reports-pending", icon: <Clock3 size={18} />, label: "대기", value: reportCount },
@@ -318,6 +345,8 @@ export default function AdminPageClient() {
     ];
   }, [
     activeSection,
+    certificateSchedules.length,
+    certificateSyncing,
     deletedPostCount,
     dismissedReportCount,
     hiddenPostCount,
@@ -378,6 +407,37 @@ export default function AdminPageClient() {
     }
   };
 
+  const handleCertificateSync = async () => {
+    if (certificateSyncing) return;
+
+    try {
+      setCertificateSyncing(true);
+      setCertificateSyncMessage("");
+      setCertificateSyncError("");
+      setApiStatus((prev) => ({ ...prev, certificates: "loading" }));
+
+      const result = await syncCertificateSchedules();
+      const nextSchedules = await listCertificateSchedules();
+
+      setCertificateSchedules(nextSchedules);
+      setCertificateSyncMessage(
+        `${result.message} fetched ${result.fetchedCount}, created ${result.createdCount}, updated ${result.updatedCount}`,
+      );
+      setApiStatus((prev) => ({ ...prev, certificates: "ready" }));
+    } catch (error) {
+      const statusCode = (error as { response?: { status?: number } })?.response?.status;
+      if (statusCode === 401 || statusCode === 403) {
+        setAuthStatus("unauthorized");
+      }
+      setCertificateSyncError(
+        error instanceof Error ? error.message : "자격증 일정 갱신에 실패했습니다.",
+      );
+      setApiStatus((prev) => ({ ...prev, certificates: "unavailable" }));
+    } finally {
+      setCertificateSyncing(false);
+    }
+  };
+
   const handleAdminLogout = async () => {
     await logoutSession();
     router.replace("/login");
@@ -400,7 +460,9 @@ export default function AdminPageClient() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4 text-slate-800">
         <div className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 text-center">
-          <p className="text-sm font-black text-hp-700">관리자 인증 확인 중</p>
+          <p className="text-sm font-black text-hp-700">
+            관리자 인증 확인 중
+          </p>
           <p className="mt-2 text-sm font-semibold text-slate-500">
             로그인 세션을 확인하고 있습니다.
           </p>
@@ -415,7 +477,7 @@ export default function AdminPageClient() {
         <div className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 text-center">
           <ShieldCheck size={34} className="mx-auto text-hp-600" />
           <h2 className="mt-3 text-xl font-black text-slate-950">
-            관리자 권한이 필요합니다
+            관리자 권한이 필요합니다.
           </h2>
           <p className="mt-2 text-sm font-semibold text-slate-500">
             관리자 계정으로 로그인해야 관리자 API를 확인할 수 있습니다.
@@ -462,7 +524,7 @@ export default function AdminPageClient() {
           </div>
         </header>
 
-        {!selectedUser && !selectedPost ? (
+        {!selectedUser && !selectedPost && activeSection !== "certificates" ? (
           <div className="mb-4 flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex w-full max-w-xl items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 focus-within:border-hp-300 focus-within:bg-white">
               <Search size={18} className="text-slate-400" />
@@ -576,6 +638,16 @@ export default function AdminPageClient() {
             }
           />
         ) : null}
+
+        {activeSection === "certificates" ? (
+          <AdminCertificatesSection
+            totalSchedules={certificateSchedules.length}
+            syncing={certificateSyncing}
+            syncMessage={certificateSyncMessage}
+            syncError={certificateSyncError}
+            onSync={() => void handleCertificateSync()}
+          />
+        ) : null}
       </main>
 
       {previewPost ? (
@@ -647,7 +719,7 @@ function AdminPostPreviewModal({
               {post.title}
             </h3>
             <p className="mt-2 text-sm font-semibold text-slate-500">
-              {post.author} · {formatAdminPreviewDate(post.createdAt)} · 조회수 {post.views}
+              {post.author} 쨌 {formatAdminPreviewDate(post.createdAt)} 쨌 議고쉶??{post.views}
             </p>
           </div>
         </div>
@@ -655,15 +727,15 @@ function AdminPostPreviewModal({
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           <article className="rounded-lg border border-slate-200 bg-white p-4">
             <p className="min-h-36 whitespace-pre-wrap break-words text-sm leading-7 text-slate-700">
-              {post.content || "내용이 없습니다."}
+              {post.content || "?댁슜???놁뒿?덈떎."}
             </p>
           </article>
 
           <section className="mt-4 rounded-lg border border-slate-200 bg-white">
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-              <h4 className="text-sm font-black text-slate-950">댓글</h4>
+              <h4 className="text-sm font-black text-slate-950">?볤?</h4>
               <span className="text-xs font-black text-slate-400">
-                {comments.length}개
+                {comments.length}媛?
               </span>
             </div>
 
@@ -733,3 +805,4 @@ function formatAdminPreviewDate(value?: string) {
   if (!value) return "날짜 없음";
   return value.replace("T", " ").slice(0, 16);
 }
+

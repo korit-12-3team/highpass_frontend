@@ -8,18 +8,25 @@ import type { BoardPost, PostComment, UserProfile } from "@/entities/common/type
 import { listComments } from "@/features/boards/api/comments";
 import { isPostLiked } from "@/features/boards/api/likes";
 import { listBoards } from "@/features/free-board/api/boards";
-import { REGION_DATA } from "@/shared/constants";
-import { getUserProfile, updateUserPassword, updateUserProfile, verifyUserPassword, withdrawUser, updateNotificationSettings } from "@/features/mypage/api/profile";
-import { listStudies } from "@/features/study/api/study-api";
-import { useApp } from "@/shared/context/AppContext";
+import {
+  getUserProfile,
+  updateNotificationSettings,
+  updateUserPassword,
+  updateUserProfile,
+  verifyUserPassword,
+  withdrawUser,
+} from "@/features/mypage/api/profile";
+import { CommentList, PostList } from "@/features/mypage/components/MyPageActivityList";
+import { MyPageBoardFilterTabs } from "@/features/mypage/components/MyPageBoardFilterTabs";
+import { EmptyState, SectionCard } from "@/features/mypage/components/MyPageCommon";
 import { MyPageHeader, MyPageTabNav } from "@/features/mypage/components/MyPageHeader";
-import { PostList, CommentList } from "@/features/mypage/components/MyPageActivityList";
-import { SectionCard } from "@/features/mypage/components/MyPageCommon";
 import { MyPagePasswordModal } from "@/features/mypage/components/MyPagePasswordModal";
 import { MyPageProfileSection } from "@/features/mypage/components/MyPageProfileSection";
-import { MyPageBoardFilterTabs } from "@/features/mypage/components/MyPageBoardFilterTabs";
 import { MyPageWithdrawModal } from "@/features/mypage/components/MyPageWithdrawModal";
 import { SupportInquiryModal } from "@/features/support/components/SupportInquiryModal";
+import { listStudies } from "@/features/study/api/study-api";
+import { useApp } from "@/shared/context/AppContext";
+import { REGION_DATA } from "@/shared/constants";
 
 type ProfileEditState = {
   nickname: string;
@@ -32,6 +39,18 @@ type ProfileEditState = {
 };
 
 type MyPageTab = "profile" | "posts" | "comments" | "likes" | "settings";
+type MyPageBoardFilter = "all" | "study" | "free";
+type MyCommentItem = {
+  comment: PostComment;
+  post: BoardPost;
+};
+
+const PROFILE_TABS: MyPageTab[] = ["profile", "posts", "comments", "likes", "settings"];
+const MIN_PASSWORD_LENGTH = 8;
+
+function stripAllWhitespace(value: string) {
+  return value.replace(/\s+/g, "");
+}
 
 function NotificationSwitch({
   label,
@@ -55,7 +74,7 @@ function NotificationSwitch({
       }`}
     >
       <div className="flex items-center gap-4">
-        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${isOn ? 'bg-hp-100 text-hp-600' : 'bg-slate-200 text-slate-500'}`}>
+        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${isOn ? "bg-hp-100 text-hp-600" : "bg-slate-200 text-slate-500"}`}>
           {icon}
         </div>
         <div>
@@ -67,7 +86,7 @@ function NotificationSwitch({
         type="button"
         onClick={onToggle}
         disabled={disabled}
-        className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full px-1 transition-colors duration-200 ease-in-out focus:outline-none ${
+        className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full px-1 transition-colors duration-200 ease-in-out focus:outline-none ${
           isOn ? "bg-hp-600" : "bg-slate-300"
         } ${disabled ? "cursor-not-allowed" : ""}`}
       >
@@ -81,12 +100,6 @@ function NotificationSwitch({
   );
 }
 
-type MyPageBoardFilter = "all" | "study" | "free";
-type MyCommentItem = {
-  comment: PostComment;
-  post: BoardPost;
-};
-
 function inferRegionFromLocation(location?: string) {
   const normalized = (location || "").trim();
   if (!normalized) return { siDo: "", gunGu: "" };
@@ -99,8 +112,6 @@ function inferRegionFromLocation(location?: string) {
 
   return { siDo: "", gunGu: "" };
 }
-
-const PROFILE_TABS: MyPageTab[] = ["profile", "posts", "comments", "likes", "settings"];
 
 function isMyPageTab(value: string | null): value is MyPageTab {
   return value != null && PROFILE_TABS.includes(value as MyPageTab);
@@ -124,10 +135,10 @@ export default function MyPageClient({
   const requestedTab = searchParams.get("tab");
 
   const [activeTab, setActiveTab] = useState<MyPageTab>("profile");
-  const [hydratedPosts, setHydratedPosts] = useState<BoardPost[]>(initialPosts);
-  const [commentsLoading, setCommentsLoading] = useState(false);
   const [boardFilter, setBoardFilter] = useState<MyPageBoardFilter>("all");
-  const [profileUser, setProfileUser] = useState(initialProfile ?? currentUser);
+  const [hydratedPosts, setHydratedPosts] = useState(initialPosts);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [profileUser, setProfileUser] = useState<UserProfile | null>(initialProfile ?? currentUser);
   const [profileEditOpen, setProfileEditOpen] = useState(false);
   const [profilePasswordModalOpen, setProfilePasswordModalOpen] = useState(false);
   const [profilePasswordDraft, setProfilePasswordDraft] = useState("");
@@ -136,14 +147,17 @@ export default function MyPageClient({
   const [profileSaveError, setProfileSaveError] = useState("");
   const [profileSaveSuccess, setProfileSaveSuccess] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
+  const [newPasswordBlurred, setNewPasswordBlurred] = useState(false);
+  const [newPasswordConfirmBlurred, setNewPasswordConfirmBlurred] = useState(false);
+  const [newPasswordConfirmFocused, setNewPasswordConfirmFocused] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
-  const [inquiryOpen, setInquiryOpen] = useState(false);
-  const [inquirySubmitting, setInquirySubmitting] = useState(false);
   const [withdrawDraft, setWithdrawDraft] = useState("");
   const [withdrawError, setWithdrawError] = useState("");
   const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
-  const [likeNotification, setLikeNotification] = useState(initialProfile?.isLikeNotiOn ?? true );
+  const [inquiryOpen, setInquiryOpen] = useState(false);
+  const [inquirySubmitting, setInquirySubmitting] = useState(false);
   const [commentNotification, setCommentNotification] = useState(initialProfile?.isCommentNotiOn ?? true);
+  const [likeNotification, setLikeNotification] = useState(initialProfile?.isLikeNotiOn ?? true);
   const [notificationSaving, setNotificationSaving] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [editState, setEditState] = useState<ProfileEditState>({
@@ -156,58 +170,8 @@ export default function MyPageClient({
     newPasswordConfirm: "",
   });
 
-  const handleNotificationToggle = async (type: "COMMENT" | "LIKE", currentIsOn: boolean) => {
-    if (!profileUser?.id || notificationSaving) return;
-
-    const nextIsOn = !currentIsOn;
-
-    setNotificationSaving(true);
-    if (type === "COMMENT") setCommentNotification(nextIsOn);
-    else setLikeNotification(nextIsOn);
-
-    try {
-      await updateNotificationSettings(String(profileUser.id), { 
-        type, 
-        isOn: nextIsOn 
-      });
-      console.log(`${type} 알림 저장 성공!`);
-    } catch (error) {
-      if (type === "COMMENT") setCommentNotification(currentIsOn);
-      else setLikeNotification(currentIsOn);
-      alert("설정 저장에 실패했습니다.");
-    } finally {
-      setNotificationSaving(false);
-    }
-  };
-
-  const handleAllNotificationToggle = async () => {
-    if (!profileUser?.id || notificationSaving) return;
-
-    const nextIsOn = !(commentNotification && likeNotification);
-    const prevComment = commentNotification;
-    const prevLike = likeNotification;
-
-    setNotificationSaving(true);
-    setCommentNotification(nextIsOn);
-    setLikeNotification(nextIsOn);
-
-    try {
-      await updateNotificationSettings(String(profileUser.id), { type: "COMMENT", isOn: nextIsOn });
-      await updateNotificationSettings(String(profileUser.id), { type: "LIKE", isOn: nextIsOn });
-      toast.success(nextIsOn ? "전체 알림을 켰습니다." : "전체 알림을 껐습니다.");
-    } catch {
-      setCommentNotification(prevComment);
-      setLikeNotification(prevLike);
-      alert("알림 설정 저장에 실패했습니다.");
-    } finally {
-      setNotificationSaving(false);
-    }
-  };
-
   useEffect(() => {
-    if (isMyPageTab(requestedTab)) {
-      setActiveTab(requestedTab);
-    }
+    if (isMyPageTab(requestedTab)) setActiveTab(requestedTab);
   }, [requestedTab]);
 
   useEffect(() => {
@@ -216,48 +180,32 @@ export default function MyPageClient({
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString());
-    
-    if (activeTab === "profile") {
-      params.delete("tab");
-    } else {
-      params.set("tab", activeTab);
-    }
-
+    if (activeTab === "profile") params.delete("tab");
+    else params.set("tab", activeTab);
     const nextQuery = params.toString();
     const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
     const currentQuery = searchParams.toString();
     const currentUrl = currentQuery ? `${pathname}?${currentQuery}` : pathname;
-
-    if (nextUrl !== currentUrl) {
-      router.replace(nextUrl, { scroll: false });
-    }
+    if (nextUrl !== currentUrl) router.replace(nextUrl, { scroll: false });
   }, [activeTab, pathname, router, searchParams]);
 
   useEffect(() => {
     if (!currentUser?.id) return;
-
     let cancelled = false;
 
-    const loadProfile = async () => {
+    void (async () => {
       try {
         const latestProfile = await getUserProfile(currentUser.id);
-        if (!cancelled) {
-          setProfileUser(latestProfile ?? currentUser);
-        }
+        if (!cancelled) setProfileUser(latestProfile ?? currentUser);
       } catch {
-        if (!cancelled) {
-          setProfileUser(currentUser);
-        }
+        if (!cancelled) setProfileUser(currentUser);
       }
-    };
-
-    setProfileUser(initialProfile ?? currentUser);
-    void loadProfile();
+    })();
 
     return () => {
       cancelled = true;
     };
-  }, [currentUser, initialProfile]);
+  }, [currentUser]);
 
   useEffect(() => {
     if (!currentUser?.id) {
@@ -267,9 +215,8 @@ export default function MyPageClient({
 
     let cancelled = false;
 
-    const loadPosts = async () => {
+    void (async () => {
       setCommentsLoading(true);
-
       try {
         const [freeBoards, studies] = await Promise.all([listBoards(currentUser.id), listStudies(currentUser.id)]);
         const posts = [...freeBoards, ...studies].map((post) => ({
@@ -279,7 +226,6 @@ export default function MyPageClient({
               ? post.likedByUser
               : isPostLiked(currentUser.id, post.type === "free" ? "FREE" : "STUDY", post.id),
         }));
-
         const postsWithComments = await Promise.all(
           posts.map(async (post) => {
             try {
@@ -290,18 +236,11 @@ export default function MyPageClient({
             }
           }),
         );
-
-        if (!cancelled) {
-          setHydratedPosts(postsWithComments);
-        }
+        if (!cancelled) setHydratedPosts(postsWithComments);
       } finally {
-        if (!cancelled) {
-          setCommentsLoading(false);
-        }
+        if (!cancelled) setCommentsLoading(false);
       }
-    };
-
-    void loadPosts();
+    })();
 
     return () => {
       cancelled = true;
@@ -309,19 +248,23 @@ export default function MyPageClient({
   }, [currentUser, initialPosts]);
 
   const displayUser = profileUser ?? currentUser;
-  const visiblePosts = hydratedPosts;
   const regionFromProfile = useMemo(() => inferRegionFromLocation(displayUser?.location), [displayUser?.location]);
-
-    useEffect(() => {
-    if (displayUser) {
-      setCommentNotification(displayUser.isCommentNotiOn ?? true);
-      setLikeNotification(displayUser.isLikeNotiOn ?? true);
-    }
-  }, [displayUser]);
+  const showNewPasswordLengthError =
+    profileEditOpen &&
+    newPasswordBlurred &&
+    editState.newPassword.trim().length > 0 &&
+    editState.newPassword.trim().length < MIN_PASSWORD_LENGTH;
+  const showNewPasswordMismatchError =
+    profileEditOpen &&
+    newPasswordConfirmBlurred &&
+    !newPasswordConfirmFocused &&
+    editState.newPasswordConfirm.trim().length > 0 &&
+    editState.newPassword !== editState.newPasswordConfirm;
 
   useEffect(() => {
     if (!displayUser) return;
-
+    setCommentNotification(displayUser.isCommentNotiOn ?? true);
+    setLikeNotification(displayUser.isLikeNotiOn ?? true);
     setEditState({
       nickname: displayUser.nickname || "",
       ageRange: displayUser.ageRange || "",
@@ -334,76 +277,45 @@ export default function MyPageClient({
   }, [displayUser, regionFromProfile.gunGu, regionFromProfile.siDo]);
 
   const myPosts = useMemo(
-    () =>
-      visiblePosts
-        .filter((post) => post.authorId === displayUser?.id)
-        .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))),
-    [displayUser?.id, visiblePosts],
+    () => hydratedPosts.filter((post) => post.authorId === displayUser?.id).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))),
+    [displayUser?.id, hydratedPosts],
   );
-
   const likedPosts = useMemo(
-    () =>
-      visiblePosts
-        .filter((post) => post.likedByUser)
-        .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))),
-    [visiblePosts],
+    () => hydratedPosts.filter((post) => post.likedByUser).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))),
+    [hydratedPosts],
   );
-
   const myComments = useMemo<MyCommentItem[]>(() => {
     if (!displayUser) return [];
-
-    return visiblePosts
-      .flatMap((post) =>
-        post.comments
-          .filter((comment) => comment.author === displayUser.nickname)
-          .map((comment) => ({ comment, post })),
-      )
+    return hydratedPosts
+      .flatMap((post) => post.comments.filter((comment) => comment.author === displayUser.nickname).map((comment) => ({ comment, post })))
       .sort((a, b) => String(b.comment.createdAt).localeCompare(String(a.comment.createdAt)));
-  }, [displayUser, visiblePosts]);
-
-  const filteredMyPosts = useMemo(
-    () => myPosts.filter((post) => matchesBoardFilter(post.type, boardFilter)),
-    [boardFilter, myPosts],
-  );
-
-  const filteredLikedPosts = useMemo(
-    () => likedPosts.filter((post) => matchesBoardFilter(post.type, boardFilter)),
-    [boardFilter, likedPosts],
-  );
-
-  const filteredMyComments = useMemo(
-    () => myComments.filter(({ post }) => matchesBoardFilter(post.type, boardFilter)),
-    [boardFilter, myComments],
-  );
+  }, [displayUser, hydratedPosts]);
 
   const myPostCounts = useMemo(
-    () => ({
-      all: myPosts.length,
-      study: myPosts.filter((post) => post.type === "study").length,
-      free: myPosts.filter((post) => post.type === "free").length,
-    }),
+    () => ({ all: myPosts.length, study: myPosts.filter((post) => post.type === "study").length, free: myPosts.filter((post) => post.type === "free").length }),
     [myPosts],
   );
-
   const myCommentCounts = useMemo(
-    () => ({
-      all: myComments.length,
-      study: myComments.filter(({ post }) => post.type === "study").length,
-      free: myComments.filter(({ post }) => post.type === "free").length,
-    }),
+    () => ({ all: myComments.length, study: myComments.filter(({ post }) => post.type === "study").length, free: myComments.filter(({ post }) => post.type === "free").length }),
     [myComments],
   );
-
   const likedPostCounts = useMemo(
-    () => ({
-      all: likedPosts.length,
-      study: likedPosts.filter((post) => post.type === "study").length,
-      free: likedPosts.filter((post) => post.type === "free").length,
-    }),
+    () => ({ all: likedPosts.length, study: likedPosts.filter((post) => post.type === "study").length, free: likedPosts.filter((post) => post.type === "free").length }),
     [likedPosts],
   );
 
-  if (!currentUser || !displayUser) return null;
+  const filteredMyPosts = useMemo(() => myPosts.filter((post) => matchesBoardFilter(post.type, boardFilter)), [boardFilter, myPosts]);
+  const filteredMyComments = useMemo(() => myComments.filter(({ post }) => matchesBoardFilter(post.type, boardFilter)), [boardFilter, myComments]);
+  const filteredLikedPosts = useMemo(() => likedPosts.filter((post) => matchesBoardFilter(post.type, boardFilter)), [boardFilter, likedPosts]);
+
+  if (!currentUser || !displayUser) {
+    return (
+      <SectionCard title="마이페이지" description="로그인이 필요합니다.">
+        <EmptyState icon={<Bell size={20} />} title="사용자 정보를 불러올 수 없습니다." description="다시 로그인한 뒤 확인해 주세요." />
+      </SectionCard>
+    );
+  }
+
   const isSocialAccount = displayUser.loginType !== "local";
 
   const resetEditState = () => {
@@ -421,6 +333,9 @@ export default function MyPageClient({
     setProfilePasswordError("");
     setProfileSaveError("");
     setProfileSaveSuccess("");
+    setNewPasswordBlurred(false);
+    setNewPasswordConfirmBlurred(false);
+    setNewPasswordConfirmFocused(false);
   };
 
   const openBoardPost = (post: BoardPost) => {
@@ -431,29 +346,30 @@ export default function MyPageClient({
 
   const saveProfile = async () => {
     const password = currentPassword.trim();
-    const nickname = editState.nickname.trim();
+    const nickname = stripAllWhitespace(editState.nickname);
     const ageRange = editState.ageRange.trim();
     const gender = editState.gender.trim();
     const siDo = editState.siDo.trim();
     const gunGu = editState.gunGu.trim();
     const nextPassword = editState.newPassword.trim();
     const confirmPassword = editState.newPasswordConfirm.trim();
+    setNewPasswordBlurred(true);
+    setNewPasswordConfirmBlurred(true);
 
     if (!isSocialAccount && !password) {
       setProfileSaveError("현재 비밀번호를 입력해 주세요.");
-      setProfileSaveSuccess("");
       return;
     }
-
     if (!nickname || !ageRange || !gender || !siDo || !gunGu) {
       setProfileSaveError("닉네임, 연령대, 성별, 지역 정보를 모두 입력해 주세요.");
-      setProfileSaveSuccess("");
       return;
     }
-
     if (!isSocialAccount && (nextPassword || confirmPassword) && nextPassword !== confirmPassword) {
-      setProfileSaveError("새 비밀번호와 비밀번호 확인이 일치하지 않습니다.");
-      setProfileSaveSuccess("");
+      setProfileSaveError("새 비밀번호가 일치하지 않습니다.");
+      return;
+    }
+    if (!isSocialAccount && nextPassword && nextPassword.length < MIN_PASSWORD_LENGTH) {
+      setProfileSaveError(`새 비밀번호는 ${MIN_PASSWORD_LENGTH}자 이상이어야 합니다.`);
       return;
     }
 
@@ -482,13 +398,12 @@ export default function MyPageClient({
       setProfileUser(updated);
       setProfileEditOpen(false);
       setCurrentPassword("");
-      setEditState((prev) => ({ ...prev, newPassword: "", newPasswordConfirm: "" }));
-      toast.success("회원정보가 업데이트되었습니다.");
+      setEditState((prev) => ({ ...prev, nickname, newPassword: "", newPasswordConfirm: "" }));
+      toast.success("회원정보가 수정되었습니다.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "회원정보 수정에 실패했습니다.";
       setProfileSaveError(message);
       toast.error(message);
-      setProfileSaveSuccess("");
     } finally {
       setProfileSaving(false);
     }
@@ -504,15 +419,9 @@ export default function MyPageClient({
     try {
       setProfilePasswordChecking(true);
       setProfilePasswordError("");
-      setProfileSaveSuccess("");
-
-      await verifyUserPassword(currentUser.id, {
-        currentPassword: password,
-      });
-
+      await verifyUserPassword(currentUser.id, { currentPassword: password });
       setCurrentPassword(password);
       setProfilePasswordDraft("");
-      setProfilePasswordError("");
       setProfilePasswordModalOpen(false);
       setProfileEditOpen(true);
     } catch (error) {
@@ -544,6 +453,48 @@ export default function MyPageClient({
     }
   };
 
+  const handleNotificationToggle = async (type: "COMMENT" | "LIKE", currentIsOn: boolean) => {
+    if (!profileUser?.id || notificationSaving) return;
+    const nextIsOn = !currentIsOn;
+
+    setNotificationSaving(true);
+    if (type === "COMMENT") setCommentNotification(nextIsOn);
+    else setLikeNotification(nextIsOn);
+
+    try {
+      await updateNotificationSettings(String(profileUser.id), { type, isOn: nextIsOn });
+    } catch {
+      if (type === "COMMENT") setCommentNotification(currentIsOn);
+      else setLikeNotification(currentIsOn);
+      toast.error("알림 설정 저장에 실패했습니다.");
+    } finally {
+      setNotificationSaving(false);
+    }
+  };
+
+  const handleAllNotificationToggle = async () => {
+    if (!profileUser?.id || notificationSaving) return;
+    const nextIsOn = !(commentNotification && likeNotification);
+    const prevComment = commentNotification;
+    const prevLike = likeNotification;
+
+    setNotificationSaving(true);
+    setCommentNotification(nextIsOn);
+    setLikeNotification(nextIsOn);
+
+    try {
+      await updateNotificationSettings(String(profileUser.id), { type: "COMMENT", isOn: nextIsOn });
+      await updateNotificationSettings(String(profileUser.id), { type: "LIKE", isOn: nextIsOn });
+      toast.success(nextIsOn ? "전체 알림을 켰습니다." : "전체 알림을 껐습니다.");
+    } catch {
+      setCommentNotification(prevComment);
+      setLikeNotification(prevLike);
+      toast.error("알림 설정 저장에 실패했습니다.");
+    } finally {
+      setNotificationSaving(false);
+    }
+  };
+
   const accountTypeLabel =
     displayUser.loginType === "local"
       ? "일반 회원"
@@ -555,12 +506,7 @@ export default function MyPageClient({
 
   return (
     <div className="mx-auto max-w-6xl animate-in fade-in space-y-6 duration-500">
-      <MyPageHeader
-        user={displayUser}
-        accountTypeLabel={accountTypeLabel}
-        postCount={myPosts.length}
-        commentCount={myComments.length}
-      />
+      <MyPageHeader user={displayUser} accountTypeLabel={accountTypeLabel} postCount={myPosts.length} commentCount={myComments.length} />
 
       <MyPageTabNav
         activeTab={activeTab}
@@ -576,22 +522,21 @@ export default function MyPageClient({
           editOpen={profileEditOpen}
           verifying={profilePasswordChecking}
           editState={editState}
+          showPasswordLengthError={showNewPasswordLengthError}
+          showPasswordMismatchError={showNewPasswordMismatchError}
           saveError={profileSaveError}
           saveSuccess={profileSaveSuccess}
           saving={profileSaving}
           isSocialAccount={isSocialAccount}
           onStartEdit={() => {
             resetEditState();
-            if (isSocialAccount) {
-              setProfileEditOpen(true);
-            } else {
-              setProfilePasswordModalOpen(true);
-            }
+            if (isSocialAccount) setProfileEditOpen(true);
+            else setProfilePasswordModalOpen(true);
           }}
           onCancelEdit={() => {
             resetEditState();
-            setProfilePasswordModalOpen(false);
             setProfileEditOpen(false);
+            setProfilePasswordModalOpen(false);
           }}
           onSave={() => void saveProfile()}
           onStartWithdraw={() => {
@@ -603,14 +548,22 @@ export default function MyPageClient({
             setInquirySubmitting(false);
             setInquiryOpen(true);
           }}
-          onChange={(next) => setEditState((prev) => ({ ...prev, ...next }))}
+          onChange={(next) => {
+            setEditState((prev) => ({ ...prev, ...next }));
+            setProfileSaveError("");
+          }}
+          onBlurNewPassword={() => setNewPasswordBlurred(true)}
+          onBlurNewPasswordConfirm={() => setNewPasswordConfirmBlurred(true)}
+          onFocusNewPasswordConfirm={() => setNewPasswordConfirmFocused(true)}
+          onAfterBlurNewPasswordConfirm={() => setNewPasswordConfirmFocused(false)}
+          onSubmitByEnter={() => void saveProfile()}
         />
       ) : null}
 
       {activeTab === "posts" ? (
         <SectionCard
-          title="내 게시물"
-          description={commentsLoading ? "게시물과 댓글 정보를 불러오는 중입니다." : "작성한 자유 게시글과 스터디 모집 글을 확인할 수 있습니다."}
+          title="내 게시글"
+          description={commentsLoading ? "게시글 정보를 불러오는 중입니다." : "작성한 스터디와 자유게시글을 확인할 수 있습니다."}
         >
           <MyPageBoardFilterTabs value={boardFilter} counts={myPostCounts} onChange={setBoardFilter} />
           <PostList posts={filteredMyPosts} onOpenPost={openBoardPost} />
@@ -620,7 +573,7 @@ export default function MyPageClient({
       {activeTab === "comments" ? (
         <SectionCard
           title="내 댓글"
-          description={commentsLoading ? "댓글 내역을 불러오는 중입니다." : "내가 작성한 댓글과 해당 게시글을 함께 확인할 수 있습니다."}
+          description={commentsLoading ? "댓글 내역을 불러오는 중입니다." : "작성한 댓글과 해당 게시글을 확인할 수 있습니다."}
         >
           <MyPageBoardFilterTabs value={boardFilter} counts={myCommentCounts} onChange={setBoardFilter} />
           <CommentList items={filteredMyComments} onOpenPost={openBoardPost} />
@@ -635,14 +588,11 @@ export default function MyPageClient({
       ) : null}
 
       {activeTab === "settings" ? (
-        <SectionCard
-          title="알림 설정"
-          description="댓글이나 좋아요 등 주요 활동에 대한 알림 수신 여부를 설정할 수 있습니다."
-        >
+        <SectionCard title="알림 설정" description="댓글과 좋아요 알림 수신 여부를 설정할 수 있습니다.">
           <div className="space-y-4">
             <NotificationSwitch
               label="전체 알림"
-              description="댓글 알림과 좋아요 알림을 한 번에 켜거나 끕니다."
+              description="댓글과 좋아요 알림을 한 번에 켜고 끕니다."
               icon={<Bell size={24} />}
               isOn={commentNotification && likeNotification}
               onToggle={handleAllNotificationToggle}
@@ -650,7 +600,7 @@ export default function MyPageClient({
             />
             <NotificationSwitch
               label="댓글 알림"
-              description="내 게시글에 새로운 댓글이 달리면 알림을 받습니다."
+              description="내 게시글에 댓글이 달리면 알림을 받습니다."
               icon={<MessageCircle size={24} />}
               isOn={commentNotification}
               onToggle={() => handleNotificationToggle("COMMENT", commentNotification)}
@@ -658,7 +608,7 @@ export default function MyPageClient({
             />
             <NotificationSwitch
               label="좋아요 알림"
-              description="내 게시글이 좋아요를 받으면 알림을 받습니다."
+              description="내 게시글에 좋아요가 달리면 알림을 받습니다."
               icon={<ThumbsUp size={24} />}
               isOn={likeNotification}
               onToggle={() => handleNotificationToggle("LIKE", likeNotification)}
@@ -681,6 +631,7 @@ export default function MyPageClient({
         }}
         onConfirm={() => void confirmProfileEdit()}
       />
+
       <MyPageWithdrawModal
         open={withdrawOpen}
         value={withdrawDraft}
@@ -695,6 +646,7 @@ export default function MyPageClient({
         }}
         onConfirm={() => void confirmWithdraw()}
       />
+
       <SupportInquiryModal
         open={inquiryOpen}
         submitting={inquirySubmitting}

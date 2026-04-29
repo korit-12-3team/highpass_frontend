@@ -19,6 +19,11 @@ export function MyPageWithdrawModal({
 }) {
   if (!open) return null;
 
+  const handleConfirm = () => {
+    if (submitting || value !== CONFIRM_TEXT) return;
+    onConfirm();
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
@@ -32,6 +37,11 @@ export function MyPageWithdrawModal({
         <input
           value={value}
           onChange={(event) => onChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            handleConfirm();
+          }}
           placeholder={CONFIRM_TEXT}
           className="mt-3 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-rose-400"
         />
@@ -47,7 +57,7 @@ export function MyPageWithdrawModal({
           </button>
           <button
             type="button"
-            onClick={onConfirm}
+            onClick={handleConfirm}
             disabled={submitting || value !== CONFIRM_TEXT}
             className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
