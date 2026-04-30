@@ -288,10 +288,10 @@ export default function CalendarPageClient() {
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
-      const shouldBeOverlay = width <= 1000;
+      const shouldBeOverlay = width <= 1280;
       
       setIsOverlay(shouldBeOverlay);
-      setIsSidebarOpen(!shouldBeOverlay); // 1000px 초과면 열기, 이하면 닫기
+      setIsSidebarOpen(!shouldBeOverlay); // 1280px 초과면 열기, 이하면 닫기
     };
 
     handleResize();
@@ -978,9 +978,10 @@ export default function CalendarPageClient() {
   if (!mounted) return null;
 
   return (
-    <div className="animate-in fade-in flex h-full flex-col gap-4 duration-500 md:flex-row">
-      <div className="flex flex-1 flex-col rounded-2xl border border-hp-100 bg-white p-5 shadow-sm transition-all duration-300">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-y-4">
+    <div className="animate-in fade-in flex h-full flex-col gap-4 duration-500 md:flex-row overflow-hidden">
+      <div className="flex-1 overflow-x-auto overflow-y-hidden">
+        <div className="flex h-full min-w-[700px] flex-col rounded-2xl border border-hp-100 bg-white p-5 shadow-sm transition-all duration-300">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-y-4">
           <div className="flex items-center gap-4">
             <div className="w-[210px] shrink-0">
               <button
@@ -1227,7 +1228,15 @@ export default function CalendarPageClient() {
                               key={`${day.key}-${event.id}`}
                               draggable={isDraggable}
                               onDragStart={(e) => handleEventDragStart(e, event.id)}
-                              className={`relative flex h-5 items-center text-[10px] font-semibold text-white ${getDisplayEventColor(event)} ${day.currentMonth ? "" : "opacity-45"} ${isSingleDay ? "overflow-hidden rounded-md" : segment.startsToday ? "z-10 -mr-3 overflow-visible rounded-l-md rounded-r-none pr-3" : segment.endsToday ? "-ml-3 overflow-hidden rounded-l-none rounded-r-md pl-3" : "-mx-3 overflow-hidden rounded-none px-3"} ${isDraggable ? "cursor-move" : ""}`}
+                              className={`relative flex h-5 items-center text-[10px] font-semibold text-white ${getDisplayEventColor(event)} ${day.currentMonth ? "" : "opacity-45"} ${
+                                isSingleDay 
+                                  ? "overflow-hidden rounded-md" 
+                                  : segment.startsToday 
+                                    ? "z-10 -mr-[7px] overflow-visible rounded-l-md rounded-r-none" 
+                                    : segment.endsToday 
+                                      ? "overflow-hidden -ml-[6px] rounded-l-none rounded-r-md" 
+                                      : "overflow-hidden -ml-[6px] -mr-[7px] rounded-none"
+                              } ${isDraggable ? "cursor-move" : ""}`}
                             >
                               {isSingleDay ? (
                                 <span className="truncate px-1">{event.title}</span>
@@ -1237,13 +1246,12 @@ export default function CalendarPageClient() {
                                   style={labelStyle}
                                 >
                                   {event.title}
-                                </span>
+                                  </span>
                               ) : null}
                             </div>
                           );
                         })}
-                      </div>
-                      <div className="mt-auto flex min-h-4 items-end">
+                      </div>                      <div className="mt-auto flex min-h-4 items-end">
                         {overflowCount > 0 && (
                           <p className={`text-[10px] font-medium leading-none ${day.currentMonth ? "text-slate-400" : "text-slate-300"}`}>
                             + {overflowCount}개
@@ -1258,6 +1266,7 @@ export default function CalendarPageClient() {
           </>
         )}
       </div>
+    </div>
 
       {isOverlay && !isSidebarOpen && (
         <button

@@ -56,7 +56,7 @@ export default function MainSidebar({
   const unreadNotiCount = notifications?.filter((notification) => !notification.isRead).length ?? 0;
 
   return (
-    <aside className="relative z-10 hidden w-20 flex-col border-r border-[#b8dff3] bg-[linear-gradient(180deg,#f8fcff_0%,#e8f6ff_48%,#d5ebf7_100%)] shadow-xl transition-all duration-300 ease-in-out md:flex xl:w-64 group">
+    <aside className="relative z-10 flex w-20 flex-col border-r border-[#b8dff3] bg-[linear-gradient(180deg,#f8fcff_0%,#e8f6ff_48%,#d5ebf7_100%)] shadow-xl transition-all duration-300 ease-in-out xl:w-64 group">
       <div className="p-5 flex flex-col items-center xl:items-start">
         <h1 className="flex items-center gap-3 p-3 text-2xl font-black text-[#123b5c] overflow-hidden">
           <Image
