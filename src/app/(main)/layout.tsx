@@ -55,9 +55,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     setPostCertCategory,
     selectedPlace,
     setSelectedPlace,
+    setSelectedTags, 
     createChatRoom,
     setCreateChatRoom,
-    setIsOnlineStudy
+    setIsOnlineStudy,
+    searchKeyword,  
+    setSearchKeyword,   
+    searchResults,       
+    setSearchResults,
   } = useApp();
 
   const [profileRemote, setProfileRemote] = useState<UserProfile | null>(null);
@@ -470,6 +475,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     setPostCert("");
     setPostCertCategory("");
     setSelectedPlace(null);
+    setSelectedTags([]); 
+    setSearchKeyword("");
+    setSearchResults([]);
     setIsOnlineStudy(false);
   };
 

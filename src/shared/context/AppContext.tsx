@@ -9,6 +9,7 @@ import { createStudy } from "@/features/study/api/study-api";
 import type { ChatRoom, EventType, SearchPlace, TodoMap, UserProfile } from "@/entities/common/types";
 import { CHAT_API_BASE_URL } from "@/services/config/config";
 
+
 interface AppContextType {
   currentUser: UserProfile | null;
   isAuthenticated: boolean;
@@ -47,7 +48,13 @@ interface AppContextType {
   selectedPlace: SearchPlace | null;
   setSelectedPlace: React.Dispatch<React.SetStateAction<SearchPlace | null>>;
   createChatRoom : boolean;
-  setCreateChatRoom: React.Dispatch<React.SetStateAction<boolean>>;
+  setCreateChatRoom: React.Dispatch<React.SetStateAction<boolean>>; 
+  selectedTags: string[];
+  setSelectedTags: React.Dispatch<React.SetStateAction<string[]>>;  
+  searchKeyword: string;
+  setSearchKeyword: React.Dispatch<React.SetStateAction<string>>;
+  searchResults: SearchPlace[];
+  setSearchResults: React.Dispatch<React.SetStateAction<SearchPlace[]>>;
   isOnlineStudy: boolean;
   setIsOnlineStudy: React.Dispatch<React.SetStateAction<boolean>>;
   submitPost: () => Promise<boolean>;
@@ -73,7 +80,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [postCert, setPostCert] = useState("");
   const [postCertCategory, setPostCertCategory] = useState("");
   const [selectedPlace, setSelectedPlace] = useState<SearchPlace | null>(null);
-  
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchPlace[]>([]);
+
   const [createChatRoom, setCreateChatRoom] = useState(false);
   const [isOnlineStudy, setIsOnlineStudy] = useState(false);
 
@@ -161,11 +171,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         location: selectedPlace?.address,
         lat: selectedPlace?.lat,
         lng: selectedPlace?.lng,
+        tags: selectedTags,
       });
     }
 
       return true;
-  }, [currentUser, postContent, postTitle, postCert, postCertCategory, selectedPlace, writeType, createChatRoom, isOnlineStudy]);
+  }, [currentUser, postContent, postTitle, postCert, postCertCategory, selectedPlace, writeType, createChatRoom, isOnlineStudy, selectedTags]);
 
   return (
     <AppContext.Provider
@@ -202,6 +213,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setPostCertCategory,
         selectedPlace,
         setSelectedPlace,
+        selectedTags,
+        setSelectedTags,
+        searchKeyword,
+        setSearchKeyword,
+        searchResults, 
+        setSearchResults, 
         createChatRoom,
         setCreateChatRoom,
         isOnlineStudy,

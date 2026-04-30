@@ -1,6 +1,7 @@
 import type { BoardPost } from "@/entities/common/types";
 import { mapApiRecordToBoardPost, unwrapData, type BoardApiRecord } from "@/features/boards/api/mappers";
 import { http } from "@/services/api/http";
+import axios from "axios";
 
 export async function listBoards(userId?: string): Promise<BoardPost[]> {
   const response = await http.get("/api/boards", {
@@ -30,11 +31,13 @@ export async function createBoard(input: {
   location?: string;
   lat?: number;
   lng?: number;
+  tags?: string[];
 }): Promise<BoardPost> {
   // Backend derives the author from the authenticated session.
   const payload: Record<string, unknown> = {
     title: input.title,
     content: input.content,
+    tags: input.tags ?? [],
   };
 
   if (input.type === "study") {
@@ -100,3 +103,28 @@ export async function patchBoard(freeBoardId: string, patch: { title?: string; c
 export async function deleteBoard(freeBoardId: string) {
   await http.delete(`/api/boards/${encodeURIComponent(freeBoardId)}`);
 }
+
+export async function updateBoard(
+  freeBoardId: string | number,
+  input: {
+    title: string;
+    content: string;
+    tags: string[]; 
+  },
+): Promise<BoardPost> {
+  const payload = {
+    title: input.title,
+    content: input.content,
+    tags: input.tags,
+  };
+
+  const response = await http.patch(`/api/boards/${encodeURIComponent(String(freeBoardId))}`, payload);
+  
+  const responsePayload = unwrapData(response.data);
+  if (!responsePayload || typeof responsePayload !== "object") {
+    throw new Error("게시글 수정 응답이 비어 있습니다.");
+  }
+
+  return mapApiRecordToBoardPost(responsePayload); 
+}
+

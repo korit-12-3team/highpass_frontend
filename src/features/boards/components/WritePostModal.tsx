@@ -24,6 +24,8 @@ interface WritePostModalProps {
   setPostCertCategory: (value: string) => void;
   selectedPlace: SearchPlace | null;
   setSelectedPlace: (value: SearchPlace | null) => void;
+  selectedTags: string[];
+  setSelectedTags: React.Dispatch<React.SetStateAction<string[]>>;
   createChatRoom: boolean;
   setCreateChatRoom: (value: boolean) => void;
   onClose: () => void;
@@ -31,12 +33,16 @@ interface WritePostModalProps {
 
 export default function WritePostModal(props: WritePostModalProps) {
   const router = useRouter();
-  const { submitPost, isOnlineStudy, setIsOnlineStudy } = useApp();
+  const { submitPost, isOnlineStudy, setIsOnlineStudy, selectedTags, setSelectedTags} = useApp();
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState("");
   const [searchKeyword, setSearchKeyword] = React.useState("");
   const [searchResults, setSearchResults] = React.useState<SearchPlace[]>([]);
-
+  const TAGS = {
+  "분위기": ["잡담", "일상", "유머"],
+  "공부": ["질문", "정보공유", "꿀팁", "자격증"],
+  "후기": ["합격후기", "스터디후기", "취업"],
+  };  
   const [loadingKakao, errorKakao] = useKakaoLoader({
     appkey: KAKAO_MAP_APPKEY,
     libraries: ["services", "clusterer"],
@@ -68,6 +74,8 @@ export default function WritePostModal(props: WritePostModalProps) {
     }
     setSaving(false);
     setError("");
+    setIsOnlineStudy(false); 
+    setSelectedTags([]); 
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -109,7 +117,11 @@ export default function WritePostModal(props: WritePostModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+      <div className={`flex w-full flex-col overflow-hidden rounded-2xl bg-white shadow-xl ${
+          writeType === "study" 
+            ? "max-w-2xl max-h-[90vh]" 
+            : "max-w-lg max-h-[60vh]"
+        }`}>
  
         {/* 헤더 */}
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
@@ -189,6 +201,36 @@ export default function WritePostModal(props: WritePostModalProps) {
             </div>
           ) : null}
  
+          {writeType === "free" && (
+            <div className="mb-4">
+              <label className="mb-1.5 block text-sm font-bold text-slate-700">태그</label>
+              {Object.entries(TAGS).map(([category, tags]) => (
+                <div key={category} className="mb-2">
+                  <p className="mb-1 text-xs font-semibold text-slate-400">{category}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {tags.map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() =>
+                          setSelectedTags((prev) =>
+                            prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+                          )
+                        }
+                        className={`rounded-full px-3 py-1 text-xs font-bold transition ${
+                          selectedTags.includes(tag)
+                            ? "bg-hp-600 text-white"
+                            : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                        }`}
+                      >
+                        # {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           {/* 내용 */}
           <div className="mb-4">
             <label className="mb-1.5 block text-sm font-bold text-slate-700 ">
@@ -203,7 +245,7 @@ export default function WritePostModal(props: WritePostModalProps) {
               disabled={saving}
             />
           </div>
- 
+
           {writeType === "study" ? (
             <>
               {/* 채팅방 생성 토글 */}

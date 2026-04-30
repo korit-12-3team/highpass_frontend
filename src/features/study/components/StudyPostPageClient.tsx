@@ -375,6 +375,7 @@ export default function StudyPostPageClient({
       </div>
     );
   }
+  
 return (
   <div className="mx-auto max-w-4xl animate-in fade-in duration-500">
     <div className="overflow-hidden rounded-[30px] border border-hp-100 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]">

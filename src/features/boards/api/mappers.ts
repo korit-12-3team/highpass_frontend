@@ -24,6 +24,7 @@ export type BoardApiRecord = {
   lat?: unknown;
   lng?: unknown;
   likedByUser?: unknown;
+  tags?: string[]; 
 };
 
 export type StudyApiRecord = {
@@ -98,6 +99,7 @@ export function mapApiRecordToBoardPost(record: BoardApiRecord): BoardPost {
     lat: typeof record.lat === "number" ? record.lat : undefined,
     lng: typeof record.lng === "number" ? record.lng : undefined,
     likedByUser: typeof record.likedByUser === "boolean" ? record.likedByUser : undefined,
+    tags: Array.isArray(record.tags) ? record.tags : undefined,
   };
 }
 

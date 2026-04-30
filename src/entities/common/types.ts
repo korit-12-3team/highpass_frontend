@@ -55,6 +55,7 @@ export interface BoardPost {
   scraps: number;
   comments: PostComment[];
   authorId: string;
+  tags?:string[]; 
   createdAt: string;
   cert: string | null;
   likedByUser?: boolean;

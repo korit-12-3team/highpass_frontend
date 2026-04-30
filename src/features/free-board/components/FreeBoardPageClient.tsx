@@ -174,7 +174,20 @@ export default function FreeBoardPageClient({ initialPosts }: { initialPosts: Bo
               <button onClick={() => openPost(post.id)} className="group block w-full text-left">
                 <div className="border-b border-hp-100 bg-gradient-to-br from-white via-hp-50/30 to-white px-5 py-6 transition group-hover:from-hp-50/50 group-hover:via-white group-hover:to-hp-50/20">
                   {post.title ? <h3 className="text-xl font-bold leading-tight text-slate-950 transition group-hover:text-hp-800">{post.title}</h3> : null}
-                  <p className={`text-[15px] leading-7 text-slate-700 ${post.title ? "mt-3" : ""}`}>{post.content}</p>
+                  <p className={`text-[15px] leading-7 text-slate-700 ${post.title ? "mt-3" : ""}`}>
+                    {post.content}</p> 
+                    {post.tags && post.tags.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {post.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full bg-hp-50 px-2.5 py-1 text-[11px] font-bold text-hp-600"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </button>
 
