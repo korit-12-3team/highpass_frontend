@@ -47,11 +47,7 @@ interface AppContextType {
   selectedPlace: SearchPlace | null;
   setSelectedPlace: React.Dispatch<React.SetStateAction<SearchPlace | null>>;
   createChatRoom : boolean;
-  setCreateChatRoom: React.Dispatch<React.SetStateAction<boolean>>; 
-  searchKeyword: string;
-  setSearchKeyword: React.Dispatch<React.SetStateAction<string>>;
-  searchResults: SearchPlace[];
-  setSearchResults: React.Dispatch<React.SetStateAction<SearchPlace[]>>;
+  setCreateChatRoom: React.Dispatch<React.SetStateAction<boolean>>;
   isOnlineStudy: boolean;
   setIsOnlineStudy: React.Dispatch<React.SetStateAction<boolean>>;
   submitPost: () => Promise<boolean>;
@@ -79,9 +75,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [selectedPlace, setSelectedPlace] = useState<SearchPlace | null>(null);
   
   const [createChatRoom, setCreateChatRoom] = useState(false);
-  const [searchKeyword, setSearchKeyword] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchPlace[]>([]);
-  const [isOnlineStudy, setIsOnlineStudy] = useState(false); 
+  const [isOnlineStudy, setIsOnlineStudy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -210,12 +204,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setSelectedPlace,
         createChatRoom,
         setCreateChatRoom,
-        searchKeyword,
-        setSearchKeyword,
-        searchResults,
         isOnlineStudy,
-        setIsOnlineStudy, 
-        setSearchResults,
+        setIsOnlineStudy,
         submitPost,
       }}
     >

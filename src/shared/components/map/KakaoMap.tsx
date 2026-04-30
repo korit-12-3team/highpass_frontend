@@ -1,6 +1,6 @@
 "use client";
 
-import { Map, MapMarker } from "react-kakao-maps-sdk";
+import { Map, MapMarker, ZoomControl } from "react-kakao-maps-sdk";
 
 export interface MapMarkerInfo {
   lat: number;
@@ -23,12 +23,14 @@ export default function KakaoMap({ center, level = 3, markers, lat, lng, locatio
   const mapCenter = center || (displayMarkers.length > 0 ? { lat: displayMarkers[0].lat, lng: displayMarkers[0].lng } : { lat: 37.5665, lng: 126.9780 });
 
   return (
-    <div className="w-full h-80 bg-gray-100 rounded-3xl overflow-hidden mt-4 shadow-inner border border-gray-100 relative">
+    <div className="w-full h-80 bg-gray-100 rounded-3xl overflow-hidden shadow-inner border border-gray-100 relative">
       <Map
         center={mapCenter}
         style={{ width: "100%", height: "100%" }}
         level={level}
+        scrollwheel={false}
       >
+        <ZoomControl />
         {displayMarkers.map((marker, index) => (
           <MapMarker
             key={`${marker.lat}-${marker.lng}-${index}`}

@@ -6,6 +6,7 @@ import { useApp } from "@/shared/context/AppContext";
 import { getChatRoom, sendMessage, leaveRoom, kickParticipant } from "@/services/realtime/stomp";
 import { CHAT_API_BASE_URL } from "@/services/config/config";
 import { fetchWithAuth } from "@/services/auth/auth";
+import ConfirmModal from "@/shared/components/common/ConfirmModal";
 
 function formatMessageTime(value?: string) {
   if (!value) return "";
@@ -65,6 +66,9 @@ export default function ChatPageClient() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [showRooms, setShowRooms] = useState(true);
   const [showRoomInfo, setShowRoomInfo] = useState(false);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const [kickConfirmOpen, setKickConfirmOpen] = useState(false);
+  const [kickTargetUserId, setKickTargetUserId] = useState<number | null>(null);
 
   const activeRoom = useMemo(
     () => chatRooms.find((room) => String(room.id) === String(activeChatRoomId)) ?? null,
@@ -151,13 +155,14 @@ export default function ChatPageClient() {
 
   const handleLeaveRoom = async () => {
     if (!activeChatRoomId || !currentUser) return;
-    if (!confirm("정말 이 채팅방을 나가시겠습니까?")) return;
 
     try {
       await leaveRoom(Number(activeChatRoomId));
       setChatRooms((prev) => prev.filter((room) => String(room.id) !== String(activeChatRoomId)));
       setActiveChatRoomId(null);
+      setLeaveConfirmOpen(false);
     } catch {
+      setLeaveConfirmOpen(false);
       alert("채팅방 나가기에 실패했습니다.");
     }
   };
@@ -220,25 +225,28 @@ export default function ChatPageClient() {
     }
   };
 
-  const handleKickParticipant = async (targetUserId: number) => {
-    if (!activeChatRoomId || !currentUser) return;
-    if (!confirm("정말 이 참여자를 강퇴하시겠습니까?")) return;
+  const handleKickParticipant = async () => {
+    if (!activeChatRoomId || !currentUser || kickTargetUserId === null) return;
 
     try {
-      await kickParticipant(Number(activeChatRoomId), targetUserId);
+      await kickParticipant(Number(activeChatRoomId), kickTargetUserId);
+      setKickConfirmOpen(false);
+      setKickTargetUserId(null);
       setChatRooms((prev) =>
         prev.map((room) =>
           String(room.id) === String(activeChatRoomId)
             ? {
                 ...room,
                 participants: room.participants?.filter(
-                  (participant) => participant.userId !== targetUserId,
+                  (participant) => participant.userId !== kickTargetUserId,
                 ),
               }
             : room,
         ),
       );
     } catch {
+      setKickConfirmOpen(false);
+      setKickTargetUserId(null);
       alert("참여자 강퇴에 실패했습니다.");
     }
   };
@@ -490,7 +498,7 @@ return (
                               {activeRoom.ownerId === Number(currentUser?.id) &&
                                 participant.userId !== Number(currentUser?.id) && (
                                   <button
-                                    onClick={() => void handleKickParticipant(participant.userId)}
+                                    onClick={() => { setKickTargetUserId(participant.userId); setKickConfirmOpen(true); }}
                                     className="rounded-lg border border-red-200 px-1.5 py-0.5 text-[10px] font-bold text-red-400 hover:bg-red-50"
                                   >
                                     강퇴
@@ -548,7 +556,7 @@ return (
 
                         <div className="mt-3 border-t border-slate-100 pt-3">
                           <button
-                            onClick={() => void handleLeaveRoom()}
+                            onClick={() => setLeaveConfirmOpen(true)}
                             className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 py-2 text-xs font-bold text-red-400 hover:bg-red-50"
                           >
                             <LogOut size={14} />
@@ -676,6 +684,28 @@ return (
         )}
       </div>
     )}
+
+    <ConfirmModal
+      isOpen={kickConfirmOpen}
+      badge="Kick"
+      title="참여자를 강퇴하시겠습니까?"
+      description="강퇴된 참여자는 채팅방에서 즉시 제외됩니다."
+      confirmLabel="강퇴"
+      variant="danger"
+      onConfirm={() => void handleKickParticipant()}
+      onClose={() => { setKickConfirmOpen(false); setKickTargetUserId(null); }}
+    />
+
+    <ConfirmModal
+      isOpen={leaveConfirmOpen}
+      badge="Leave Room"
+      title="채팅방을 나가시겠습니까?"
+      description="나가면 대화 내용이 삭제되며 다시 입장하려면 초대가 필요할 수 있습니다."
+      confirmLabel="나가기"
+      variant="danger"
+      onConfirm={() => void handleLeaveRoom()}
+      onClose={() => setLeaveConfirmOpen(false)}
+    />
   </div>
 );
 }

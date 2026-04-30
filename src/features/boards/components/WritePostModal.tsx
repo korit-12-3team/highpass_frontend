@@ -4,9 +4,11 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, X } from "lucide-react";
+import { useKakaoLoader } from "react-kakao-maps-sdk";
 import KakaoMap from "@/shared/components/map/KakaoMap";
 import { CERT_DATA } from "@/shared/constants";
 import { SearchPlace, useApp } from "@/shared/context/AppContext";
+import { KAKAO_MAP_APPKEY } from "@/services/config/config";
 
 interface WritePostModalProps {
   isOpen: boolean;
@@ -23,13 +25,7 @@ interface WritePostModalProps {
   selectedPlace: SearchPlace | null;
   setSelectedPlace: (value: SearchPlace | null) => void;
   createChatRoom: boolean;
-  setCreateChatRoom: (value: boolean) => void; 
-  searchKeyword: string;
-  setSearchKeyword: (value: string) => void;
-  searchResults: SearchPlace[];
-  searchPlacesOnKakao: () => void;
-  loadingKakao: boolean;
-  errorKakao: unknown;
+  setCreateChatRoom: (value: boolean) => void;
   onClose: () => void;
 }
 
@@ -38,8 +34,13 @@ export default function WritePostModal(props: WritePostModalProps) {
   const { submitPost, isOnlineStudy, setIsOnlineStudy } = useApp();
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [searchKeyword, setSearchKeyword] = React.useState("");
+  const [searchResults, setSearchResults] = React.useState<SearchPlace[]>([]);
 
-
+  const [loadingKakao, errorKakao] = useKakaoLoader({
+    appkey: KAKAO_MAP_APPKEY,
+    libraries: ["services", "clusterer"],
+  });
 
   const {
     isOpen,
@@ -56,33 +57,57 @@ export default function WritePostModal(props: WritePostModalProps) {
     setSelectedPlace,
     createChatRoom,
     setCreateChatRoom,
-    searchKeyword,
-    setSearchKeyword,
-    searchResults,
-    searchPlacesOnKakao,
-    loadingKakao,
-    errorKakao,
     onClose,
   } = props;
 
   React.useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      setSearchKeyword("");
+      setSearchResults([]);
+      return;
+    }
     setSaving(false);
     setError("");
-    setIsOnlineStudy(false); 
   }, [isOpen]);
 
   if (!isOpen) return null;
 
   const isCustomCert = postCertCategory === "기타";
   const certOptions = postCertCategory && !isCustomCert ? CERT_DATA[postCertCategory] || [] : [];
+  const canSubmit = Boolean(postTitle.trim() || postContent.trim());
   const certFilled = postCertCategory === "기타" ? postCert.trim() : postCert.trim();
-  const canSubmit =
-  writeType === "free"
-    ? Boolean(postTitle.trim() && postContent.trim())
-    : Boolean(postTitle.trim() && postContent.trim() && certFilled);
 
-    return (
+  const searchPlacesOnKakao = () => {
+    if (typeof window === "undefined") return;
+    const kakaoMaps = window.kakao?.maps;
+    const services = kakaoMaps?.services;
+
+    if (!services) {
+      alert("지도 스크립트가 아직 로드되지 않았습니다.");
+      return;
+    }
+
+    const places = new services.Places();
+    places.keywordSearch(searchKeyword, (data: kakao.maps.services.PlacesSearchResult, status: kakao.maps.services.Status) => {
+      if (status !== services.Status.OK) return;
+
+      setSearchResults(
+        data.map(
+          (item): SearchPlace => ({
+            id: item.id,
+            name: item.place_name,
+            address: item.road_address_name || item.address_name,
+            phone: item.phone,
+            category: item.category_group_name || item.category_name?.split(">").pop()?.trim(),
+            lat: parseFloat(item.y),
+            lng: parseFloat(item.x),
+          }),
+        ),
+      );
+    });
+  };
+
+  return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
  
@@ -124,7 +149,6 @@ export default function WritePostModal(props: WritePostModalProps) {
               </label>
               <div className="grid gap-3 md:grid-cols-2">
                 <div>
-                  <p className="mb-1 text-xs font-semibold text-slate-400">분류</p>
                   <select
                     value={postCertCategory}
                     onChange={(e) => { setPostCertCategory(e.target.value); setPostCert(""); }}
@@ -138,9 +162,6 @@ export default function WritePostModal(props: WritePostModalProps) {
                   </select>
                 </div>
                 <div>
-                  <p className="mb-1 text-xs font-semibold text-slate-400">
-                    {isCustomCert ? "자격증명 직접 입력" : "자격증 종류"}
-                  </p>
                   {isCustomCert ? (
                     <input
                       type="text"

@@ -1,9 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ConfirmModal from "@/shared/components/common/ConfirmModal";
 import { useRouter } from "next/navigation";
-import { Eye, Heart, MapPin, Pencil, Search, Trash2, X } from "lucide-react";
+import { Eye, Heart, Loader2, MapPin, Pencil, Search, Trash2, X } from "lucide-react";
+import { useKakaoLoader } from "react-kakao-maps-sdk";
 import KakaoMap from "@/shared/components/map/KakaoMap";
+import { KAKAO_MAP_APPKEY } from "@/services/config/config";
 import type { BoardPost, PostComment, SearchPlace } from "@/entities/common/types";
 import { createComment, deleteComment as deleteCommentRequest, listComments, updateComment as updateCommentRequest } from "@/features/boards/api/comments";
 import { isPostLiked, saveLikedPost, toggleBoardLike } from "@/features/boards/api/likes";
@@ -52,6 +55,22 @@ export default function StudyPostPageClient({
   const [postSaving, setPostSaving] = useState(false);
   const [postDeleting, setPostDeleting] = useState(false);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const commentInputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash === "#comment-input") {
+      setTimeout(() => {
+        commentInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        commentInputRef.current?.focus();
+      }, 300);
+    }
+  }, []);
+
+  const [loadingKakao, errorKakao] = useKakaoLoader({
+    appkey: KAKAO_MAP_APPKEY,
+    libraries: ["services", "clusterer"],
+  });
 
   const certificateCategories = useMemo(
     () => Object.keys(CERT_DATA).filter((category) => category !== CUSTOM_CERT_FILTER),
@@ -545,20 +564,106 @@ return (
                         value={placeKeyword === "online" ? "" : placeKeyword}
                         onChange={(e) => setPlaceKeyword(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && searchPlacesOnKakao()}
-                        placeholder="장소 검색"
-                        className="w-full rounded-2xl border border-hp-100 bg-slate-50 pl-4 pr-10 py-3 text-sm outline-none focus:border-hp-500"
+                        placeholder="장소 검색 (예: 강남 카페)"
+                        className="w-full rounded-2xl border border-hp-100 bg-slate-50 pl-4 pr-20 py-3 text-sm outline-none focus:border-hp-500"
                       />
-                      <button onClick={searchPlacesOnKakao} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                      {placeKeyword && placeKeyword !== "online" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPlaceKeyword("");
+                            setPlaceResults([]);
+                            setSelectedEditPlace(null);
+                            setPostEditLocation("");
+                          }}
+                          className="absolute right-10 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"
+                          aria-label="검색어 지우기"
+                        >
+                          <X size={15} />
+                        </button>
+                      )}
+                      <button onClick={searchPlacesOnKakao} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-hp-600">
                         <Search size={18} />
                       </button>
                     </div>
-                    {/* 장소 검색 결과 목록 및 지도 생략 없이 구현... */}
-                    <div className="h-[250px] overflow-hidden rounded-3xl border border-hp-100 shadow-inner">
-                      <KakaoMap
-                        center={selectedEditPlace ? { lat: selectedEditPlace.lat, lng: selectedEditPlace.lng } : (post.lat ? { lat: post.lat, lng: post.lng } : { lat: 37.56, lng: 126.97 })}
-                        markers={selectedEditPlace ? [{ lat: selectedEditPlace.lat, lng: selectedEditPlace.lng, locationName: selectedEditPlace.name }] : (post.lat ? [{ lat: post.lat, lng: post.lng, locationName: post.location }] : [])}
-                      />
-                    </div>
+
+                    {placeResults.length > 0 ? (
+                      <div className="flex h-72 flex-col gap-3 md:flex-row">
+                        <div className="w-full space-y-2 overflow-y-auto pr-1 md:w-1/2">
+                          {placeResults.map((result) => (
+                            <div
+                              key={result.id}
+                              onClick={() => {
+                                setSelectedEditPlace(result);
+                                setPostEditLocation(result.name);
+                              }}
+                              className={`cursor-pointer rounded-2xl border p-3 text-sm transition-all ${
+                                selectedEditPlace?.id === result.id
+                                  ? "border-hp-500 bg-hp-50 ring-1 ring-hp-400"
+                                  : "border-hp-100 bg-white hover:border-hp-300 hover:bg-hp-50"
+                              }`}
+                            >
+                              <p className="font-bold text-slate-800 truncate">{result.name}</p>
+                              <p className="mt-0.5 text-xs text-slate-400 truncate">{result.address}</p>
+                              {result.phone && <p className="mt-0.5 font-mono text-xs text-slate-400">{result.phone}</p>}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-3xl border border-hp-100 shadow-inner md:w-1/2">
+                          {loadingKakao ? (
+                            <div className="flex flex-col items-center gap-2 text-slate-400">
+                              <Loader2 className="animate-spin" size={20} />
+                              <span className="text-xs">지도 로딩 중...</span>
+                            </div>
+                          ) : errorKakao ? (
+                            <p className="p-4 text-center text-xs text-red-400">카카오 지도를 불러오지 못했습니다.</p>
+                          ) : (
+                            <KakaoMap
+                              markers={placeResults.map((r) => ({ lat: r.lat, lng: r.lng, locationName: r.name }))}
+                              center={
+                                selectedEditPlace
+                                  ? { lat: selectedEditPlace.lat, lng: selectedEditPlace.lng }
+                                  : { lat: placeResults[0].lat, lng: placeResults[0].lng }
+                              }
+                              level={4}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="h-[250px] overflow-hidden rounded-3xl border border-hp-100 shadow-inner">
+                        <KakaoMap
+                          center={
+                            selectedEditPlace
+                              ? { lat: selectedEditPlace.lat, lng: selectedEditPlace.lng }
+                              : (post.lat && post.lng ? { lat: post.lat, lng: post.lng } : { lat: 37.56, lng: 126.97 })
+                          }
+                          markers={
+                            selectedEditPlace
+                              ? [{ lat: selectedEditPlace.lat, lng: selectedEditPlace.lng, locationName: selectedEditPlace.name }]
+                              : (post.lat && post.lng && post.location ? [{ lat: post.lat, lng: post.lng, locationName: post.location }] : [])
+                          }
+                        />
+                      </div>
+                    )}
+
+                    {selectedEditPlace && (
+                      <div className="flex items-center justify-between rounded-2xl bg-hp-50 px-4 py-2.5">
+                        <p className="text-sm font-bold text-hp-700">📍 {selectedEditPlace.name}</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedEditPlace(null);
+                            setPlaceResults([]);
+                            setPlaceKeyword("");
+                            setPostEditLocation("");
+                          }}
+                          className="text-slate-400 hover:text-slate-600"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -590,7 +695,7 @@ return (
             </div>
           ) : (
             <div>
-              <p className="min-h-[20rem] whitespace-pre-wrap text-[15px] leading-8 text-slate-700">
+              <p className="min-h-[8rem] whitespace-pre-wrap text-[15px] leading-8 text-slate-700">
                 {post.content}
               </p>
 
@@ -665,44 +770,139 @@ return (
               </button>
             )}
 
-            
+          </div>
+        )}
+
+        {/* 댓글 */}
+        {!editingPost && (
+          <div className="mt-8 border-t border-hp-100 pt-6">
+            <div className="mb-4 text-xs font-semibold uppercase tracking-[0.24em] text-hp-500">
+              Comments{post.comments?.length ? ` · ${post.comments.length}` : ""}
+            </div>
+
+            {post.comments && post.comments.length > 0 ? (
+              <ul className="mb-6 space-y-3">
+                {post.comments.map((comment) => (
+                  <li key={comment.id} className="rounded-2xl border border-hp-100 bg-white px-4 py-3">
+                    {editingCommentId === comment.id ? (
+                      <div className="space-y-2">
+                        <textarea
+                          value={editingCommentText}
+                          onChange={(e) => setEditingCommentText(e.target.value)}
+                          rows={3}
+                          className="w-full resize-none rounded-xl border border-hp-100 px-3 py-2 text-sm outline-none focus:border-hp-500"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={cancelEditingComment}
+                            className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-50"
+                          >
+                            취소
+                          </button>
+                          <button
+                            onClick={() => void saveComment(comment.id)}
+                            disabled={activeCommentId === comment.id}
+                            className="rounded-full bg-hp-600 px-3 py-1 text-xs font-semibold text-white hover:bg-hp-700 disabled:opacity-60"
+                          >
+                            저장
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => comment.authorId && setProfileModal(comment.authorId)}
+                              className="flex h-7 w-7 items-center justify-center rounded-full bg-hp-100"
+                            >
+                              <span className="text-xs font-bold text-hp-700">{getInitial(comment.author)}</span>
+                            </button>
+                            <div>
+                              <button
+                                onClick={() => comment.authorId && setProfileModal(comment.authorId)}
+                                className="text-xs font-semibold text-slate-700 hover:text-hp-600 hover:underline"
+                              >
+                                {comment.author}
+                              </button>
+                              {comment.createdAt && (
+                                <p className="text-[10px] text-slate-400">{formatBoardCreatedAt(comment.createdAt)}</p>
+                              )}
+                            </div>
+                          </div>
+                          {currentUser?.id === comment.authorId && (
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => { setEditingCommentId(comment.id); setEditingCommentText(comment.text); }}
+                                className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                                aria-label="댓글 수정"
+                              >
+                                <Pencil size={12} />
+                              </button>
+                              <button
+                                onClick={() => void removeComment(comment.id)}
+                                disabled={activeCommentId === comment.id}
+                                className="rounded-full p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-400 disabled:opacity-50"
+                                aria-label="댓글 삭제"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{comment.text}</p>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="mb-6 rounded-2xl border border-dashed border-hp-200 bg-hp-50 px-5 py-6 text-center text-sm text-slate-400">
+                첫 댓글을 남겨보세요
+              </div>
+            )}
+
+            {commentError && (
+              <p className="mb-2 text-xs font-semibold text-red-500">{commentError}</p>
+            )}
+            <textarea
+              ref={commentInputRef}
+              id="comment-input"
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void addComment();
+                }
+              }}
+              rows={3}
+              placeholder="댓글을 입력하세요 (Shift+Enter로 줄바꿈)"
+              className="w-full resize-none rounded-2xl border border-hp-100 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-hp-500"
+            />
+            <div className="mt-2 flex justify-end">
+              <button
+                onClick={() => void addComment()}
+                disabled={commentSubmitting || !commentText.trim()}
+                className="rounded-full bg-hp-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-hp-700 disabled:opacity-50"
+              >
+                {commentSubmitting ? "등록 중..." : "댓글 등록"}
+              </button>
+            </div>
           </div>
         )}
       </div>
-      
     </div>
 
-    {/* 수정 취소 확인 모달 */}
-    {cancelConfirmOpen && (
-      <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 px-4">
-        <div className="w-full max-w-sm rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.24)]">
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">Edit</p>
-          <h3 className="mt-2 text-xl font-black text-slate-950">수정을 취소하시겠습니까?</h3>
-          <p className="mt-3 text-sm font-semibold leading-6 text-slate-500">
-            확인을 누르면 현재 변경사항이 저장되지 않고 이전 상태로 되돌아갑니다.
-          </p>
-          <div className="mt-6 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setCancelConfirmOpen(false)}
-              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                handleConfirmCancel();
-                setCancelConfirmOpen(false);
-              }}
-              className="rounded-full bg-hp-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-hp-700"
-            >
-              확인
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
+    <ConfirmModal
+      isOpen={cancelConfirmOpen}
+      badge="Edit"
+      title="수정을 취소하시겠습니까?"
+      description="확인을 누르면 현재 변경사항이 저장되지 않고 이전 상태로 되돌아갑니다."
+      confirmLabel="확인"
+      onConfirm={() => { handleConfirmCancel(); setCancelConfirmOpen(false); }}
+      onClose={() => setCancelConfirmOpen(false)}
+    />
   </div>
 );
 }

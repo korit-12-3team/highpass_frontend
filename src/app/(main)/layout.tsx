@@ -2,17 +2,16 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { useKakaoLoader } from "react-kakao-maps-sdk";
 import { Client } from "@stomp/stompjs";
 import MainSidebar from "@/shared/components/layout/MainSidebar";
 import ProfileModal from "@/shared/components/profile/ProfileModal";
 import WritePostModal from "@/features/boards/components/WritePostModal";
 import ScheduleNotificationModal from "@/features/calendar/components/ScheduleNotificationModal";
+import ConfirmModal from "@/shared/components/common/ConfirmModal";
 import { useApp } from "@/shared/context/AppContext";
 import { createUserProfile, getUserProfile } from "@/features/mypage/api/profile";
 import { listCalendarEvents } from "@/features/calendar/api/calendar";
 import { listNotifications } from "@/features/notifications/api/notifications";
-import { KAKAO_MAP_APPKEY } from "@/services/config/config";
 import {
   createChatClient,
   enterChatRoom,
@@ -22,7 +21,6 @@ import {
 import type {
   EventType,
   NotificationResponse,
-  SearchPlace,
   UserProfile,
 } from "@/entities/common/types";
 import { toast } from "sonner";
@@ -59,17 +57,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     setSelectedPlace,
     createChatRoom,
     setCreateChatRoom,
-    searchKeyword,
-    setSearchKeyword,
-    searchResults,
-    setSearchResults,
     setIsOnlineStudy
   } = useApp();
-
-  const [loadingKakao, errorKakao] = useKakaoLoader({
-    appkey: KAKAO_MAP_APPKEY,
-    libraries: ["services", "clusterer"],
-  });
 
   const [profileRemote, setProfileRemote] = useState<UserProfile | null>(null);
   const [profileRemoteLoading, setProfileRemoteLoading] = useState(false);
@@ -459,39 +448,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     setPostCert("");
     setPostCertCategory("");
     setSelectedPlace(null);
-    setSearchKeyword("");
-    setSearchResults([]);
     setIsOnlineStudy(false);
-  };
-
-  const searchPlacesOnKakao = () => {
-    if (typeof window === "undefined") return;
-    const kakaoMaps = window.kakao?.maps;
-    const services = kakaoMaps?.services;
-
-    if (!services) {
-      alert("지도 스크립트가 아직 로드되지 않았습니다.");
-      return;
-    }
-
-    const places = new services.Places();
-    places.keywordSearch(searchKeyword, (data, status) => {
-      if (status !== services.Status.OK) return;
-
-      setSearchResults(
-        data.map(
-          (item): SearchPlace => ({
-            id: item.id,
-            name: item.place_name,
-            address: item.road_address_name || item.address_name,
-            phone: item.phone,
-            category: item.category_group_name || item.category_name?.split(">").pop()?.trim(),
-            lat: parseFloat(item.y),
-            lng: parseFloat(item.x),
-          }),
-        ),
-      );
-    });
   };
 
   return (
@@ -580,12 +537,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         setSelectedPlace={setSelectedPlace}
         createChatRoom={createChatRoom}
         setCreateChatRoom={setCreateChatRoom}
-        searchKeyword={searchKeyword}
-        setSearchKeyword={setSearchKeyword}
-        searchResults={searchResults}
-        searchPlacesOnKakao={searchPlacesOnKakao}
-        loadingKakao={loadingKakao}
-        errorKakao={errorKakao}
         onClose={resetWriteForm}
       />
 
@@ -605,36 +556,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         }}
       />
 
-      {logoutConfirmOpen && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 px-4">
-          <div className="w-full max-w-sm rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.24)]">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">Logout</p>
-            <h3 className="mt-2 text-xl font-black text-slate-950">로그아웃하시겠습니까?</h3>
-            <p className="mt-3 text-sm font-semibold leading-6 text-slate-500">
-              확인을 누르면 현재 계정에서 로그아웃됩니다.
-            </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setLogoutConfirmOpen(false)}
-                className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setLogoutConfirmOpen(false);
-                  logout();
-                }}
-                className="rounded-full bg-hp-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-hp-700"
-              >
-                로그아웃
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={logoutConfirmOpen}
+        badge="Logout"
+        title="로그아웃하시겠습니까?"
+        description="확인을 누르면 현재 계정에서 로그아웃됩니다."
+        confirmLabel="로그아웃"
+        onConfirm={() => { setLogoutConfirmOpen(false); logout(); }}
+        onClose={() => setLogoutConfirmOpen(false)}
+      />
     </div>
   );
 }

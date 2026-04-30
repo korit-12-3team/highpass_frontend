@@ -414,7 +414,7 @@ export default function KakaoCalendarPanel() {
 
       {tab === "time" && (
         <div className="flex flex-col items-center gap-4 rounded-xl border border-yellow-200 bg-white p-6">
-          <p className="text-sm font-medium text-yellow-800">카카오 서버 현재 시각</p>
+          <p className="text-sm font-medium text-yellow-800">현재 시각</p>
           {state.currentTime ? (
             <p className="text-2xl font-bold text-yellow-700">
               {new Date(state.currentTime).toLocaleString("ko-KR")}

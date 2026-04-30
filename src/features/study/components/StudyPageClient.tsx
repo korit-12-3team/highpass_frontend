@@ -305,16 +305,21 @@ return (
               </p>
 
                 <div className="mt-4 flex items-center border-t border-slate-50 pt-3">
-                  <div className="flex flex-1 items-center gap-2" 
-                  onClick={(e) => {
+                  <div className="flex flex-1 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
                         e.stopPropagation();
                         setProfileModal(post.authorId);
-                      }}>
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-hp-100 text-[10px] font-bold text-hp-700">
-                      {getInitial(post.author)}
-                    </div>
-                    <span className="text-[12px] font-bold text-slate-700">{post.author}</span>
-                    <span className="text-[11px] font-medium text-slate-400">· {formatBoardCreatedAt(post.createdAt)}</span>
+                      }}
+                      className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold text-slate-700 transition hover:bg-slate-100"
+                    >
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-hp-100 text-[10px] font-bold text-hp-700">
+                        {getInitial(post.author)}
+                      </div>
+                      {post.author}
+                    </button>
+                    <span className="text-[11px] font-medium text-slate-400">{formatBoardCreatedAt(post.createdAt)}</span>
                   </div>
                                 
                 <button
@@ -332,10 +337,19 @@ return (
                   <Heart size={13} className={post.likedByUser ? "fill-current" : ""} />
                   좋아요 {post.likes}
                 </button>
-                <div className="flex items-center gap-1.5 px-2.5 py-1 text-[12px] font-bold text-slate-400">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const currentQuery = searchParams.toString();
+                    const returnTo = currentQuery ? `${pathname}?${currentQuery}` : pathname;
+                    router.push(`/study/${post.id}?returnTo=${encodeURIComponent(returnTo)}#comment-input`);
+                  }}
+                  className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold text-slate-400 transition hover:bg-slate-100"
+                >
                   <MessageCircle size={13} />
                   댓글 {post.comments?.length || 0}
-                </div>
+                </button>
                 <div className="flex items-center gap-1.5 px-2.5 py-1 text-[12px] font-bold text-slate-400">
                   <Eye size={13} />
                   조회 {post.views}
