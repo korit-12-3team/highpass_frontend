@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowRight, CheckCircle2, Circle, GripVertical, Pencil, Plus, Trash2, Zap, MessageCircle, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ArrowRight, CheckCircle2, Circle, GripVertical, Pencil, Plus, Trash2, MessageCircle, ChevronLeft, X, AlertCircle } from "lucide-react";
 import { EventType, TodoItem, useApp } from "@/shared/context/AppContext";
 import {
   createCalendarEvent,
@@ -983,13 +983,13 @@ export default function CalendarPageClient() {
         <div className="flex h-full min-w-[700px] flex-col rounded-2xl border border-hp-100 bg-white p-5 shadow-sm transition-all duration-300">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-y-4">
           <div className="flex items-center gap-4">
-            <div className="w-[210px] shrink-0">
+            <div className="w-fit shrink-0">
               <button
                 type="button"
                 onClick={openMonthPicker}
                 className="flex w-full items-center rounded-lg px-2 py-1 text-left text-2xl font-bold tabular-nums text-slate-800 transition-colors hover:bg-hp-50"
               >
-                {currentYear}년 {currentMonth + 1}월 {selectedDate}일
+                {currentYear}년 {currentMonth + 1}월
               </button>
               <input
                 ref={monthInputRef}
@@ -1294,9 +1294,16 @@ export default function CalendarPageClient() {
               <X size={20} />
             </button>
           )}
-          <div className="w-72">
+          <div className="w-72 flex h-full flex-col">
             <div className="-m-5 mb-3 border-b border-hp-100 bg-gradient-to-r from-hp-50 via-white to-white px-5 py-4">
-              <h3 className="mt-1 text-lg font-black text-slate-900">일정 및 할 일</h3>
+              <div className="flex flex-col gap-0.5">
+                <h3 className="mt-1 text-lg font-black text-slate-900">
+                  {currentMonth + 1}월 {selectedDate}일 {WEEK_DAYS[new Date(currentYear, currentMonth, selectedDate).getDay()]}요일
+                </h3>
+                <span className="text-sm font-medium text-slate-400">
+                  음 {new Intl.DateTimeFormat('ko-KR-u-ca-chinese', { month: 'numeric', day: 'numeric' }).format(new Date(currentYear, currentMonth, selectedDate)).split('.').filter(Boolean).map(s => s.trim()).join('.')}
+                </span>
+              </div>
             </div>
             <div className="mt-2 flex flex-1 flex-col overflow-hidden">
               <div className="mb-2 flex items-center justify-between px-1">
@@ -1331,8 +1338,8 @@ export default function CalendarPageClient() {
                   <span className="rounded-full bg-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700">{selectedTodos.length}</span>
                 </div>
                 <div className="mb-4 flex-1 overflow-y-auto rounded-2xl bg-slate-50/80 p-2 pr-1">
-                  <div className="space-y-2">
-                  {selectedTodos.length === 0 ? <div className="flex h-full flex-col items-center justify-center text-slate-400 opacity-60"><Zap size={32} className="mb-3" /><p className="text-sm font-medium">이 날짜에 등록된 할 일이 없습니다.</p></div> : selectedTodos.map((todo) => (
+                  <div className="h-full space-y-2">
+                  {selectedTodos.length === 0 ? <div className="flex h-full flex-col items-center justify-center text-slate-400 opacity-60"><AlertCircle size={32} className="mb-3" /><p className="text-sm font-medium">이 날짜에 등록된 할 일이 없습니다.</p></div> : selectedTodos.map((todo) => (
                     <div
                       key={todo.id}
                       draggable={editingTodoId !== todo.id}
@@ -1373,10 +1380,12 @@ export default function CalendarPageClient() {
                   ))}
                   </div>
                 </div>
-                <div className="mt-auto flex items-center rounded-xl border-2 border-hp-200 bg-hp-50 px-3 shadow-sm focus-within:border-hp-600">
-                  <Plus size={20} className="text-slate-400" />
-                  <input ref={inputRef} type="text" value={newTodoText} onChange={(e) => setNewTodoText(e.target.value)} onKeyDown={handleAddTodo} placeholder="할 일을 입력하고 Enter를 누르세요" className="w-full bg-transparent px-2 py-4 text-sm font-bold outline-none placeholder:font-normal" />
-                </div>
+              </div>
+            </div>
+            <div className="mt-auto pt-4">
+              <div className="flex items-center rounded-xl border-2 border-hp-200 bg-hp-50 px-3 shadow-sm focus-within:border-hp-600">
+                <Plus size={20} className="text-slate-400" />
+                <input ref={inputRef} type="text" value={newTodoText} onChange={(e) => setNewTodoText(e.target.value)} onKeyDown={handleAddTodo} placeholder="할 일을 입력하고 Enter를 누르세요" className="w-full bg-transparent px-2 py-4 text-sm font-bold outline-none placeholder:font-normal" />
               </div>
             </div>
           </div>
