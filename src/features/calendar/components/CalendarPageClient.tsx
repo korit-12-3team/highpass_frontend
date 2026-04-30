@@ -1073,9 +1073,7 @@ export default function CalendarPageClient() {
             </button>
           </div>
         </div>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-hp-100 bg-slate-50/70 px-4 py-3">
-          <div className="flex flex-wrap items-center gap-2">
-            
+        <div className="mb-4 flex flex-wrap items-center gap-2">
             {EVENT_KIND_FILTERS.map((filter) => {
               const isActive = visibleEventKinds[filter.kind];
               return (
@@ -1106,14 +1104,6 @@ export default function CalendarPageClient() {
                 </label>
               );
             })}
-          </div>
-          <button
-            type="button"
-            onClick={() => setVisibleEventKinds({ general: true, certificate: true, holiday: true })}
-            className="text-xs font-bold text-hp-600 transition hover:text-hp-700"
-          >
-            전체 보기
-          </button>
         </div>
         {calendarError && <p className="mb-4 text-sm text-red-500">{calendarError}</p>}
         {calendarView === "week" ? (
