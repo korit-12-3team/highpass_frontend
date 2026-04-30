@@ -102,7 +102,7 @@ export interface SearchPlace {
   lng: number;
 }
 
-export type NotificationType = "COMMENT" | "LIKE" | "CALENDAR";
+export type NotificationType = "COMMENT" | "LIKE" | "CALENDAR" | "CHAT";
 
 export interface NotificationResponse {
   id: number;

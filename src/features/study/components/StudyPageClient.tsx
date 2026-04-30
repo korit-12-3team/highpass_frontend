@@ -160,28 +160,31 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
     router.push(`/study/${postId}?returnTo=${encodeURIComponent(returnTo)}`);
   };
 
-  return (
-    <div className="mx-auto max-w-6xl animate-in fade-in duration-500">
-      <div className="mb-6 flex items-end justify-between gap-4">
+
+return (
+    <div className="mx-auto max-w-5xl animate-in fade-in duration-500 px-4 py-8">
+      {/* Header */}
+      <div className="mb-8 flex items-end justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-950">스터디 모집</h2>
-          <p className="mt-1 text-sm text-slate-500">자격증과 지역 필터로 원하는 스터디를 찾을 수 있습니다.</p>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-950">스터디 모집</h2>
+          <p className="mt-1 text-sm font-medium text-slate-500">자격증과 지역 필터로 원하는 스터디를 찾을 수 있습니다.</p>
         </div>
         <button
           onClick={() => {
             setWriteType("study");
             setWriteModalOpen(true);
           }}
-          className="inline-flex items-center gap-2 rounded-full bg-hp-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-hp-700 hover:shadow-md"
+          className="inline-flex items-center gap-2 rounded-full bg-hp-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-hp-700 hover:shadow-md active:scale-95"
         >
           <Zap size={16} />
           모집글 작성
         </button>
       </div>
 
-      <div className="mb-5 grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_120px]">
-        <div className="rounded-2xl border border-slate-200 bg-white p-3 transition hover:border-hp-200 hover:shadow-sm">
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">자격증 영역</p>
+      {/* Filter Section: No Borders, Only Shadow */}
+      <div className="mb-6 grid gap-4 lg:grid-cols-[1.2fr_1fr_120px]">
+        <div className="rounded-2xl bg-white p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
+          <p className="mb-3 ml-1 text-[10px] font-black uppercase tracking-wider text-slate-400">자격증 영역</p>
           <div className="grid gap-2 md:grid-cols-2">
             <select
               value={certCategoryFilter}
@@ -189,44 +192,38 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
                 setCertCategoryFilter(e.target.value);
                 setCertFilter("");
               }}
-              className={`rounded-xl border bg-white px-3 py-2.5 text-sm outline-none focus:border-hp-500 ${
-                certCategoryFilter === CUSTOM_CERT_FILTER ? "font-bold text-slate-900" : ""
-              }`}
+              className="rounded-xl border-none bg-slate-50 px-3 py-2.5 text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-hp-100"
             >
               <option value="">전체 자격증</option>
               {certificateCategories.map((category) => (
-                <option key={`category-${category}`} value={category} style={{ fontWeight: 700 }}>
-                  {category}
-                </option>
+                <option key={category} value={category}>{category}</option>
               ))}
             </select>
             {certCategoryFilter === CUSTOM_CERT_FILTER ? (
               <input
                 value={certFilter}
                 onChange={(e) => setCertFilter(e.target.value)}
-                placeholder="기타 자격증명을 입력하세요"
-                className="rounded-xl border bg-white px-3 py-2.5 text-sm outline-none focus:border-hp-500"
+                placeholder="기타 자격증명 입력"
+                className="rounded-xl border-none bg-slate-50 px-3 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-hp-100"
               />
             ) : (
               <select
                 value={certFilter}
                 onChange={(e) => setCertFilter(e.target.value)}
                 disabled={!certCategoryFilter}
-                className="rounded-xl border bg-white px-3 py-2.5 text-sm outline-none focus:border-hp-500 disabled:opacity-40"
+                className="rounded-xl border-none bg-slate-50 px-3 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-hp-100 disabled:opacity-40"
               >
-                <option value="">{!certCategoryFilter ? "먼저 분류를 선택해 주세요" : "자격증 선택"}</option>
-                {certOptions.map((certificate) => (
-                  <option key={certificate} value={certificate}>
-                    {certificate}
-                  </option>
+                <option value="">{ !certCategoryFilter ? "분류 선택" : "자격증 선택" }</option>
+                {certOptions.map((cert) => (
+                  <option key={cert} value={cert}>{cert}</option>
                 ))}
               </select>
             )}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-3 transition hover:border-hp-200 hover:shadow-sm">
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">지역 영역</p>
+        <div className="rounded-2xl bg-white p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
+          <p className="mb-3 ml-1 text-[10px] font-black uppercase tracking-wider text-slate-400">지역 영역</p>
           <div className="grid gap-2 md:grid-cols-2">
             <select
               value={locationFilterSiDo}
@@ -234,122 +231,114 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
                 setLocationFilterSiDo(e.target.value);
                 setLocationFilterGunGu("");
               }}
-              className="rounded-xl border bg-white px-3 py-2.5 text-sm outline-none focus:border-hp-500"
+              className="rounded-xl border-none bg-slate-50 px-3 py-2.5 text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-hp-100"
             >
               <option value="">전체 지역</option>
               {Object.keys(REGION_DATA).map((siDo) => (
-                <option key={siDo} value={siDo}>
-                  {siDo}
-                </option>
+                <option key={siDo} value={siDo}>{siDo}</option>
               ))}
             </select>
             <select
               value={locationFilterGunGu}
               onChange={(e) => setLocationFilterGunGu(e.target.value)}
               disabled={!locationFilterSiDo}
-              className="rounded-xl border bg-white px-3 py-2.5 text-sm outline-none focus:border-hp-500 disabled:opacity-40"
+              className="rounded-xl border-none bg-slate-50 px-3 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-hp-100 disabled:opacity-40"
             >
               <option value="">전체 구/군</option>
               {(REGION_DATA[locationFilterSiDo] || []).map((gunGu) => (
-                <option key={gunGu} value={gunGu}>
-                  {gunGu}
-                </option>
+                <option key={gunGu} value={gunGu}>{gunGu}</option>
               ))}
             </select>
           </div>
         </div>
 
-        <div className="flex items-stretch">
-          <button
-            onClick={() => {
-              setCertCategoryFilter("");
-              setCertFilter("");
-              setLocationFilterSiDo("");
-              setLocationFilterGunGu("");
-            }}
-            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
-          >
-            필터 초기화
-          </button>
-        </div>
+        <button
+          onClick={() => {
+            setCertCategoryFilter("");
+            setCertFilter("");
+            setLocationFilterSiDo("");
+            setLocationFilterGunGu("");
+          }}
+          className="flex h-full items-center justify-center rounded-2xl bg-white text-xs font-bold text-slate-400 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition hover:bg-slate-50 hover:text-slate-600 active:scale-95"
+        >
+          초기화
+        </button>
       </div>
 
       {filteredPosts.length === 0 ? (
-        <div className="rounded-[28px] border border-hp-100 bg-white px-6 py-16 text-center text-sm text-slate-400 shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
+        <div className="rounded-3xl border border-slate-100 bg-white py-20 text-center text-sm font-medium text-slate-400">
           조건에 맞는 스터디가 없습니다.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-[20px] border border-slate-200 bg-white">
-          {filteredPosts.map((post, index) => (
+        <div className="flex flex-col gap-3">
+          {filteredPosts.map((post) => (
             <article
-              key={`study-${post.id}`}
-              className={`group px-5 py-5 pb-2 transition hover:bg-hp-50/30 ${index !== filteredPosts.length - 1 ? "border-b border-slate-200" : ""}`}
+              key={post.id}
+              onClick={() => openPost(post.id)}
+              className="group cursor-pointer rounded-2xl border border-slate-200 bg-white px-6 py-5 transition hover:bg-slate-50/50 hover:shadow-sm"
             >
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => openPost(post.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    openPost(post.id);
-                  }
-                }}
-                className="block w-full cursor-pointer text-left"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="min-w-0 flex-wrap text-lg font-bold leading-tight text-slate-950 transition group-hover:text-hp-800">{post.title}</h3>
-                  <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700 transition group-hover:bg-amber-100">
-                    {post.cert || "자격증 미정"}
+              <div className="flex flex-wrap items-center gap-2.5 mb-3">
+                <h3 className="text-lg font-bold tracking-tight text-slate-900 group-hover:text-hp-600 transition-colors">
+                  {post.title}
+                </h3>
+                <span className="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-600">
+                  {post.cert || "자유 주제"}
+                </span>
+                {post.location === "online" ? (
+                  <span className="rounded-full bg-blue-50 px-3 py-1 text-[11px] font-bold text-blue-600">
+                    온라인
                   </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1 text-xs font-bold text-sky-700 transition group-hover:bg-sky-100">
+                ) : !post.location ? (
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-400">
+                    장소 미정
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1 text-[11px] font-bold text-sky-600">
                     <MapPin size={12} />
-                    {post.location || "장소 미정"}
+                    {post.location}
                   </span>
-                </div>
-                <p className="mt-3 overflow-hidden text-ellipsis whitespace-nowrap text-sm leading-6 text-slate-600">{post.content}</p>
+                )}
               </div>
+              
+              <p className="line-clamp-1 text-sm leading-relaxed text-slate-500 font-medium">
+                {post.content}
+              </p>
 
-              <div className="mt-3 border-t border-slate-100 pt-2 text-xs text-slate-400">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setProfileModal(post.authorId)}
-                      className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 underline-offset-2 transition hover:text-hp-700 hover:underline"
-                    >
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-hp-100 text-[11px] font-bold text-hp-700">
-                        {getInitial(post.author)}
-                      </span>
-                      <span>{post.author}</span>
-                    </button>
-                    <span className="text-slate-300">|</span>
-                    <span>{formatBoardCreatedAt(post.createdAt)}</span>
+                <div className="mt-4 flex items-center border-t border-slate-50 pt-3">
+                  <div className="flex flex-1 items-center gap-2" 
+                  onClick={(e) => {
+                        e.stopPropagation();
+                        setProfileModal(post.authorId);
+                      }}>
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-hp-100 text-[10px] font-bold text-hp-700">
+                      {getInitial(post.author)}
+                    </div>
+                    <span className="text-[12px] font-bold text-slate-700">{post.author}</span>
+                    <span className="text-[11px] font-medium text-slate-400">· {formatBoardCreatedAt(post.createdAt)}</span>
                   </div>
-
-                  <div className="flex flex-wrap items-center gap-3 text-[12px]">
-                    <span className="inline-flex items-center gap-1.5 font-medium text-slate-500">
-                      <button
-                        type="button"
-                        onClick={() => void handleToggleLike(post.id)}
-                        disabled={likeSubmittingPostId === post.id}
-                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 font-medium transition ${
-                          post.likedByUser ? "bg-red-50 text-red-500" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-                        } disabled:opacity-50`}
-                      >
-                        <Heart size={14} className={post.likedByUser ? "fill-current" : ""} />
-                        좋아요 {post.likes}
-                      </button>
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 font-medium text-slate-500">
-                      <Eye size={14} />
-                      조회수 {post.views}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 font-medium text-slate-500">
-                      <MessageCircle size={14} />
-                      댓글 {post.comments?.length || 0}
-                    </span>
-                  </div>
+                                
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void handleToggleLike(post.id);
+                  }}
+                  disabled={likeSubmittingPostId === post.id}
+                  className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold transition ${
+                    post.likedByUser
+                      ? "bg-red-50 text-red-500"
+                      : "text-slate-400 hover:bg-slate-100"
+                  } disabled:opacity-50`}
+                >
+                  <Heart size={13} className={post.likedByUser ? "fill-current" : ""} />
+                  좋아요 {post.likes}
+                </button>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 text-[12px] font-bold text-slate-400">
+                  <MessageCircle size={13} />
+                  댓글 {post.comments?.length || 0}
+                </div>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 text-[12px] font-bold text-slate-400">
+                  <Eye size={13} />
+                  조회 {post.views}
                 </div>
               </div>
             </article>

@@ -7,6 +7,7 @@ import { fetchCurrentUserProfile, logoutSession, notifyAuthExpired, subscribeAut
 import { createBoard } from "@/features/free-board/api/boards";
 import { createStudy } from "@/features/study/api/study-api";
 import type { ChatRoom, EventType, SearchPlace, TodoMap, UserProfile } from "@/entities/common/types";
+import { CHAT_API_BASE_URL } from "@/services/config/config";
 
 interface AppContextType {
   currentUser: UserProfile | null;
@@ -51,6 +52,8 @@ interface AppContextType {
   setSearchKeyword: React.Dispatch<React.SetStateAction<string>>;
   searchResults: SearchPlace[];
   setSearchResults: React.Dispatch<React.SetStateAction<SearchPlace[]>>;
+  isOnlineStudy: boolean;
+  setIsOnlineStudy: React.Dispatch<React.SetStateAction<boolean>>;
   submitPost: () => Promise<boolean>;
 }
 
@@ -78,6 +81,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [createChatRoom, setCreateChatRoom] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [searchResults, setSearchResults] = useState<SearchPlace[]>([]);
+  const [isOnlineStudy, setIsOnlineStudy] = useState(false); 
 
   useEffect(() => {
     let cancelled = false;
@@ -145,11 +149,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         title: postTitle.trim(),
         content: postContent.trim(),
         cert: certValue,
-        locationName: selectedPlace?.name,
-        address: selectedPlace?.address,
-        latitude: selectedPlace?.lat,
-        longitude: selectedPlace?.lng,
-        placeId: selectedPlace?.id,
+        locationName: isOnlineStudy ? "online" : selectedPlace?.name,
+        address: isOnlineStudy ? "online" : selectedPlace?.address,
+        latitude: isOnlineStudy ? 0 : selectedPlace?.lat,
+        longitude: isOnlineStudy ? 0 : selectedPlace?.lng,
+        placeId: isOnlineStudy ? "online" : selectedPlace?.id,
         createChatRoom,
       });
     } else {
@@ -166,8 +170,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
     }
 
-    return true;
-  }, [currentUser, postContent, postTitle, postCert, postCertCategory, selectedPlace, writeType, createChatRoom]);
+      return true;
+  }, [currentUser, postContent, postTitle, postCert, postCertCategory, selectedPlace, writeType, createChatRoom, isOnlineStudy]);
 
   return (
     <AppContext.Provider
@@ -209,6 +213,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         searchKeyword,
         setSearchKeyword,
         searchResults,
+        isOnlineStudy,
+        setIsOnlineStudy, 
         setSearchResults,
         submitPost,
       }}

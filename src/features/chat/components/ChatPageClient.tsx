@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, MessageCircle, Clock, LogOut, PanelLeft } from "lucide-react";
+import { ArrowRight, MessageCircle, Clock, LogOut, Users, PanelLeft,  Menu } from "lucide-react";
 import { useApp } from "@/shared/context/AppContext";
 import { getChatRoom, sendMessage, leaveRoom, kickParticipant } from "@/services/realtime/stomp";
 import { CHAT_API_BASE_URL } from "@/services/config/config";
@@ -33,13 +33,20 @@ function formatMessageTime(value?: string) {
 }
 
 function getRoomDisplayName(room: {
+  type?: string; 
   displayName?: string;
   roomNickname?: string;
   name?: string;
   partnerNickname?: string;
-}) {
-  return room.displayName || room.roomNickname || room.name || room.partnerNickname || "Unknown";
-}
+  }) {
+    if (room.type === "GROUP") {
+      return `${room.name ?? "채팅방"}`;
+    }
+    if (room.type === "PERSONAL") {
+      return `${room.roomNickname || room.partnerNickname || "대화상대없음"}`;
+    }
+    return room.name ?? "Unknown";
+  }
 
 export default function ChatPageClient() {
   const {
@@ -56,7 +63,8 @@ export default function ChatPageClient() {
   const initialReadHandledRef = useRef<string | null>(null);
   const [newRoomName, setNewRoomName] = useState("");
   const [isEditingName, setIsEditingName] = useState(false);
-  const [showRooms, setShowRooms] = useState(false);
+  const [showRooms, setShowRooms] = useState(true);
+  const [showRoomInfo, setShowRoomInfo] = useState(false);
 
   const activeRoom = useMemo(
     () => chatRooms.find((room) => String(room.id) === String(activeChatRoomId)) ?? null,
@@ -170,7 +178,7 @@ export default function ChatPageClient() {
             ? {
                 ...room,
                 participants: room.participants?.map((participant) =>
-                  participant.userId === targetUserId
+                  participant.userId === Number(targetUserId)
                     ? { ...participant, status: "JOINED" }
                     : participant,
                 ),
@@ -237,7 +245,6 @@ export default function ChatPageClient() {
 
   const handleRoomClick = async (roomId: number | string) => {
     setActiveChatRoomId(String(roomId));
-    setShowRooms(false);
 
     try {
       const latestRoom = await getChatRoom(Number(roomId));
@@ -301,35 +308,49 @@ export default function ChatPageClient() {
       console.error(error);
     }
   };
+return (
+  <div className="mx-auto flex h-full min-h-0 max-w-6xl animate-in fade-in flex-col duration-500">
+    <div className="mb-6 flex items-center justify-between gap-3">
+      <h2 className="text-2xl font-bold">채팅방</h2>
+      <button
+        type="button"
+        onClick={() => setShowRooms((prev) => !prev)}
+        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+      >
+        <PanelLeft
+          size={16}
+          style={{
+            transform: showRooms ? "rotate(0deg)" : "rotate(180deg)",
+            transition: "transform 0.3s ease",
+          }}
+        />
+        {showRooms ? "목록 닫기" : "목록 보기"}
+      </button>
+    </div>
 
-  return (
-    <div className="mx-auto flex h-full min-h-0 max-w-6xl animate-in fade-in flex-col duration-500">
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <h2 className="text-2xl font-bold">채팅방</h2>
-        <button
-          type="button"
-          onClick={() => setShowRooms((prev) => !prev)}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-        >
-          <PanelLeft size={16} />
-          {showRooms ? "목록 닫기" : "목록 보기"}
-        </button>
+    {chatRooms.length === 0 ? (
+      <div className="flex flex-1 flex-col items-center justify-center rounded-2xl bg-white p-12 text-center shadow-md">
+        <MessageCircle size={52} className="mb-4 text-slate-200" />
+        <p className="text-lg font-bold text-slate-500">참여중인 채팅방이 없습니다</p>
       </div>
+    ) : (
+      <div className="flex gap-4 overflow-x-auto" style={{ height: "calc(100vh - 11rem)" }}>
 
-      {chatRooms.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border bg-white p-12 text-center shadow-sm">
-          <MessageCircle size={52} className="mb-4 text-slate-200" />
-          <p className="text-lg font-bold text-slate-500">참여중인 채팅방이 없습니다</p>
-        </div>
-      ) : (
-        <div className="flex min-h-[calc(100vh-11rem)] flex-col gap-4 lg:h-[calc(100vh-11rem)] lg:min-h-0 lg:flex-row">
-          {/* 채팅방 목록 */}
-          {showRooms ? (
-          <div className="flex w-full shrink-0 flex-col overflow-hidden rounded-2xl border bg-white shadow-sm lg:h-full lg:w-72 lg:max-w-[18rem]">
-            <div className="border-b p-4">
+        {/* 채팅방 목록 */}
+        <div
+          className="flex shrink-0 flex-col overflow-hidden rounded-2xl bg-white shadow-md transition-all duration-300 ease-in-out"
+          style={{
+            width: showRooms ? "256px" : "0px",
+            marginRight: showRooms ? "0px" : "-16px",
+            opacity: showRooms ? 1 : 0,
+            pointerEvents: showRooms ? "auto" : "none",
+          }}
+        >
+          <div className="w-64">
+            <div className="border-b border-slate-100 p-4">
               <p className="font-bold text-slate-800">Rooms</p>
             </div>
-            <div className="max-h-64 flex-1 divide-y divide-slate-50 overflow-y-auto lg:max-h-none">
+            <div className="flex-1 divide-y divide-slate-50 overflow-y-auto">
               {chatRooms.map((room) => (
                 <button
                   key={room.id}
@@ -338,8 +359,18 @@ export default function ChatPageClient() {
                     String(activeChatRoomId) === String(room.id) ? "bg-slate-50" : ""
                   }`}
                 >
-                  <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-hp-100 text-sm font-bold text-hp-600">
-                    {getRoomDisplayName(room).substring(0, 1) || "R"}
+                  <div className="relative flex h-10 w-10 shrink-0">
+                    {room.type === "GROUP" ? (
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-100 text-violet-500 shadow-sm">
+                        <Users size={18} strokeWidth={2} />
+                      </div>
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-100 text-sky-500 shadow-sm">
+                        <span className="text-sm font-bold">
+                          {(room.roomNickname || room.partnerNickname || "?").substring(0, 1)}
+                        </span>
+                      </div>
+                    )}
                     {(room.unreadCount ?? 0) > 0 && (
                       <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full border-2 border-white bg-hp-600 px-1 text-[9px] font-bold text-white shadow-sm">
                         {(room.unreadCount ?? 0) > 99 ? "99+" : room.unreadCount}
@@ -356,293 +387,295 @@ export default function ChatPageClient() {
               ))}
             </div>
           </div>
-          ) : null}
+        </div>
 
-          {activeRoom ? (
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 xl:flex-row">
-              <div className="flex min-h-[24rem] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-white shadow-sm lg:min-h-0">
-                {/* 채팅방 헤더 */}
-                <div className="flex items-center gap-3 border-b p-4">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-hp-100 text-sm font-bold text-hp-600">
-                    {getRoomDisplayName(activeRoom).substring(0, 1) || "R"}
-                  </div>
-                  <p className="flex-1 font-bold text-slate-800">{getRoomDisplayName(activeRoom)}</p>
+        {/* 채팅창 */}
+        {activeRoom ? (
+          <div className="flex min-w-[320px] flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-md">
+
+            {/* 헤더 */}
+            <div className="relative flex items-center gap-3 border-b border-slate-100 p-4">
+              {activeRoom.type === "GROUP" ? (
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-500">
+                  <Users size={14} strokeWidth={2} />
                 </div>
-
-                {activeRoom.participants?.find((participant) => Number(participant.userId) === Number(currentUser?.id))
-                  ?.status === "PENDING" ? (
-                  <div className="flex flex-1 flex-col items-center justify-center bg-slate-50 p-10 text-center">
-                    <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-hp-50 text-hp-500">
-                      <Clock size={32} />
-                    </div>
-                    <p className="text-lg font-bold text-slate-700">Pending approval</p>
-                    <p className="mt-2 text-sm text-slate-400">
-                      방장의 승인 후 채팅에 참여할 수 있습니다. 승인 전까지는 메시지를 보낼 수 없습니다.
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4 sm:p-5">
-                      {(activeRoom.messages || []).map((message, idx) => {
-                        const isMe = Number(message.senderId) === Number(currentUser?.id);
-                        const isSystemMsg =
-                          message.type === "ENTER" ||
-                          message.type === "QUIT" ||
-                          message.type === "NOTICE";
-                        if (message.type === "READ" || !message.message) return null;
-
-                        if (isSystemMsg) {
-                          return (
-                            <div key={idx} className="my-2 flex justify-center">
-                              <div className="rounded-full bg-slate-100 px-4 py-1 text-[11px] font-medium text-slate-500">
-                                {message.message}
-                              </div>
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <div
-                            key={`${message.id ?? idx}-${idx}`}
-                            className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
-                          >
-                            {!isMe && (
-                              <button
-                                type="button"
-                                onClick={() => openProfileModal(message.senderId)}
-                                className="mb-1 ml-1 flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 transition hover:text-hp-600"
-                              >
-                                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-hp-100 text-[10px] font-bold text-hp-600">
-                                  {(message.senderName || "?").substring(0, 1)}
-                                </span>
-                                <span>{message.senderName || "Unknown"}</span>
-                              </button>
-                            )}
-                            <div
-                              className={`flex w-full items-end gap-1 ${isMe ? "justify-end" : "justify-start"}`}
-                            >
-                              {isMe && (
-                                <div className="mb-1 flex flex-col items-end gap-0.5">
-                                  {(message.unreadCount ?? 0) > 0 && (
-                                    <span className="text-[10px] font-bold text-hp-400">
-                                      {message.unreadCount}
-                                    </span>
-                                  )}
-                                  {message.createdAt && (
-                                    <span className="text-[10px] text-slate-400">
-                                      {formatMessageTime(message.createdAt)}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-
-                              <div
-                                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm sm:max-w-[78%] xl:max-w-[70%] ${
-                                  isMe
-                                    ? "rounded-br-sm bg-hp-600 text-white"
-                                    : "rounded-bl-sm bg-slate-100 text-slate-800"
-                                }`}
-                              >
-                                <p>{(message.message ?? (message as any).text) ?? "No content"}</p>
-                              </div>
-
-                              {!isMe && (
-                                <div className="mb-1 flex flex-col items-start gap-0.5">
-                                  {message.createdAt && (
-                                    <span className="text-[10px] text-slate-400">
-                                      {formatMessageTime(message.createdAt)}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <div className="flex flex-col gap-2 border-t p-3 sm:flex-row sm:p-4">
-                      <input
-                        type="text"
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && void handleSendMessage()}
-                        placeholder="메시지를 입력하세요..."
-                        className="w-full flex-1 rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-hp-500"
-                      />
-                      <button
-                        onClick={() => void handleSendMessage()}
-                        className="flex items-center justify-center rounded-xl bg-hp-600 px-4 py-2.5 font-bold text-white hover:bg-hp-700 sm:px-5"
-                      >
-                        <ArrowRight size={18} />
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
+              ) : (
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-100 text-sky-500">
+                  <span className="text-xs font-bold">
+                    {(activeRoom.roomNickname || activeRoom.partnerNickname || "?").substring(0, 1)}
+                  </span>
+                </div>
+              )}
+              <p className="flex-1 font-bold text-slate-800">{getRoomDisplayName(activeRoom)}</p>
 
               {activeRoom.type === "GROUP" && (
-                <div className="flex w-full shrink-0 flex-col overflow-hidden rounded-2xl border bg-white shadow-sm xl:h-full xl:w-64 xl:max-w-[16rem]">
-                  <div className="border-b p-4">
-                    <p className="font-bold text-slate-800">Room info</p>
-                  </div>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowRoomInfo((prev) => !prev)}
+                    className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                  >
+                    <Menu size={18} />
+                  </button>
 
-                  <div className="max-h-80 flex-1 overflow-y-auto p-3 xl:max-h-none">
-                    {/* 방장 전용: 참여 승인 요청 목록 */}
-                    {activeRoom.ownerId === Number(currentUser?.id) && (
-                      <>
-                        <div className="mb-2 flex items-center gap-1 text-[11px] font-bold uppercase text-slate-400">
-                          Pending requests
-                          {activeRoom.participants?.some((participant) => participant.status === "PENDING") && (
-                            <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                          )}
-                        </div>
-                        <div className="mb-3 space-y-1">
-                          {activeRoom.participants?.filter((participant) => participant.status === "PENDING")
-                            .length === 0 ? (
-                            <p className="py-2 text-center text-xs text-slate-400">
-                              현재 대기 중인 참여 요청이 없습니다.
-                            </p>
-                          ) : (
-                            activeRoom.participants
-                              ?.filter((participant) => participant.status === "PENDING")
-                              .map((participant) => (
-                                <div key={participant.userId} className="rounded-xl bg-slate-50 p-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => openProfileModal(participant.userId)}
-                                    className="mb-1.5 text-xs font-medium text-slate-700 transition hover:text-hp-600"
-                                  >
-                                    {participant.nickname}
-                                  </button>
-                                  <div className="flex gap-1">
-                                    <button
-                                      onClick={() => void handleApprove(participant.userId)}
-                                      className="flex-1 rounded-lg bg-hp-600 py-1 text-[10px] font-bold text-white"
-                                    >
-                                      승인
-                                    </button>
-                                    <button
-                                      onClick={() => void handleReject(participant.userId)}
-                                      className="flex-1 rounded-lg border border-slate-200 py-1 text-[10px] font-bold text-slate-400"
-                                    >
-                                      거절
-                                    </button>
-                                  </div>
-                                </div>
-                              ))
-                          )}
-                        </div>
-                        <div className="mb-3 border-t border-slate-100" />
-                      </>
-                    )}
-
-                    <div className="mb-2 text-[11px] font-bold uppercase text-slate-400">Participants</div>
-                    <div className="mb-3 space-y-1">
-                      {activeRoom.participants?.filter((participant) => participant.status === "JOINED").map((participant) => (
-                        <div
-                          key={participant.userId}
-                          className="flex items-center justify-between rounded-xl p-2 hover:bg-slate-50"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-hp-100 text-[10px] font-bold text-hp-600">
-                              {participant.nickname.substring(0, 1)}
+                  {showRoomInfo && (
+                    <div className="absolute right-0 top-10 z-50 w-64 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl">
+                      <div className="max-h-[480px] overflow-y-auto p-3">
+                        {activeRoom.ownerId === Number(currentUser?.id) && (
+                          <>
+                            <div className="mb-2 flex items-center gap-1 text-[11px] font-bold uppercase text-slate-400">
+                              Pending requests
+                              {activeRoom.participants?.some((p) => p.status === "PENDING") && (
+                                <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                              )}
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => openProfileModal(participant.userId)}
-                              className="text-xs font-medium text-slate-700 transition hover:text-hp-600"
-                            >
-                              {participant.nickname}
-                            </button>
-                          </div>
-                          {activeRoom.ownerId === Number(currentUser?.id) &&
-                            participant.userId !== Number(currentUser?.id) && (
-                              <button
-                                onClick={() => void handleKickParticipant(participant.userId)}
-                                className="rounded-lg border border-red-200 px-1.5 py-0.5 text-[10px] font-bold text-red-400 hover:bg-red-50"
-                              >
-                                강퇴
-                              </button>
-                            )}
-                          {participant.userId === Number(currentUser?.id) &&
-                            activeRoom.ownerId === Number(currentUser?.id) && (
-                              <span className="rounded-full bg-hp-100 px-1.5 py-0.5 text-[9px] font-bold text-hp-600">
-                                Owner
-                              </span>
-                            )}
-                        </div>
-                      ))}
-                    </div>
-
-                    {activeRoom.ownerId === Number(currentUser?.id) && (
-                      <>
-                        <div className="mb-3 border-t border-slate-100" />
-                        <div className="mb-2 text-[11px] font-bold uppercase text-slate-400">
-                          Rename room
-                        </div>
-                        {isEditingName ? (
-                          <div className="space-y-1">
-                            <input
-                              value={newRoomName}
-                              onChange={(e) => setNewRoomName(e.target.value)}
-                              onKeyDown={(e) => e.key === "Enter" && void handleUpdateRoomName()}
-                              placeholder="Enter room name"
-                              className="w-full rounded-lg border px-2 py-1.5 text-xs outline-none focus:border-hp-500"
-                              autoFocus
-                            />
-                            <div className="flex gap-1">
-                              <button
-                                onClick={() => void handleUpdateRoomName()}
-                                className="flex-1 rounded-lg bg-hp-600 py-1.5 text-[10px] font-bold text-white"
-                              >
-                                저장
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setIsEditingName(false);
-                                  setNewRoomName("");
-                                }}
-                                className="flex-1 rounded-lg border py-1.5 text-[10px] text-slate-400"
-                              >
-                                취소
-                              </button>
+                            <div className="mb-3 space-y-1">
+                              {activeRoom.participants?.filter((p) => p.status === "PENDING").length === 0 ? (
+                                <p className="py-2 text-center text-xs text-slate-400">
+                                  현재 대기 중인 참여 요청이 없습니다.
+                                </p>
+                              ) : (
+                                activeRoom.participants
+                                  ?.filter((p) => p.status === "PENDING")
+                                  .map((participant) => (
+                                    <div key={participant.userId} className="rounded-xl bg-slate-50 p-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => openProfileModal(participant.userId)}
+                                        className="mb-1.5 text-xs font-medium text-slate-700 transition hover:text-hp-600"
+                                      >
+                                        {participant.nickname}
+                                      </button>
+                                      <div className="flex gap-1">
+                                        <button
+                                          onClick={() => void handleApprove(participant.userId)}
+                                          className="flex-1 rounded-lg bg-hp-600 py-1 text-[10px] font-bold text-white"
+                                        >
+                                          승인
+                                        </button>
+                                        <button
+                                          onClick={() => void handleReject(participant.userId)}
+                                          className="flex-1 rounded-lg border border-slate-200 py-1 text-[10px] font-bold text-slate-400"
+                                        >
+                                          거절
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))
+                              )}
                             </div>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              setIsEditingName(true);
-                              setNewRoomName("");
-                            }}
-                            className="w-full rounded-lg border py-1.5 text-xs text-slate-500 hover:bg-slate-50"
-                          >
-                            채팅방 이름 변경
-                          </button>
+                            <div className="mb-3 border-t border-slate-100" />
+                          </>
                         )}
-                      </>
-                    )}
-                  </div>
 
-                  <div className="border-t p-3">
-                    <button
-                      onClick={() => void handleLeaveRoom()}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 py-2 text-xs font-bold text-red-400 hover:bg-red-50"
-                    >
-                      <LogOut size={14} />
-                      나가기
-                    </button>
-                  </div>
+                        <div className="mb-2 text-[11px] font-bold uppercase text-slate-400">Participants</div>
+                        <div className="mb-3 space-y-1">
+                          {activeRoom.participants?.filter((p) => p.status === "JOINED").map((participant) => (
+                            <div
+                              key={participant.userId}
+                              className="flex items-center justify-between rounded-xl p-2 hover:bg-slate-50"
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-hp-100 text-[10px] font-bold text-hp-600">
+                                  {participant.nickname.substring(0, 1)}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => openProfileModal(participant.userId)}
+                                  className="text-xs font-medium text-slate-700 transition hover:text-hp-600"
+                                >
+                                  {participant.nickname}
+                                </button>
+                              </div>
+                              {activeRoom.ownerId === Number(currentUser?.id) &&
+                                participant.userId !== Number(currentUser?.id) && (
+                                  <button
+                                    onClick={() => void handleKickParticipant(participant.userId)}
+                                    className="rounded-lg border border-red-200 px-1.5 py-0.5 text-[10px] font-bold text-red-400 hover:bg-red-50"
+                                  >
+                                    강퇴
+                                  </button>
+                                )}
+                              {participant.userId === Number(currentUser?.id) &&
+                                activeRoom.ownerId === Number(currentUser?.id) && (
+                                  <span className="rounded-full bg-hp-100 px-1.5 py-0.5 text-[9px] font-bold text-hp-600">
+                                    Owner
+                                  </span>
+                                )}
+                            </div>
+                          ))}
+                        </div>
+
+                        {activeRoom.ownerId === Number(currentUser?.id) && (
+                          <>
+                            <div className="mb-3 border-t border-slate-100" />
+                            <div className="mb-2 text-[11px] font-bold uppercase text-slate-400">Rename room</div>
+                            {isEditingName ? (
+                              <div className="space-y-1">
+                                <input
+                                  value={newRoomName}
+                                  onChange={(e) => setNewRoomName(e.target.value)}
+                                  onKeyDown={(e) => e.key === "Enter" && void handleUpdateRoomName()}
+                                  placeholder="Enter room name"
+                                  className="w-full rounded-lg border px-2 py-1.5 text-xs outline-none focus:border-hp-500"
+                                  autoFocus
+                                />
+                                <div className="flex gap-1">
+                                  <button
+                                    onClick={() => void handleUpdateRoomName()}
+                                    className="flex-1 rounded-lg bg-hp-600 py-1.5 text-[10px] font-bold text-white"
+                                  >
+                                    저장
+                                  </button>
+                                  <button
+                                    onClick={() => { setIsEditingName(false); setNewRoomName(""); }}
+                                    className="flex-1 rounded-lg border py-1.5 text-[10px] text-slate-400"
+                                  >
+                                    취소
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => { setIsEditingName(true); setNewRoomName(""); }}
+                                className="w-full rounded-lg border py-1.5 text-xs text-slate-500 hover:bg-slate-50"
+                              >
+                                채팅방 이름 변경
+                              </button>
+                            )}
+                          </>
+                        )}
+
+                        <div className="mt-3 border-t border-slate-100 pt-3">
+                          <button
+                            onClick={() => void handleLeaveRoom()}
+                            className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 py-2 text-xs font-bold text-red-400 hover:bg-red-50"
+                          >
+                            <LogOut size={14} />
+                            나가기
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          ) : (
-            <div className="flex min-h-[24rem] flex-1 items-center justify-center rounded-2xl border bg-white text-sm text-slate-400 shadow-sm lg:min-h-0">
-              왼쪽에서 채팅방을 선택해 대화를 시작하세요.
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
+
+            {activeRoom.participants?.find((participant) => Number(participant.userId) === Number(currentUser?.id))
+              ?.status === "PENDING" ? (
+              <div className="flex flex-1 flex-col items-center justify-center bg-slate-50 p-10 text-center">
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-hp-50 text-hp-500">
+                  <Clock size={32} />
+                </div>
+                <p className="text-lg font-bold text-slate-700">Pending approval</p>
+                <p className="mt-2 text-sm text-slate-400">
+                  방장의 승인 후 채팅에 참여할 수 있습니다. 승인 전까지는 메시지를 보낼 수 없습니다.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4 sm:p-5">
+                  {(activeRoom.messages || []).map((message, idx) => {
+                    const isMe = Number(message.senderId) === Number(currentUser?.id);
+                    const isSystemMsg =
+                      message.type === "ENTER" ||
+                      message.type === "QUIT" ||
+                      message.type === "NOTICE";
+                    if (message.type === "READ" || !message.message) return null;
+
+                    if (isSystemMsg) {
+                      return (
+                        <div key={idx} className="my-2 flex justify-center">
+                          <div className="rounded-full bg-slate-100 px-4 py-1 text-[11px] font-medium text-slate-500">
+                            {message.message}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div
+                        key={`${message.id ?? idx}-${idx}`}
+                        className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
+                      >
+                        {!isMe && (
+                          <button
+                            type="button"
+                            onClick={() => openProfileModal(message.senderId)}
+                            className="mb-1 ml-1 flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 transition hover:text-hp-600"
+                          >
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-hp-100 text-[10px] font-bold text-hp-600">
+                              {(message.senderName || "?").substring(0, 1)}
+                            </span>
+                            <span>{message.senderName || "Unknown"}</span>
+                          </button>
+                        )}
+                        <div className={`flex w-full items-end gap-1 ${isMe ? "justify-end" : "justify-start"}`}>
+                          {isMe && (
+                            <div className="mb-1 flex flex-col items-end gap-0.5">
+                              {(message.unreadCount ?? 0) > 0 && (
+                                <span className="text-[10px] font-bold text-hp-400">
+                                  {message.unreadCount}
+                                </span>
+                              )}
+                              {message.createdAt && (
+                                <span className="text-[10px] text-slate-400">
+                                  {formatMessageTime(message.createdAt)}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          <div
+                            className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm sm:max-w-[78%] xl:max-w-[70%] ${
+                              isMe
+                                ? "rounded-br-sm bg-hp-600 text-white"
+                                : "rounded-bl-sm bg-slate-100 text-slate-800"
+                            }`}
+                          >
+                            <p>{(message.message ?? (message as any).text) ?? "No content"}</p>
+                          </div>
+                          {!isMe && (
+                            <div className="mb-1 flex flex-col items-start gap-0.5">
+                              {message.createdAt && (
+                                <span className="text-[10px] text-slate-400">
+                                  {formatMessageTime(message.createdAt)}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex flex-col gap-2 border-t border-slate-100 p-3 sm:flex-row sm:p-4">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && void handleSendMessage()}
+                    placeholder="메시지를 입력하세요..."
+                    className="w-full flex-1 rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-hp-500"
+                  />
+                  <button
+                    onClick={() => void handleSendMessage()}
+                    className="flex items-center justify-center rounded-xl bg-hp-600 px-4 py-2.5 font-bold text-white hover:bg-hp-700 sm:px-5"
+                  >
+                    <ArrowRight size={18} />
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="flex min-h-[24rem] flex-1 items-center justify-center rounded-2xl bg-white text-sm text-slate-400 shadow-md lg:min-h-0">
+            왼쪽에서 채팅방을 선택해 대화를 시작하세요.
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+);
 }

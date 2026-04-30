@@ -63,6 +63,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     setSearchKeyword,
     searchResults,
     setSearchResults,
+    setIsOnlineStudy
   } = useApp();
 
   const [loadingKakao, errorKakao] = useKakaoLoader({
@@ -225,7 +226,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     if (!currentUser?.id) return;
-
+    
     const client = createChatClient(
       Number(currentUser.id),
       chatRooms.map((room) => Number(room.id)).filter(Number.isFinite),
@@ -283,6 +284,22 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               };
             }),
           );
+          setNotifications((prev) => [
+        {
+          id: Date.now(),
+          type: "CHAT",
+          targetType: "CHAT",
+          targetId: newMessage.roomId,
+          message: `${newMessage.senderName ?? "누군가"}님이 채팅방 참여를 요청했습니다.`,
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          senderNickname: newMessage.senderName ?? "",
+          content: "",
+        },
+        ...prev,
+      ]);
+          
+          
           return;
         }
 
@@ -320,24 +337,22 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               body: newMessage.message,
               icon: "/favicon.ico",
             });
+            
           }
 
           if (!document.hidden) {
             toast(newMessage.senderName ?? "새 메시지", {
               description: newMessage.message,
-              duration: 3000,
               position: "bottom-right",
               style: {
-                background: "#f0f8ff",
-                color: "#a9d6f7",
-                border: "1px solid #ddeffc",
-                borderRadius: "16px",
+                background: "#fdfdfd",
+                color: "#000000",
                 padding: "12px 16px",
-                boxShadow: "0 8px 30px rgba(63, 164, 242, 0.15)",
+                boxShadow: "0 8px 30px rgba(0, 2, 3, 0.15)",
               },
               actionButtonStyle: {
-                background: "#6ab8f5",
-                color: "white",
+                background: "#fafafa",
+                color: "black",
                 borderRadius: "8px",
                 border: "none",
               },
@@ -377,8 +392,33 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       (newNotification) => {
         console.log("Received realtime notification:", newNotification);
         setNotifications((prev) => [newNotification, ...prev]);
-      },
-    );
+        if (newNotification.targetType === "CHAT" && newNotification.message?.includes("승인")) {
+        setChatRooms((prev) =>
+          prev.map((room) =>
+            String(room.id) === String(newNotification.targetId)
+              ? {
+                  ...room,
+                  participants: room.participants?.map((p) =>
+                    Number(p.userId) === Number(currentUser?.id)
+                      ? { ...p, status: "JOINED" }
+                      : p,
+                  ),
+                }
+              : room,
+          ),
+        );
+      }
+
+      if (newNotification.targetType === "CHAT" && newNotification.message?.includes("거절")) {
+        setChatRooms((prev) =>
+          prev.filter((room) => String(room.id) !== String(newNotification.targetId)),
+        );
+        setActiveChatRoomId((prev) =>
+          String(prev) === String(newNotification.targetId) ? null : prev,
+        );
+      }
+    },
+  );
 
     client.activate();
     chatClientRef.current = client;
@@ -421,6 +461,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     setSelectedPlace(null);
     setSearchKeyword("");
     setSearchResults([]);
+    setIsOnlineStudy(false);
   };
 
   const searchPlacesOnKakao = () => {

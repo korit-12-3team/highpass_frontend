@@ -65,6 +65,8 @@ export default function NotificationDropdown({
         router.push(`/free/${targetId}`);
       } else if (targetType === "STUDY") {
         router.push(`/study/${targetId}`);
+      } else if (targetType === "CHAT") {
+        router.push(`/chat`);
       }
       
       onClose();

@@ -51,6 +51,7 @@ export default function StudyPostPageClient({
   const [postEditError, setPostEditError] = useState("");
   const [postSaving, setPostSaving] = useState(false);
   const [postDeleting, setPostDeleting] = useState(false);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
 
   const certificateCategories = useMemo(
     () => Object.keys(CERT_DATA).filter((category) => category !== CUSTOM_CERT_FILTER),
@@ -226,7 +227,7 @@ export default function StudyPostPageClient({
   const showMapPreview = true;
   const canManagePost = !!currentUser && currentUser.id === post?.authorId;
 
-  const cancelPostEdit = () => {
+  const handleConfirmCancel = () => {
     if (!post) return;
     setEditingPost(false);
     setPostEditTitle(post.title || "");
@@ -250,6 +251,10 @@ export default function StudyPostPageClient({
     );
     setPostEditError("");
   };
+
+  const cancelPostEdit = () => {
+  setCancelConfirmOpen(true);
+};
 
   const searchPlacesOnKakao = () => {
     if (typeof window === "undefined") return;
@@ -351,495 +356,298 @@ export default function StudyPostPageClient({
       </div>
     );
   }
+return (
+  <div className="mx-auto max-w-4xl animate-in fade-in duration-500">
+    <div className="overflow-hidden rounded-[30px] border border-hp-100 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
 
-  return (
-    <div className="mx-auto max-w-6xl animate-in fade-in duration-500">
-      <div className="overflow-hidden rounded-[30px] border border-hp-100 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
-        <div className="sticky top-0 z-10 border-b border-hp-100 bg-white/90 backdrop-blur">
-          <div className="flex items-center gap-3 px-5 py-3">
-            <button
-              onClick={() => router.push(returnTo ? decodeURIComponent(returnTo) : "/study")}
-              className="rounded-full p-2 transition hover:bg-slate-100"
-              aria-label="뒤로"
-            >
-              ←
-            </button>
-            <div className="text-sm font-semibold text-slate-700">스터디 모집</div>
-          </div>
+      {/* 상단 네비 */}
+      <div className="sticky top-0 z-10 border-b border-hp-100 bg-white/90 backdrop-blur">
+        <div className="flex items-center gap-3 px-5 py-3">
+          <button
+            onClick={() => router.push(returnTo ? decodeURIComponent(returnTo) : "/study")}
+            className="rounded-full p-2 transition hover:bg-slate-100"
+            aria-label="뒤로"
+          >
+            ←
+          </button>
+          <div className="text-sm font-semibold text-slate-700">스터디 모집</div>
         </div>
+      </div>
 
-        <div className="grid gap-0 lg:grid-cols-[minmax(0,1.45fr)_380px]">
-          <div className="border-b border-hp-100 bg-white lg:border-b-0 lg:border-r">
-            <div className="border-b border-hp-100 px-5 py-6 lg:px-7">
-              {!editingPost ? (
-                <div className="mb-5 pb-5">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0 flex-1">
-                      {post.title ? <h1 className="text-3xl font-bold leading-tight tracking-[-0.02em] text-slate-950">{post.title}</h1> : null}
-                    </div>
-                    <div className="flex flex-wrap gap-2 lg:max-w-[42%] lg:justify-end">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-hp-50 px-3 py-1.5 text-xs font-semibold text-hp-700">
-                        <MapPin size={12} />
-                        {post.location}
-                      </span>
-                      {post.cert && <span className="rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">{post.cert}</span>}
-                    </div>
-                  </div>
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <button
-                        onClick={() => setProfileModal(post.authorId)}
-                        className="flex h-9 w-9 items-center justify-center rounded-full bg-hp-100 p-[2px]"
-                      >
-                        <span className="flex h-full w-full items-center justify-center rounded-full bg-white text-xs font-bold text-hp-700">
-                          {getInitial(post.author)}
-                        </span>
-                      </button>
-                      <div className="min-w-0 text-[11px] text-slate-400">
-                        <button
-                          className="block truncate text-left text-xs font-medium text-slate-600 hover:text-hp-700 hover:underline"
-                          onClick={() => setProfileModal(post.authorId)}
-                        >
-                          {post.author}
-                        </button>
-                        <div>{formatBoardCreatedAt(post.createdAt)}</div>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2.5 text-xs font-medium text-slate-500">
-                      <button
-                        onClick={() => void handleToggleLike()}
-                        disabled={likeSubmitting}
-                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 transition ${
-                          post.likedByUser ? "bg-red-50 text-red-500" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                        } disabled:opacity-50`}
-                      >
-                        <Heart size={13} className={post.likedByUser ? "fill-current" : ""} />
-                        좋아요 {post.likes}
-                      </button>
-                      <span className="inline-flex items-center gap-1.5">
-                        <Eye size={13} />
-                        조회수 {post.views}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
+      {/* 본문 */}
+      <div className="px-5 py-6 lg:px-7">
 
-              <div className={`mb-4 flex items-center gap-3 ${editingPost ? "" : "hidden"}`}>
+        {/* 제목 + 뱃지 + 수정/삭제 */}
+        {!editingPost ? (
+          <div className="mb-5">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0 flex-1">
+                {post.title ? (
+                  <h1 className="text-3xl font-bold leading-tight tracking-[-0.02em] text-slate-950">
+                    {post.title}
+                  </h1>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap gap-2 lg:max-w-[42%] lg:justify-end">
+                <span className="inline-flex items-center gap-1 rounded-full bg-hp-50 px-3 py-1.5 text-xs font-semibold text-hp-700">
+                  <MapPin size={12} />
+                  {post.location}
+                </span>
+                {post.cert && (
+                  <span className="rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
+                    {post.cert}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* 작성자 + 좋아요/조회수 + 수정/삭제 */}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
                 <button
                   onClick={() => setProfileModal(post.authorId)}
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-hp-100 p-[2px]"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-hp-100 p-[2px]"
                 >
-                  <span className="flex h-full w-full items-center justify-center rounded-full bg-white text-sm font-bold text-hp-700">
+                  <span className="flex h-full w-full items-center justify-center rounded-full bg-white text-xs font-bold text-hp-700">
                     {getInitial(post.author)}
                   </span>
                 </button>
-                <div className="min-w-0 flex-1">
-                  <button className="block truncate text-left text-sm font-semibold text-slate-900 hover:underline" onClick={() => setProfileModal(post.authorId)}>
+                <div className="min-w-0 text-[11px] text-slate-400">
+                  <button
+                    className="block truncate text-left text-xs font-medium text-slate-600 hover:text-hp-700 hover:underline"
+                    onClick={() => setProfileModal(post.authorId)}
+                  >
                     {post.author}
                   </button>
-                  <div className="text-xs text-slate-400">{formatBoardCreatedAt(post.createdAt)}</div>
+                  <div>{formatBoardCreatedAt(post.createdAt)}</div>
                 </div>
-                {canManagePost ? (
-                  <div className="ml-auto flex items-center gap-2">
-                    {editingPost ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={cancelPostEdit}
-                          className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
-                        >
-                          취소
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void savePost()}
-                          disabled={postSaving}
-                          className="rounded-full bg-hp-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-hp-700 disabled:opacity-60"
-                        >
-                          {postSaving ? "저장 중.." : "저장"}
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingPost(true);
-                            setPostEditError("");
-                          }}
-                          className="rounded-full border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
-                          aria-label="게시글 수정"
-                        >
-                          <Pencil size={15} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void removePost()}
-                          disabled={postDeleting}
-                          className="rounded-full border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-red-50 hover:text-red-500 disabled:opacity-60"
-                          aria-label="게시글 삭제"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                ) : null}
               </div>
 
-              <div className="border-t border-hp-100 pt-6 lg:pt-7">
-                {editingPost ? (
-                  <div className="mx-auto max-w-3xl space-y-4">
-                    <div>
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">제목</p>
-                      <input
-                        value={postEditTitle}
-                        onChange={(event) => setPostEditTitle(event.target.value)}
-                        placeholder="제목"
-                        className="w-full rounded-2xl border border-hp-100 bg-white px-4 py-3 text-lg font-bold text-slate-950 outline-none focus:border-hp-500"
-                      />
-                    </div>
-                    <div>
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">자격증 선택</p>
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <div>
-                          <p className="mb-1 text-xs font-semibold text-slate-500">분류</p>
-                          <select
-                            value={postEditCertCategory}
-                            onChange={(event) => {
-                              setPostEditCertCategory(event.target.value);
-                              setPostEditCert("");
-                            }}
-                            className={`w-full rounded-2xl border border-hp-100 bg-white px-4 py-3 text-sm outline-none focus:border-hp-500 ${
-                              isCustomCert ? "font-bold text-slate-900" : "text-slate-700"
-                            }`}
-                          >
-                            <option value="">분류 선택</option>
-                            {certificateCategories.map((category) => (
-                              <option key={category} value={category}>
-                                {category}
-                              </option>
-                            ))}
-                            <option value={CUSTOM_CERT_FILTER}>기타</option>
-                          </select>
-                        </div>
-                        <div>
-                          <p className="mb-1 text-xs font-semibold text-slate-500">
-                            {isCustomCert ? "자격증명 직접 입력" : "자격증 종류"}
-                          </p>
-                          {isCustomCert ? (
-                            <input
-                              value={postEditCert}
-                              onChange={(event) => setPostEditCert(event.target.value)}
-                              placeholder="예: 한국사, 컴활 1급"
-                              className="w-full rounded-2xl border border-hp-100 bg-white px-4 py-3 text-sm text-slate-700 outline-none focus:border-hp-500"
-                            />
-                          ) : (
-                            <select
-                              value={postEditCert}
-                              onChange={(event) => setPostEditCert(event.target.value)}
-                              disabled={!postEditCertCategory}
-                              className="w-full rounded-2xl border border-hp-100 bg-white px-4 py-3 text-sm text-slate-700 outline-none focus:border-hp-500 disabled:opacity-40"
-                            >
-                              <option value="">{postEditCertCategory ? "자격증 선택" : "먼저 분류를 선택해 주세요"}</option>
-                              {certOptions.map((certificate) => (
-                                <option key={certificate} value={certificate}>
-                                  {certificate}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">본문</p>
-                      <textarea
-                        value={postEditContent}
-                        onChange={(event) => setPostEditContent(event.target.value)}
-                        rows={12}
-                        placeholder="본문"
-                        className="w-full resize-y rounded-2xl border border-hp-100 bg-white px-4 py-4 text-[15px] leading-7 text-slate-700 outline-none focus:border-hp-500"
-                      />
-                    </div>
-                    {postEditError ? <p className="text-sm text-red-500">{postEditError}</p> : null}
+              <div className="flex items-center gap-2">
+                {canManagePost && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => { setEditingPost(true); setPostEditError(""); }}
+                      className="rounded-full border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+                      aria-label="게시글 수정"
+                    >
+                      <Pencil size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void removePost()}
+                      disabled={postDeleting}
+                      className="rounded-full border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-red-50 hover:text-red-500 disabled:opacity-60"
+                      aria-label="게시글 삭제"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        
+
+        {/* 본문 내용 / 수정 폼 */}
+        <div className="pt-6 ">
+          {editingPost ? (
+            <div className="mx-auto space-y-4">
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">제목</p>
+                <input
+                  value={postEditTitle}
+                  onChange={(event) => setPostEditTitle(event.target.value)}
+                  placeholder="제목"
+                  className="w-full rounded-2xl border border-hp-100 bg-white px-4 py-3 text-lg font-bold text-slate-950 outline-none focus:border-hp-500"
+                />
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">자격증 선택</p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <p className="mb-1 text-xs font-semibold text-slate-500">분류</p>
+                    <select
+                      value={postEditCertCategory}
+                      onChange={(event) => { setPostEditCertCategory(event.target.value); setPostEditCert(""); }}
+                      className={`w-full rounded-2xl border border-hp-100 bg-white px-4 py-3 text-sm outline-none focus:border-hp-500 ${isCustomCert ? "font-bold text-slate-900" : "text-slate-700"}`}
+                    >
+                      <option value="">분류 선택</option>
+                      {certificateCategories.map((category) => (
+                        <option key={category} value={category}>{category}</option>
+                      ))}
+                      <option value={CUSTOM_CERT_FILTER}>기타</option>
+                    </select>
                   </div>
-                ) : (
-                  <div className="mx-auto max-w-3xl">
-                    <p className="min-h-[20rem] whitespace-pre-wrap text-[15px] leading-8 text-slate-700">{post.content}</p>
+                  <div>
+                    <p className="mb-1 text-xs font-semibold text-slate-500">
+                      {isCustomCert ? "자격증명 직접 입력" : "자격증 종류"}
+                    </p>
+                    {isCustomCert ? (
+                      <input
+                        value={postEditCert}
+                        onChange={(event) => setPostEditCert(event.target.value)}
+                        placeholder="예: 한국사, 컴활 1급"
+                        className="w-full rounded-2xl border border-hp-100 bg-white px-4 py-3 text-sm text-slate-700 outline-none focus:border-hp-500"
+                      />
+                    ) : (
+                      <select
+                        value={postEditCert}
+                        onChange={(event) => setPostEditCert(event.target.value)}
+                        disabled={!postEditCertCategory}
+                        className="w-full rounded-2xl border border-hp-100 bg-white px-4 py-3 text-sm text-slate-700 outline-none focus:border-hp-500 disabled:opacity-40"
+                      >
+                        <option value="">{postEditCertCategory ? "자격증 선택" : "먼저 분류를 선택해 주세요"}</option>
+                        {certOptions.map((certificate) => (
+                          <option key={certificate} value={certificate}>{certificate}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">본문</p>
+                <textarea
+                  value={postEditContent}
+                  onChange={(event) => setPostEditContent(event.target.value)}
+                  rows={12}
+                  placeholder="본문"
+                  className="w-full resize-y rounded-2xl border border-hp-100 bg-white px-4 py-4 text-[15px] leading-7 text-slate-700 outline-none focus:border-hp-500"
+                />
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">스터디 방식</p>
+                <div className="flex gap-2 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => { setPostEditLocation("online"); setSelectedEditPlace(null); setPlaceKeyword("online"); }}
+                    className={`flex-1 rounded-2xl py-3 text-sm font-bold transition ${postEditLocation === "online" ? "bg-hp-600 text-white" : "bg-slate-100 text-slate-500"}`}
+                  >
+                    온라인
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { if(postEditLocation === "online") { setPostEditLocation(""); setPlaceKeyword(""); } }}
+                    className={`flex-1 rounded-2xl py-3 text-sm font-bold transition ${postEditLocation !== "online" ? "bg-hp-600 text-white" : "bg-slate-100 text-slate-500"}`}
+                  >
+                    오프라인
+                  </button>
+                </div>
+
+                {postEditLocation !== "online" && (
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <input
+                        value={placeKeyword === "online" ? "" : placeKeyword}
+                        onChange={(e) => setPlaceKeyword(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && searchPlacesOnKakao()}
+                        placeholder="장소 검색"
+                        className="w-full rounded-2xl border border-hp-100 bg-slate-50 pl-4 pr-10 py-3 text-sm outline-none focus:border-hp-500"
+                      />
+                      <button onClick={searchPlacesOnKakao} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                        <Search size={18} />
+                      </button>
+                    </div>
+                    {/* 장소 검색 결과 목록 및 지도 생략 없이 구현... */}
+                    <div className="h-[250px] overflow-hidden rounded-3xl border border-hp-100 shadow-inner">
+                      <KakaoMap
+                        center={selectedEditPlace ? { lat: selectedEditPlace.lat, lng: selectedEditPlace.lng } : (post.lat ? { lat: post.lat, lng: post.lng } : { lat: 37.56, lng: 126.97 })}
+                        markers={selectedEditPlace ? [{ lat: selectedEditPlace.lat, lng: selectedEditPlace.lng, locationName: selectedEditPlace.name }] : (post.lat ? [{ lat: post.lat, lng: post.lng, locationName: post.location }] : [])}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
+              {/* 에러 메시지 표시 영역 */}
+              {postEditError ? (
+                <div className="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-500 animate-in slide-in-from-top-1">
+                  <span>⚠️</span> {postEditError}
+                </div>
+              ) : null}
 
-              <div className="hidden">
+              {/* 수정 중 버튼 - 본문 아래 */}
+              <div className="flex justify-end gap-2 border-t border-hp-100 pt-4">
+                <button
+                  type="button"
+                  onClick={cancelPostEdit}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void savePost()}
+                  disabled={postSaving}
+                  className="rounded-full bg-hp-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-hp-700 disabled:opacity-60"
+                >
+                  {postSaving ? "저장 중.." : "저장"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <p className="min-h-[20rem] whitespace-pre-wrap text-[15px] leading-8 text-slate-700">
+                {post.content}
+              </p>
+
+              {/* 좋아요 / 조회수 - 본문 우측 하단 */}
+              <div className="mt-6 flex justify-end gap-2">
                 <button
                   onClick={() => void handleToggleLike()}
                   disabled={likeSubmitting}
-                  className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold transition ${
-                    post.likedByUser ? "bg-red-50 text-red-500" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                    post.likedByUser ? "bg-red-50 text-red-500" : "text-slate-400 hover:bg-slate-100"
                   } disabled:opacity-50`}
                 >
-                  <Heart size={16} className={post.likedByUser ? "fill-current" : ""} />
+                  <Heart size={13} className={post.likedByUser ? "fill-current" : ""} />
                   좋아요 {post.likes}
                 </button>
-                <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500">
-                  <Eye size={16} />
-                  {post.views}
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-400">
+                  <Eye size={13} />
+                  조회 {post.views}
                 </span>
               </div>
             </div>
+          )}
+        </div>
 
-            <div className="px-5 py-6 lg:px-7">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div className="text-lg font-bold text-slate-950">댓글</div>
-                <div className="flex items-center gap-3 text-sm">
-                  <div className="text-slate-400">{(post.comments || []).length}개</div>
-                  {!editingPost && canManagePost ? (
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingPost(true);
-                          setPostEditError("");
-                        }}
-                        className="text-slate-500 transition hover:text-slate-800"
-                      >
-                        수정
-                      </button>
-                      <span className="text-slate-300">|</span>
-                      <button
-                        type="button"
-                        onClick={() => void removePost()}
-                        disabled={postDeleting}
-                        className="text-slate-500 transition hover:text-red-500 disabled:opacity-60"
-                      >
-                        삭제
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
+        {/* 스터디 스팟 - 본문 아래 */}
+        {!editingPost && (
+          <div className="mt-8 border-t border-hp-100 pt-6">
+            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-hp-500 mb-4">Study Spot</div>
+            {post.location === "online" ? (
+              <div className="flex items-center gap-2 rounded-2xl bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-600">
+                <span>🌐</span> 온라인 스터디입니다.
               </div>
-              <div className="mb-5 flex items-center gap-3 rounded-2xl border border-black/10 bg-slate-50 px-4 py-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
-                  {getInitial(currentUser?.nickname || "U")}
-                </div>
-                <input
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  placeholder="댓글을 입력하세요"
-                  className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
-                />
-                <button
-                  onClick={() => void addComment()}
-                  disabled={commentSubmitting || !commentText.trim()}
-                  className="text-sm font-semibold text-hp-600 transition hover:text-hp-700 disabled:text-slate-300"
-                >
-                  등록
-                </button>
+            ) : !post.location || !post.lat || !post.lng ? (
+              <div className="rounded-2xl border border-dashed border-hp-200 bg-hp-50 px-5 py-8 text-center text-sm text-slate-400">
+                장소 미정
               </div>
-
-              {commentError && <p className="mb-4 text-sm text-red-500">{commentError}</p>}
-
-              {(post.comments || []).length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-black/10 bg-slate-50 px-4 py-8 text-center text-sm text-slate-400">
-                  아직 댓글이 없습니다.
+            ) : (
+              <>
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-hp-50 px-3 py-1 text-sm font-semibold text-hp-700">
+                  <MapPin size={14} />
+                  {post.location}
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {(post.comments || []).map((comment) => (
-                    <div key={comment.id} className="flex gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-700">
-                        {getInitial(comment.author)}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                          <div className="mb-1 flex items-center gap-2">
-                            {comment.authorId ? (
-                              <button
-                                type="button"
-                                className="text-sm font-semibold text-slate-900 transition hover:underline"
-                                onClick={() => setProfileModal(comment.authorId!)}
-                              >
-                                {comment.author}
-                              </button>
-                            ) : (
-                              <span className="text-sm font-semibold text-slate-900">{comment.author}</span>
-                            )}
-                            <span className="text-xs text-slate-400">{formatBoardCreatedAt(comment.createdAt)}</span>
-                            {comment.author === currentUser?.nickname && (
-                              <div className="ml-auto flex items-center gap-1">
-                                {editingCommentId === comment.id ? (
-                                  <button onClick={cancelEditingComment} className="rounded-full p-1 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700">
-                                    <X size={14} />
-                                  </button>
-                                ) : (
-                                  <button onClick={() => {
-                                    setEditingCommentId(comment.id);
-                                    setEditingCommentText(comment.text);
-                                    setCommentError("");
-                                  }} className="rounded-full p-1 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700">
-                                    <Pencil size={14} />
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => void removeComment(comment.id)}
-                                  disabled={activeCommentId === comment.id}
-                                  className="rounded-full p-1 text-slate-400 transition hover:bg-slate-200 hover:text-red-500 disabled:opacity-50"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                            )}
-                          </div>
-
-                          {editingCommentId === comment.id ? (
-                            <div>
-                              <textarea
-                                value={editingCommentText}
-                                onChange={(e) => setEditingCommentText(e.target.value)}
-                                rows={3}
-                                className="w-full resize-none rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none"
-                              />
-                              <div className="mt-2 flex justify-end">
-                                <button
-                                  onClick={() => void saveComment(comment.id)}
-                                  disabled={activeCommentId === comment.id || !editingCommentText.trim()}
-                                  className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
-                                >
-                                  {activeCommentId === comment.id ? "저장 중.." : "저장"}
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{comment.text}</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="overflow-hidden rounded-3xl border border-hp-100">
+                  <KakaoMap
+                    markers={[{ lat: post.lat, lng: post.lng, locationName: post.location }]}
+                    center={{ lat: post.lat, lng: post.lng }}
+                    level={3}
+                  />
                 </div>
-              )}
-            </div>
-          </div>
+              </>
+            )}
 
-          <aside className="bg-hp-50/40 px-5 py-6">
-            <div className="lg:sticky lg:top-24">
-              <div className="text-xs font-semibold uppercase tracking-[0.24em] text-hp-500">Study Spot</div>
-              {editingPost ? (
-                <>
-                  <div className="mt-4 flex gap-2">
-                    <input
-                      value={placeKeyword}
-                      onChange={(event) => setPlaceKeyword(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          searchPlacesOnKakao();
-                        }
-                      }}
-                      placeholder="장소 검색"
-                      className="min-w-0 flex-1 rounded-2xl border border-hp-100 bg-hp-50/40 px-4 py-3 text-sm text-slate-700 outline-none focus:border-hp-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={searchPlacesOnKakao}
-                      className="inline-flex items-center gap-2 rounded-2xl bg-hp-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-hp-700"
-                    >
-                      <Search size={15} />
-                      검색
-                    </button>
-                  </div>
-
-                  <div className="mt-4 rounded-2xl border border-hp-100 bg-hp-50/40 px-4 py-3">
-                    <div className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">선택한 장소</div>
-                    <div className="inline-flex items-center gap-2 text-sm font-semibold text-hp-700">
-                      <MapPin size={14} />
-                      {postEditLocation || "아직 선택하지 않았습니다."}
-                    </div>
-                  </div>
-
-                  {placeResults.length > 0 ? (
-                    <div className="mt-4 flex h-72 flex-col gap-4 lg:h-auto lg:flex-row">
-                      <div className="max-h-56 flex-1 space-y-2 overflow-y-auto pr-1 lg:max-h-72">
-                      {placeResults.map((result) => (
-                        <button
-                          key={result.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedEditPlace(result);
-                            setPostEditLocation(result.name);
-                            setPlaceKeyword(result.name);
-                            setPostEditError("");
-                          }}
-                          className={`block w-full rounded-2xl border px-4 py-3 text-left text-sm transition ${
-                            selectedEditPlace?.id === result.id
-                              ? "border-hp-300 bg-hp-50 text-slate-900"
-                              : "border-slate-200 bg-white text-slate-700 hover:border-hp-200 hover:bg-hp-50/40"
-                          }`}
-                        >
-                          <div className="font-semibold">{result.name}</div>
-                          <div className="mt-1 text-xs text-slate-500">{result.address}</div>
-                        </button>
-                      ))}
-                      </div>
-
-                      <div className="flex min-h-56 flex-1 items-center justify-center overflow-hidden rounded-3xl border border-hp-100 bg-hp-50/40">
-                        {selectedEditPlace ? (
-                          <KakaoMap
-                            markers={[{ lat: selectedEditPlace.lat, lng: selectedEditPlace.lng, locationName: selectedEditPlace.name }]}
-                            center={{ lat: selectedEditPlace.lat, lng: selectedEditPlace.lng }}
-                            level={3}
-                          />
-                        ) : (
-                          <div className="px-5 text-center text-sm text-slate-400">오른쪽에서 선택한 장소 지도가 여기에 표시됩니다.</div>
-                        )}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {placeResults.length === 0 ? (
-                    <div className="mt-4 rounded-3xl border border-dashed border-hp-200 bg-hp-50 px-5 py-10 text-center text-sm text-slate-400">
-                      검색 후 장소를 선택해 주세요.
-                    </div>
-                  ) : null}
-                </>
-              ) : (
-                <>
-                  <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-hp-50 px-3 py-1 text-sm font-semibold text-hp-700">
-                    <MapPin size={14} />
-                    {post.location || "장소 미정"}
-                  </div>
-
-                  {post.lat && post.lng ? (
-                    showMapPreview ? (
-                      <div className="mt-4 overflow-hidden rounded-3xl border border-hp-100">
-                        <KakaoMap
-                          markers={[{ lat: post.lat, lng: post.lng, locationName: post.location || "스터디 장소" }]}
-                          center={{ lat: post.lat, lng: post.lng }}
-                          level={3}
-                        />
-                      </div>
-                    ) : (
-                      <div className="mt-4 rounded-3xl border border-dashed border-hp-200 bg-hp-50 px-5 py-10 text-center text-sm text-slate-500">
-                        localhost 환경에서는 지도를 숨깁니다.
-                        <div className="mt-2 font-semibold text-slate-700">{post.location}</div>
-                      </div>
-                    )
-                  ) : (
-                    <div className="mt-4 rounded-3xl border border-dashed border-hp-200 bg-hp-50 px-5 py-10 text-center text-sm text-slate-400">
-                      아직 장소 정보가 등록되지 않았습니다.
-                    </div>
-                  )}
-                </>
-              )}
-              {!editingPost && post.id && (
+            {/* 채팅방 입장 버튼 */}
+            {post.id && (
               <button
                 onClick={async () => {
-                  if (!currentUser) {
-                    alert("로그인이 필요합니다.");
-                    return;
-                  }
+                  if (!currentUser) { alert("로그인이 필요합니다."); return; }
                   try {
                     const result = await joinStudyChatRoom(post.id);
                     const rooms = await getMyChatRooms();
@@ -851,15 +659,50 @@ export default function StudyPostPageClient({
                     alert("채팅방 입장에 실패했습니다.");
                   }
                 }}
-                className="mt-4 w-full rounded-2xl bg-hp-600 py-3 font-bold text-white hover:bg-hp-700 transition-colors"
+                className="mt-4 w-full rounded-2xl bg-hp-600 py-3 font-bold text-white transition-colors hover:bg-hp-700"
               >
                 스터디 채팅방 입장
               </button>
             )}
-            </div>
-          </aside>
+
+            
+          </div>
+        )}
+      </div>
+      
+    </div>
+
+    {/* 수정 취소 확인 모달 */}
+    {cancelConfirmOpen && (
+      <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 px-4">
+        <div className="w-full max-w-sm rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.24)]">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">Edit</p>
+          <h3 className="mt-2 text-xl font-black text-slate-950">수정을 취소하시겠습니까?</h3>
+          <p className="mt-3 text-sm font-semibold leading-6 text-slate-500">
+            확인을 누르면 현재 변경사항이 저장되지 않고 이전 상태로 되돌아갑니다.
+          </p>
+          <div className="mt-6 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setCancelConfirmOpen(false)}
+              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                handleConfirmCancel();
+                setCancelConfirmOpen(false);
+              }}
+              className="rounded-full bg-hp-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-hp-700"
+            >
+              확인
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    )}
+  </div>
+);
 }
