@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ConfirmModal from "@/shared/components/common/ConfirmModal";
 import { useRouter } from "next/navigation";
-import { Eye, Heart, Loader2, MapPin, Pencil, Search, Trash2, X } from "lucide-react";
+import { Eye, Heart, Loader2, MapPin, MessageCircle, Search, X } from "lucide-react";
 import { useKakaoLoader } from "react-kakao-maps-sdk";
 import KakaoMap from "@/shared/components/map/KakaoMap";
 import { KAKAO_MAP_APPKEY } from "@/services/config/config";
@@ -55,7 +55,7 @@ export default function StudyPostPageClient({
   const [postSaving, setPostSaving] = useState(false);
   const [postDeleting, setPostDeleting] = useState(false);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
-  const commentInputRef = useRef<HTMLTextAreaElement>(null);
+  const commentInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -394,77 +394,98 @@ return (
       </div>
 
       {/* 본문 */}
-      <div className="px-5 py-6 lg:px-7">
+      <div className="px-5 py-3 lg:px-7">
 
-        {/* 제목 + 뱃지 + 수정/삭제 */}
+        {/* 헤더 */}
         {!editingPost ? (
-          <div className="mb-5">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0 flex-1">
-                {post.title ? (
-                  <h1 className="text-3xl font-bold leading-tight tracking-[-0.02em] text-slate-950">
-                    {post.title}
-                  </h1>
-                ) : null}
-              </div>
-              <div className="flex flex-wrap gap-2 lg:max-w-[42%] lg:justify-end">
-                <span className="inline-flex items-center gap-1 rounded-full bg-hp-50 px-3 py-1.5 text-xs font-semibold text-hp-700">
-                  <MapPin size={12} />
-                  {post.location}
+          <div className="mb-2 space-y-2">
+            {/* 1줄: 제목 + 뱃지 */}
+            <div className="flex flex-wrap items-center gap-3">
+              {post.title ? (
+                <h1 className="text-3xl font-bold leading-tight tracking-[-0.02em] text-slate-950">
+                  {post.title}
+                </h1>
+              ) : null}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-600">
+                  {post.cert || "기타"}
                 </span>
-                {post.cert && (
-                  <span className="rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
-                    {post.cert}
+                {post.location === "online" ? (
+                  <span className="rounded-full bg-blue-50 px-3 py-1 text-[11px] font-bold text-blue-600">
+                    온라인
+                  </span>
+                ) : !post.location ? (
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-400">
+                    장소 미정
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1 text-[11px] font-bold text-sky-600">
+                    <MapPin size={12} />
+                    {post.location}
                   </span>
                 )}
               </div>
             </div>
 
-            {/* 작성자 + 좋아요/조회수 + 수정/삭제 */}
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
+            {/* 2줄: 작성자 + 날짜 + 수정/삭제 (왼쪽) + 채팅방 입장 (오른쪽) */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => setProfileModal(post.authorId)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-hp-100 p-[2px]"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-hp-100"
                 >
-                  <span className="flex h-full w-full items-center justify-center rounded-full bg-white text-xs font-bold text-hp-700">
-                    {getInitial(post.author)}
-                  </span>
+                  <span className="text-xs font-bold text-hp-700">{getInitial(post.author)}</span>
                 </button>
-                <div className="min-w-0 text-[11px] text-slate-400">
-                  <button
-                    className="block truncate text-left text-xs font-medium text-slate-600 hover:text-hp-700 hover:underline"
-                    onClick={() => setProfileModal(post.authorId)}
-                  >
-                    {post.author}
-                  </button>
-                  <div>{formatBoardCreatedAt(post.createdAt)}</div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
+                <button
+                  className="text-sm font-medium text-slate-600 hover:text-hp-700 hover:underline"
+                  onClick={() => setProfileModal(post.authorId)}
+                >
+                  {post.author}
+                </button>
+                <span className="text-xs text-slate-400"> {formatBoardCreatedAt(post.createdAt)}</span>
                 {canManagePost && (
                   <>
+                    <span className="text-xs text-slate-300"> </span>
                     <button
                       type="button"
                       onClick={() => { setEditingPost(true); setPostEditError(""); }}
-                      className="rounded-full border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
-                      aria-label="게시글 수정"
+                      className="text-xs text-slate-400 hover:text-slate-600"
                     >
-                      <Pencil size={15} />
+                      수정
                     </button>
+                    <span className="text-xs text-slate-300">|</span>
                     <button
                       type="button"
                       onClick={() => void removePost()}
                       disabled={postDeleting}
-                      className="rounded-full border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-red-50 hover:text-red-500 disabled:opacity-60"
-                      aria-label="게시글 삭제"
+                      className="text-xs text-slate-400 hover:text-red-400 disabled:opacity-60"
                     >
-                      <Trash2 size={15} />
+                      삭제
                     </button>
                   </>
                 )}
               </div>
+              {post.id && (
+                <button
+                  onClick={async () => {
+                    if (!currentUser) { alert("로그인이 필요합니다."); return; }
+                    try {
+                      const result = await joinStudyChatRoom(post.id);
+                      const rooms = await getMyChatRooms();
+                      setChatRooms(rooms);
+                      setActiveChatRoomId(String(result.roomId));
+                      router.push("/chat");
+                    } catch (error) {
+                      console.error("Join error:", error);
+                      alert("채팅방 입장에 실패했습니다.");
+                    }
+                  }}
+                  className="shrink-0 inline-flex items-center gap-2 rounded-full bg-hp-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-hp-700 active:scale-95"
+                >
+                  <MessageCircle size={15} className="fill-white/20" />
+                  채팅방 입장
+                </button>
+              )}
             </div>
           </div>
         ) : null}
@@ -472,9 +493,9 @@ return (
         
 
         {/* 본문 내용 / 수정 폼 */}
-        <div className="pt-6 ">
+        <div className="border-t border-hp-100 pt-3">
           {editingPost ? (
-            <div className="mx-auto space-y-4">
+            <div className="mx-auto space-y-3">
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">제목</p>
                 <input
@@ -698,23 +719,23 @@ return (
               <p className="min-h-[8rem] whitespace-pre-wrap text-[15px] leading-8 text-slate-700">
                 {post.content}
               </p>
-
-              {/* 좋아요 / 조회수 - 본문 우측 하단 */}
-              <div className="mt-6 flex justify-end gap-2">
-                <button
-                  onClick={() => void handleToggleLike()}
-                  disabled={likeSubmitting}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                    post.likedByUser ? "bg-red-50 text-red-500" : "text-slate-400 hover:bg-slate-100"
-                  } disabled:opacity-50`}
-                >
-                  <Heart size={13} className={post.likedByUser ? "fill-current" : ""} />
-                  좋아요 {post.likes}
-                </button>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-400">
-                  <Eye size={13} />
-                  조회 {post.views}
-                </span>
+              <div className="mt-5 flex justify-end">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => void handleToggleLike()}
+                    disabled={likeSubmitting}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                      post.likedByUser ? "bg-red-50 text-red-500" : "text-slate-400 hover:bg-slate-100"
+                    } disabled:opacity-50`}
+                  >
+                    <Heart size={13} className={post.likedByUser ? "fill-current" : ""} />
+                    좋아요 {post.likes}
+                  </button>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-400">
+                    <Eye size={13} />
+                    조회 {post.views}
+                  </span>
+                </div>
               </div>
             </div>
           )}
@@ -722,22 +743,13 @@ return (
 
         {/* 스터디 스팟 - 본문 아래 */}
         {!editingPost && (
-          <div className="mt-8 border-t border-hp-100 pt-6">
-            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-hp-500 mb-4">Study Spot</div>
+          <div className="mt-1 border-hp-100 pt-1">
             {post.location === "online" ? (
               <div className="flex items-center gap-2 rounded-2xl bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-600">
                 <span>🌐</span> 온라인 스터디입니다.
               </div>
-            ) : !post.location || !post.lat || !post.lng ? (
-              <div className="rounded-2xl border border-dashed border-hp-200 bg-hp-50 px-5 py-8 text-center text-sm text-slate-400">
-                장소 미정
-              </div>
-            ) : (
+            ) : !post.location || !post.lat || !post.lng ? null : (
               <>
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-hp-50 px-3 py-1 text-sm font-semibold text-hp-700">
-                  <MapPin size={14} />
-                  {post.location}
-                </div>
                 <div className="overflow-hidden rounded-3xl border border-hp-100">
                   <KakaoMap
                     markers={[{ lat: post.lat, lng: post.lng, locationName: post.location }]}
@@ -748,42 +760,20 @@ return (
               </>
             )}
 
-            {/* 채팅방 입장 버튼 */}
-            {post.id && (
-              <button
-                onClick={async () => {
-                  if (!currentUser) { alert("로그인이 필요합니다."); return; }
-                  try {
-                    const result = await joinStudyChatRoom(post.id);
-                    const rooms = await getMyChatRooms();
-                    setChatRooms(rooms);
-                    setActiveChatRoomId(String(result.roomId));
-                    router.push("/chat");
-                  } catch (error) {
-                    console.error("Join error:", error);
-                    alert("채팅방 입장에 실패했습니다.");
-                  }
-                }}
-                className="mt-4 w-full rounded-2xl bg-hp-600 py-3 font-bold text-white transition-colors hover:bg-hp-700"
-              >
-                스터디 채팅방 입장
-              </button>
-            )}
-
           </div>
         )}
-
+        
         {/* 댓글 */}
         {!editingPost && (
-          <div className="mt-8 border-t border-hp-100 pt-6">
+          <div className="mt-3 border-t border-hp-100 pt-6">
             <div className="mb-4 text-xs font-semibold uppercase tracking-[0.24em] text-hp-500">
-              Comments{post.comments?.length ? ` · ${post.comments.length}` : ""}
+              댓글({post.comments.length})
             </div>
 
             {post.comments && post.comments.length > 0 ? (
-              <ul className="mb-6 space-y-3">
+              <ul className="mb-6 divide-y divide-hp-100">
                 {post.comments.map((comment) => (
-                  <li key={comment.id} className="rounded-2xl border border-hp-100 bg-white px-4 py-3">
+                  <li key={comment.id} className="py-3">
                     {editingCommentId === comment.id ? (
                       <div className="space-y-2">
                         <textarea
@@ -810,15 +800,15 @@ return (
                       </div>
                     ) : (
                       <>
-                        <div className="mb-2 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => comment.authorId && setProfileModal(comment.authorId)}
-                              className="flex h-7 w-7 items-center justify-center rounded-full bg-hp-100"
-                            >
-                              <span className="text-xs font-bold text-hp-700">{getInitial(comment.author)}</span>
-                            </button>
-                            <div>
+                        <div className="flex gap-2 min-w-0">
+                          <button
+                            onClick={() => comment.authorId && setProfileModal(comment.authorId)}
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-hp-100"
+                          >
+                            <span className="text-xs font-bold text-hp-700">{getInitial(comment.author)}</span>
+                          </button>
+                          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
                               <button
                                 onClick={() => comment.authorId && setProfileModal(comment.authorId)}
                                 className="text-xs font-semibold text-slate-700 hover:text-hp-600 hover:underline"
@@ -826,67 +816,64 @@ return (
                                 {comment.author}
                               </button>
                               {comment.createdAt && (
-                                <p className="text-[10px] text-slate-400">{formatBoardCreatedAt(comment.createdAt)}</p>
+                                <span className="text-[10px] text-slate-400">{formatBoardCreatedAt(comment.createdAt)}</span>
+                              )}
+                            </div>
+                            <div className="flex items-end gap-2">
+                              <p className="flex-1 text-sm leading-6 text-slate-700 whitespace-pre-wrap">{comment.text}</p>
+                              {currentUser?.id === comment.authorId && (
+                                <div className="shrink-0 flex items-center gap-0.5 pb-0.5">
+                                  <button
+                                    onClick={() => { setEditingCommentId(comment.id); setEditingCommentText(comment.text); }}
+                                    className="rounded-full px-2 py-0.5 text-[11px] font-semibold text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                                  >
+                                    수정
+                                  </button>
+                                  <span className="text-[10px] text-slate-300">·</span>
+                                  <button
+                                    onClick={() => void removeComment(comment.id)}
+                                    disabled={activeCommentId === comment.id}
+                                    className="rounded-full px-2 py-0.5 text-[11px] font-semibold text-slate-400 hover:bg-red-50 hover:text-red-400 disabled:opacity-50"
+                                  >
+                                    삭제
+                                  </button>
+                                </div>
                               )}
                             </div>
                           </div>
-                          {currentUser?.id === comment.authorId && (
-                            <div className="flex gap-1">
-                              <button
-                                onClick={() => { setEditingCommentId(comment.id); setEditingCommentText(comment.text); }}
-                                className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                                aria-label="댓글 수정"
-                              >
-                                <Pencil size={12} />
-                              </button>
-                              <button
-                                onClick={() => void removeComment(comment.id)}
-                                disabled={activeCommentId === comment.id}
-                                className="rounded-full p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-400 disabled:opacity-50"
-                                aria-label="댓글 삭제"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            </div>
-                          )}
                         </div>
-                        <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{comment.text}</p>
                       </>
                     )}
                   </li>
                 ))}
               </ul>
-            ) : (
-              <div className="mb-6 rounded-2xl border border-dashed border-hp-200 bg-hp-50 px-5 py-6 text-center text-sm text-slate-400">
-                첫 댓글을 남겨보세요
-              </div>
-            )}
+            ) : null}
 
             {commentError && (
               <p className="mb-2 text-xs font-semibold text-red-500">{commentError}</p>
             )}
-            <textarea
-              ref={commentInputRef}
-              id="comment-input"
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void addComment();
-                }
-              }}
-              rows={3}
-              placeholder="댓글을 입력하세요 (Shift+Enter로 줄바꿈)"
-              className="w-full resize-none rounded-2xl border border-hp-100 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-hp-500"
-            />
-            <div className="mt-2 flex justify-end">
+            <div className="flex items-center gap-2 mb-2">
+              <input
+                ref={commentInputRef}
+                id="comment-input"
+                type="text"
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void addComment();
+                  }
+                }}
+                placeholder="댓글을 입력하세요"
+                className="flex-1 rounded-full border border-hp-100 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-hp-500"
+              />
               <button
                 onClick={() => void addComment()}
                 disabled={commentSubmitting || !commentText.trim()}
-                className="rounded-full bg-hp-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-hp-700 disabled:opacity-50"
+                className="shrink-0 rounded-full bg-hp-600 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-hp-700 disabled:opacity-50"
               >
-                {commentSubmitting ? "등록 중..." : "댓글 등록"}
+                {commentSubmitting ? "등록 중..." : "등록"}
               </button>
             </div>
           </div>

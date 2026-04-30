@@ -275,14 +275,14 @@ return (
             <article
               key={post.id}
               onClick={() => openPost(post.id)}
-              className="group cursor-pointer rounded-2xl border border-slate-200 bg-white px-6 py-5 transition hover:bg-slate-50/50 hover:shadow-sm"
+              className="group cursor-pointer rounded-2xl border border-slate-200 bg-white px-6 py-4 transition hover:bg-slate-50/50 hover:shadow-sm"
             >
               <div className="flex flex-wrap items-center gap-2.5 mb-3">
                 <h3 className="text-lg font-bold tracking-tight text-slate-900 group-hover:text-hp-600 transition-colors">
                   {post.title}
                 </h3>
                 <span className="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-600">
-                  {post.cert || "자유 주제"}
+                  {post.cert || "기타"}
                 </span>
                 {post.location === "online" ? (
                   <span className="rounded-full bg-blue-50 px-3 py-1 text-[11px] font-bold text-blue-600">
@@ -300,11 +300,11 @@ return (
                 )}
               </div>
               
-              <p className="line-clamp-1 text-sm leading-relaxed text-slate-500 font-medium">
+              <p className="line-clamp-2 whitespace-pre-line text-sm leading-relaxed text-slate-500 font-medium">
                 {post.content}
               </p>
 
-                <div className="mt-4 flex items-center border-t border-slate-50 pt-3">
+                <div className="mt-2 flex items-center border-t border-slate-50 pt-2">
                   <div className="flex flex-1 items-center gap-2">
                     <button
                       type="button"
@@ -312,7 +312,7 @@ return (
                         e.stopPropagation();
                         setProfileModal(post.authorId);
                       }}
-                      className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold text-slate-700 transition hover:bg-slate-100"
+                      className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold text-slate-700 transition hover:bg-slate-200"
                     >
                       <div className="flex h-5 w-5 items-center justify-center rounded-full bg-hp-100 text-[10px] font-bold text-hp-700">
                         {getInitial(post.author)}
@@ -331,7 +331,7 @@ return (
                   className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold transition ${
                     post.likedByUser
                       ? "bg-red-50 text-red-500"
-                      : "text-slate-400 hover:bg-slate-100"
+                      : "text-slate-400 hover:bg-slate-200"
                   } disabled:opacity-50`}
                 >
                   <Heart size={13} className={post.likedByUser ? "fill-current" : ""} />
@@ -345,7 +345,7 @@ return (
                     const returnTo = currentQuery ? `${pathname}?${currentQuery}` : pathname;
                     router.push(`/study/${post.id}?returnTo=${encodeURIComponent(returnTo)}#comment-input`);
                   }}
-                  className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold text-slate-400 transition hover:bg-slate-100"
+                  className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold text-slate-400 transition hover:bg-slate-200"
                 >
                   <MessageCircle size={13} />
                   댓글 {post.comments?.length || 0}

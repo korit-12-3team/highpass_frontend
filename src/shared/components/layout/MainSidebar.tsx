@@ -7,7 +7,7 @@ import {
   Calendar as CalendarIcon,
   LogOut,
   MessageCircle,
-  MessageSquare,
+  FileText,
   Search,
   UserRound,
   Users,
@@ -37,7 +37,7 @@ const navItems = [
 
 const communityItems = [
   { label: "스터디 모집", icon: <Users size={20} />, href: "/study" },
-  { label: "자유게시판", icon: <MessageSquare size={20} />, href: "/free" },
+  { label: "자유게시판", icon: <FileText size={20} />, href: "/free" },
   { label: "채팅방", icon: <MessageCircle size={20} />, href: "/chat" },
 ];
 

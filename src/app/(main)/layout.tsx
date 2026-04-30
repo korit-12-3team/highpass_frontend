@@ -379,8 +379,30 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         );
       },
       (newNotification) => {
-        console.log("Received realtime notification:", newNotification);
+        console.log("[noti] received:", newNotification);
         setNotifications((prev) => [newNotification, ...prev]);
+
+        const notiType = String(newNotification.type).toUpperCase();
+        console.log("[noti] type:", notiType);
+        if (notiType === "COMMENT" || notiType === "LIKE") {
+          const targetPath =
+            newNotification.targetType === "STUDY"
+              ? `/study/${newNotification.targetId}`
+              : newNotification.targetType === "FREE"
+                ? `/free/${newNotification.targetId}`
+                : null;
+
+          console.log("[noti] calling toast, targetPath:", targetPath);
+          toast(newNotification.senderNickname, {
+            description: newNotification.message,
+            ...(targetPath && {
+              action: {
+                label: "보기",
+                onClick: () => router.push(targetPath),
+              },
+            }),
+          });
+        }
         if (newNotification.targetType === "CHAT" && newNotification.message?.includes("승인")) {
         setChatRooms((prev) =>
           prev.map((room) =>

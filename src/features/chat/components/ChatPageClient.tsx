@@ -356,7 +356,7 @@ return (
         >
           <div className="w-64">
             <div className="border-b border-slate-100 p-4">
-              <p className="font-bold text-slate-800">Rooms</p>
+              <p className="font-bold text-slate-800">채팅방 목록</p>
             </div>
             <div className="flex-1 divide-y divide-slate-50 overflow-y-auto">
               {chatRooms.map((room) => (
@@ -432,7 +432,7 @@ return (
                         {activeRoom.ownerId === Number(currentUser?.id) && (
                           <>
                             <div className="mb-2 flex items-center gap-1 text-[11px] font-bold uppercase text-slate-400">
-                              Pending requests
+                              참여 요청
                               {activeRoom.participants?.some((p) => p.status === "PENDING") && (
                                 <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
                               )}
@@ -476,7 +476,7 @@ return (
                           </>
                         )}
 
-                        <div className="mb-2 text-[11px] font-bold uppercase text-slate-400">Participants</div>
+                        <div className="mb-2 text-[11px] font-bold uppercase text-slate-400">대화 상대</div>
                         <div className="mb-3 space-y-1">
                           {activeRoom.participants?.filter((p) => p.status === "JOINED").map((participant) => (
                             <div
@@ -507,7 +507,7 @@ return (
                               {participant.userId === Number(currentUser?.id) &&
                                 activeRoom.ownerId === Number(currentUser?.id) && (
                                   <span className="rounded-full bg-hp-100 px-1.5 py-0.5 text-[9px] font-bold text-hp-600">
-                                    Owner
+                                    방장
                                   </span>
                                 )}
                             </div>
@@ -517,7 +517,7 @@ return (
                         {activeRoom.ownerId === Number(currentUser?.id) && (
                           <>
                             <div className="mb-3 border-t border-slate-100" />
-                            <div className="mb-2 text-[11px] font-bold uppercase text-slate-400">Rename room</div>
+                            <div className="mb-2 text-[11px] font-bold uppercase text-slate-400"></div>
                             {isEditingName ? (
                               <div className="space-y-1">
                                 <input
