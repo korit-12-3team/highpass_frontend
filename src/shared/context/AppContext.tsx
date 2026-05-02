@@ -58,6 +58,7 @@ interface AppContextType {
   isOnlineStudy: boolean;
   setIsOnlineStudy: React.Dispatch<React.SetStateAction<boolean>>;
   submitPost: () => Promise<boolean>;
+  chatRoomsRefreshKey: number;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -68,7 +69,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [events, setEvents] = useState<EventType[]>([]);
   const [todos, setTodos] = useState<TodoMap>({});
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
-  const [activeChatRoomId, setActiveChatRoomId] = useState<string | null>(null);
+  const [activeChatRoomId, setActiveChatRoomId] = useState<string | null>(
+    () => typeof window !== "undefined" ? sessionStorage.getItem("activeChatRoomId") : null,
+  );
   const [chatClient, setChatClient] = useState<Client | null>(null);
 
   const [profileModal, setProfileModal] = useState<string | null>(null);
@@ -84,8 +87,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [searchResults, setSearchResults] = useState<SearchPlace[]>([]);
 
+  useEffect(() => {
+    if (activeChatRoomId != null) {
+      sessionStorage.setItem("activeChatRoomId", activeChatRoomId);
+    } else {
+      sessionStorage.removeItem("activeChatRoomId");
+    }
+  }, [activeChatRoomId]);
+
   const [createChatRoom, setCreateChatRoom] = useState(false);
   const [isOnlineStudy, setIsOnlineStudy] = useState(false);
+  const [chatRoomsRefreshKey, setChatRoomsRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -160,6 +172,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         placeId: isOnlineStudy ? "online" : selectedPlace?.id,
         createChatRoom,
       });
+      if (createChatRoom) {
+        setChatRoomsRefreshKey((k) => k + 1);
+      }
     } else {
       await createBoard({
         userId: String(currentUser.id),
@@ -176,7 +191,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
       return true;
-  }, [currentUser, postContent, postTitle, postCert, postCertCategory, selectedPlace, writeType, createChatRoom, isOnlineStudy, selectedTags]);
+  }, [currentUser, postContent, postTitle, postCert, postCertCategory, selectedPlace, writeType, createChatRoom, isOnlineStudy, selectedTags, setChatRoomsRefreshKey]);
 
   return (
     <AppContext.Provider
@@ -224,6 +239,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         isOnlineStudy,
         setIsOnlineStudy,
         submitPost,
+        chatRoomsRefreshKey,
       }}
     >
       {children}

@@ -29,7 +29,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <AppProvider>
           {children}
-          <Toaster richColors position="top-center" />
+          <Toaster richColors position="bottom-right" />
         </AppProvider>
       </body>
     </html>

@@ -55,14 +55,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     setPostCertCategory,
     selectedPlace,
     setSelectedPlace,
-    setSelectedTags, 
+    setSelectedTags,
     createChatRoom,
     setCreateChatRoom,
     setIsOnlineStudy,
-    searchKeyword,  
-    setSearchKeyword,   
-    searchResults,       
+    searchKeyword,
+    setSearchKeyword,
+    searchResults,
     setSearchResults,
+    chatRoomsRefreshKey,
   } = useApp();
 
   const [profileRemote, setProfileRemote] = useState<UserProfile | null>(null);
@@ -207,7 +208,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         if (cancelled) return;
 
         setChatRooms(rooms);
-        setActiveChatRoomId((prev) => prev ?? (rooms[0]?.id ?? null));
+        setActiveChatRoomId((prev) => {
+          const exists = prev != null && rooms.some((r: any) => String(r.id) === String(prev));
+          return exists ? prev : (rooms[0]?.id ?? null);
+        });
       } catch (error) {
         console.error("Failed to load chat rooms:", error);
       }
@@ -216,7 +220,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return () => {
       cancelled = true;
     };
-  }, [authReady, currentUser?.id, setActiveChatRoomId, setChatRooms]);
+  }, [authReady, currentUser?.id, chatRoomsRefreshKey, setActiveChatRoomId, setChatRooms]);
 
   useEffect(() => {
     if (!currentUser?.id) return;
@@ -278,22 +282,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               };
             }),
           );
-          setNotifications((prev) => [
-        {
-          id: Date.now(),
-          type: "CHAT",
-          targetType: "CHAT",
-          targetId: newMessage.roomId,
-          message: `${newMessage.senderName ?? "누군가"}님이 채팅방 참여를 요청했습니다.`,
-          isRead: false,
-          createdAt: new Date().toISOString(),
-          senderNickname: newMessage.senderName ?? "",
-          content: "",
-        },
-        ...prev,
-      ]);
-          
-          
           return;
         }
 
@@ -337,7 +325,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           if (!document.hidden) {
             toast(newMessage.senderName ?? "새 메시지", {
               description: newMessage.message,
-              position: "bottom-right",
               style: {
                 background: "#fdfdfd",
                 color: "#000000",
@@ -363,9 +350,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             if (Number(room.id) !== Number(newMessage.roomId)) return room;
 
             const roomMessages = Array.isArray(room.messages) ? room.messages : [];
-            const alreadyExists = roomMessages.some(
-              (message) => Number(message.id) === Number(newMessage.id),
-            );
+            const alreadyExists =
+              newMessage.id != null &&
+              roomMessages.some(
+                (message) => message.id != null && Number(message.id) === Number(newMessage.id),
+              );
             const nextUnread =
               pathnameRef.current.startsWith("/chat") &&
               String(activeChatRoomIdRef.current) === String(room.id)
@@ -376,8 +365,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
             return {
               ...room,
+              ...(newMessage.type === "NOTICE" && newMessage.roomName ? { name: newMessage.roomName } : {}),
               messages: alreadyExists ? roomMessages : [...roomMessages, newMessage],
               lastMessage: newMessage.message,
+              lastMessageAt: newMessage.createdAt ?? room.lastMessageAt,
               unreadCount: nextUnread,
             };
           }),

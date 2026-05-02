@@ -53,12 +53,17 @@ export const sendMessage = (client: Client | null, messageData: any) => {
   });
 };
 
+function normalizeRoom(room: any) {
+  return { ...room, lastMessageAt: room.lastMessageAt ?? room.lastMessageTime };
+}
+
 export const getMyChatRooms = async () => {
   const response = await fetchWithAuth(`${CHAT_API_BASE_URL}/chat/rooms`);
   if (!response.ok) {
     throw new Error(await readErrorMessage(response, "채팅방 목록을 불러오지 못했습니다."));
   }
-  return response.json();
+  const rooms = await response.json();
+  return Array.isArray(rooms) ? rooms.map(normalizeRoom) : rooms;
 };
 
 export const getChatRoom = async (roomId: number) => {
@@ -66,7 +71,7 @@ export const getChatRoom = async (roomId: number) => {
   if (!response.ok) {
     throw new Error(await readErrorMessage(response, "채팅방 정보를 불러오지 못했습니다."));
   }
-  return response.json();
+  return normalizeRoom(await response.json());
 };
 
 export const enterChatRoom = async (partnerId: number | string) => {
@@ -128,5 +133,14 @@ export const kickParticipant = async (roomId: number, targetUserId: number) => {
   });
   if (!response.ok) {
     throw new Error(await readErrorMessage(response, "참여자 강퇴에 실패했습니다."));
+  }
+};
+
+export const deleteChatMessage = async (messageId: number) => {
+  const response = await fetchWithAuth(`${CHAT_API_BASE_URL}/chat/messages/${messageId}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response, "메시지 삭제에 실패했습니다."));
   }
 };

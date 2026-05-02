@@ -67,9 +67,11 @@ export interface ChatMessage {
   senderId: string;
   senderName?: string;
   message: string;
-  type : string; 
+  type : string;
   createdAt: string;
   unreadCount?: number;
+  deleted?: boolean;
+  roomName?: string;
 }
 
 export interface ChatRoom {
@@ -84,6 +86,7 @@ export interface ChatRoom {
   roomNickname?: string;
   displayName?: string;
   lastMessage?: string;
+  lastMessageAt?: string;
   participants?: ChatRoomParticipant[];
 }
 

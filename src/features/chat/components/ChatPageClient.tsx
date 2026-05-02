@@ -1,53 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, MessageCircle, Clock, LogOut, Users, PanelLeft,  Menu } from "lucide-react";
+import { ArrowRight, MessageCircle, Clock, LogOut, Users, PanelLeft, Menu } from "lucide-react";
 import { useApp } from "@/shared/context/AppContext";
-import { getChatRoom, sendMessage, leaveRoom, kickParticipant } from "@/services/realtime/stomp";
-import { CHAT_API_BASE_URL } from "@/services/config/config";
 import { fetchWithAuth } from "@/services/auth/auth";
+import { CHAT_API_BASE_URL } from "@/services/config/config";
 import ConfirmModal from "@/shared/components/common/ConfirmModal";
-
-function formatMessageTime(value?: string) {
-  if (!value) return "";
-
-  const normalized = value.includes("T") ? value : value.replace(" ", "T");
-  const hasExplicitZone = /([zZ]|[+-]\d{2}:\d{2})$/.test(normalized);
-  const parsed = hasExplicitZone
-    ? new Date(normalized)
-    : (() => {
-        const [datePart, timePart = "00:00:00"] = normalized.split("T");
-        const [year, month, day] = datePart.split("-").map(Number);
-        const [hour = 0, minute = 0, second = 0] = timePart.split(":").map(Number);
-        return new Date(year, (month || 1) - 1, day || 1, hour, minute, second);
-      })();
-
-  if (Number.isNaN(parsed.getTime())) {
-    return "";
-  }
-
-  return new Intl.DateTimeFormat("ko-KR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(parsed);
-}
-
-function getRoomDisplayName(room: {
-  type?: string; 
-  displayName?: string;
-  roomNickname?: string;
-  name?: string;
-  partnerNickname?: string;
-  }) {
-    if (room.type === "GROUP") {
-      return `${room.name ?? "채팅방"}`;
-    }
-    if (room.type === "PERSONAL") {
-      return `${room.roomNickname || room.partnerNickname || "대화상대없음"}`;
-    }
-    return room.name ?? "Unknown";
-  }
+import ChatMessageBubble from "@/features/chat/components/ChatMessageBubble";
+import { getRoomDisplayName, minuteKey } from "@/features/chat/utils/chatRoom";
+import { useChatActions } from "@/features/chat/hooks/useChatActions";
 
 export default function ChatPageClient() {
   const {
@@ -55,25 +16,48 @@ export default function ChatPageClient() {
     chatRooms,
     setChatRooms,
     activeChatRoomId,
-    setActiveChatRoomId,
-    chatClient,
     setProfileModal,
   } = useApp();
-  const [chatInput, setChatInput] = useState("");
+
+  const {
+    chatInput,
+    setChatInput,
+    newRoomName,
+    setNewRoomName,
+    isEditingName,
+    setIsEditingName,
+    leaveConfirmOpen,
+    setLeaveConfirmOpen,
+    kickConfirmOpen,
+    setKickConfirmOpen,
+    kickTargetUserId,
+    setKickTargetUserId,
+    handleSendMessage,
+    handleLeaveRoom,
+    handleApprove,
+    handleReject,
+    handleKickParticipant,
+    handleRoomClick,
+    handleUpdateRoomName,
+  } = useChatActions();
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const initialReadHandledRef = useRef<string | null>(null);
-  const [newRoomName, setNewRoomName] = useState("");
-  const [isEditingName, setIsEditingName] = useState(false);
   const [showRooms, setShowRooms] = useState(true);
   const [showRoomInfo, setShowRoomInfo] = useState(false);
-  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
-  const [kickConfirmOpen, setKickConfirmOpen] = useState(false);
-  const [kickTargetUserId, setKickTargetUserId] = useState<number | null>(null);
 
   const activeRoom = useMemo(
     () => chatRooms.find((room) => String(room.id) === String(activeChatRoomId)) ?? null,
     [activeChatRoomId, chatRooms],
   );
+
+  const sortedChatRooms = useMemo(() => {
+    return [...chatRooms].sort((a, b) => {
+      const aTime = a.lastMessageAt ?? a.messages?.at(-1)?.createdAt ?? "";
+      const bTime = b.lastMessageAt ?? b.messages?.at(-1)?.createdAt ?? "";
+      return bTime.localeCompare(aTime);
+    });
+  }, [chatRooms]);
 
   const openProfileModal = (userId?: number | string | null) => {
     if (userId == null) return;
@@ -84,12 +68,7 @@ export default function ChatPageClient() {
     if (activeRoom && (activeRoom.unreadCount ?? 0) > 0) {
       setChatRooms((prevRooms) =>
         prevRooms.map((room) =>
-          String(room.id) === String(activeRoom.id)
-            ? {
-                ...room,
-                unreadCount: 0,
-              }
-            : room,
+          String(room.id) === String(activeRoom.id) ? { ...room, unreadCount: 0 } : room,
         ),
       );
     }
@@ -97,7 +76,6 @@ export default function ChatPageClient() {
 
   useEffect(() => {
     if (!activeRoom || !activeChatRoomId || !currentUser?.id) return;
-
     if (initialReadHandledRef.current === String(activeChatRoomId)) return;
 
     const hasUnreadRoom = (activeRoom.unreadCount ?? 0) > 0;
@@ -116,12 +94,7 @@ export default function ChatPageClient() {
         });
         setChatRooms((prevRooms) =>
           prevRooms.map((room) =>
-            String(room.id) === String(activeChatRoomId)
-              ? {
-                  ...room,
-                  unreadCount: 0,
-                }
-              : room,
+            String(room.id) === String(activeChatRoomId) ? { ...room, unreadCount: 0 } : room,
           ),
         );
       } catch (error) {
@@ -137,299 +110,123 @@ export default function ChatPageClient() {
     }
   }, [activeRoom?.messages]);
 
-  const handleSendMessage = async () => {
-    if (!chatClient?.connected) return;
-    if (!chatInput.trim() || !activeChatRoomId || !currentUser) return;
-
-    const messageData = {
-      type: "TALK",
-      roomId: Number(activeChatRoomId),
-      senderId: Number(currentUser.id),
-      senderName: currentUser.nickname || currentUser.name,
-      message: chatInput,
-    };
-
-    setChatInput("");
-    sendMessage(chatClient, messageData);
-  };
-
-  const handleLeaveRoom = async () => {
-    if (!activeChatRoomId || !currentUser) return;
-
-    try {
-      await leaveRoom(Number(activeChatRoomId));
-      setChatRooms((prev) => prev.filter((room) => String(room.id) !== String(activeChatRoomId)));
-      setActiveChatRoomId(null);
-      setLeaveConfirmOpen(false);
-    } catch {
-      setLeaveConfirmOpen(false);
-      alert("채팅방 나가기에 실패했습니다.");
-    }
-  };
-
-  const handleApprove = async (targetUserId: number) => {
-    try {
-      const response = await fetchWithAuth(
-        `${CHAT_API_BASE_URL}/chat/rooms/${activeChatRoomId}/approve/${targetUserId}`,
-        {
-          method: "POST",
-        },
-      );
-      if (!response.ok) throw new Error("참여 요청 승인에 실패했습니다.");
-
-      setChatRooms((prev) =>
-        prev.map((room) =>
-          String(room.id) === String(activeChatRoomId)
-            ? {
-                ...room,
-                participants: room.participants?.map((participant) =>
-                  participant.userId === Number(targetUserId)
-                    ? { ...participant, status: "JOINED" }
-                    : participant,
-                ),
-              }
-            : room,
-        ),
-      );
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const handleReject = async (targetUserId: number) => {
-    if (!confirm("정말 이 참여 요청을 거절하시겠습니까?")) return;
-
-    try {
-      const response = await fetchWithAuth(
-        `${CHAT_API_BASE_URL}/chat/rooms/${activeChatRoomId}/reject/${targetUserId}`,
-        {
-          method: "DELETE",
-        },
-      );
-      if (!response.ok) throw new Error("참여 요청 거절에 실패했습니다.");
-
-      setChatRooms((prev) =>
-        prev.map((room) =>
-          String(room.id) === String(activeChatRoomId)
-            ? {
-                ...room,
-                participants: room.participants?.filter(
-                  (participant) => participant.userId !== targetUserId,
-                ),
-              }
-            : room,
-        ),
-      );
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const handleKickParticipant = async () => {
-    if (!activeChatRoomId || !currentUser || kickTargetUserId === null) return;
-
-    try {
-      await kickParticipant(Number(activeChatRoomId), kickTargetUserId);
-      setKickConfirmOpen(false);
-      setKickTargetUserId(null);
-      setChatRooms((prev) =>
-        prev.map((room) =>
-          String(room.id) === String(activeChatRoomId)
-            ? {
-                ...room,
-                participants: room.participants?.filter(
-                  (participant) => participant.userId !== kickTargetUserId,
-                ),
-              }
-            : room,
-        ),
-      );
-    } catch {
-      setKickConfirmOpen(false);
-      setKickTargetUserId(null);
-      alert("참여자 강퇴에 실패했습니다.");
-    }
-  };
-
-  const handleRoomClick = async (roomId: number | string) => {
-    setActiveChatRoomId(String(roomId));
-
-    try {
-      const latestRoom = await getChatRoom(Number(roomId));
-      setChatRooms((prevRooms) =>
-        prevRooms.map((room) =>
-          String(room.id) === String(roomId)
-            ? {
-                ...room,
-                ...latestRoom,
-              }
-            : room,
-        ),
-      );
-    } catch (error) {
-      console.error("채팅방 정보를 불러오지 못했습니다.", error);
-    }
-
-    if (currentUser?.id) {
-      try {
-        await fetchWithAuth(`${CHAT_API_BASE_URL}/chat/rooms/${roomId}/read`, {
-          method: "POST",
-        });
-        setChatRooms((prevRooms) =>
-          prevRooms.map((room) =>
-            String(room.id) === String(roomId)
-              ? {
-                  ...room,
-                  unreadCount: 0,
-                }
-              : room,
-          ),
-        );
-      } catch (error) {
-        console.error("채팅방 읽음 처리에 실패했습니다.", error);
-      }
-    }
-  };
-
-  const handleUpdateRoomName = async () => {
-    if (!newRoomName.trim() || !activeChatRoomId || !currentUser) return;
-
-    try {
-      const response = await fetchWithAuth(
-        `${CHAT_API_BASE_URL}/chat/rooms/${activeChatRoomId}/nickname?newNickname=${encodeURIComponent(newRoomName.trim())}`,
-        {
-          method: "PATCH",
-        },
-      );
-      if (!response.ok) throw new Error("채팅방 이름 변경에 실패했습니다.");
-
-      setChatRooms((prev) =>
-        prev.map((room) =>
-          String(room.id) === String(activeChatRoomId)
-            ? { ...room, name: newRoomName.trim(), displayName: newRoomName.trim() }
-            : room,
-        ),
-      );
-      setNewRoomName("");
-      setIsEditingName(false);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-return (
-  <div className="mx-auto flex h-full min-h-0 max-w-6xl animate-in fade-in flex-col duration-500">
-    <div className="mb-6 flex items-center justify-between gap-3">
-      <h2 className="text-2xl font-bold">채팅방</h2>
-      <button
-        type="button"
-        onClick={() => setShowRooms((prev) => !prev)}
-        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-      >
-        <PanelLeft
-          size={16}
-          style={{
-            transform: showRooms ? "rotate(0deg)" : "rotate(180deg)",
-            transition: "transform 0.3s ease",
-          }}
-        />
-        {showRooms ? "목록 닫기" : "목록 보기"}
-      </button>
-    </div>
-
-    {chatRooms.length === 0 ? (
-      <div className="flex flex-1 flex-col items-center justify-center rounded-2xl bg-white p-12 text-center shadow-md">
-        <MessageCircle size={52} className="mb-4 text-slate-200" />
-        <p className="text-lg font-bold text-slate-500">참여중인 채팅방이 없습니다</p>
-      </div>
-    ) : (
-      <div className="flex gap-4 overflow-x-auto" style={{ height: "calc(100vh - 11rem)" }}>
-
-        {/* 채팅방 목록 */}
-        <div
-          className="flex shrink-0 flex-col overflow-hidden rounded-2xl bg-white shadow-md transition-all duration-300 ease-in-out"
-          style={{
-            width: showRooms ? "256px" : "0px",
-            marginRight: showRooms ? "0px" : "-16px",
-            opacity: showRooms ? 1 : 0,
-            pointerEvents: showRooms ? "auto" : "none",
-          }}
+  return (
+    <div className="mx-auto flex h-full min-h-0 max-w-6xl animate-in fade-in flex-col duration-500">
+      <div className="mb-6 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setShowRooms((prev) => !prev)}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
         >
-          <div className="w-64">
-            <div className="border-b border-slate-100 p-4">
-              <p className="font-bold text-slate-800">채팅방 목록</p>
-            </div>
-            <div className="flex-1 divide-y divide-slate-50 overflow-y-auto">
-              {chatRooms.map((room) => (
-                <button
-                  key={room.id}
-                  onClick={() => void handleRoomClick(room.id)}
-                  className={`flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-slate-50 sm:p-4 ${
-                    String(activeChatRoomId) === String(room.id) ? "bg-slate-50" : ""
-                  }`}
-                >
-                  <div className="relative flex h-10 w-10 shrink-0">
-                    {room.type === "GROUP" ? (
-                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-100 text-violet-500 shadow-sm">
-                        <Users size={18} strokeWidth={2} />
-                      </div>
-                    ) : (
-                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-100 text-sky-500 shadow-sm">
-                        <span className="text-sm font-bold">
-                          {(room.roomNickname || room.partnerNickname || "?").substring(0, 1)}
+          <PanelLeft
+            size={16}
+            style={{
+              transform: showRooms ? "rotate(0deg)" : "rotate(180deg)",
+              transition: "transform 0.3s ease",
+            }}
+          />
+          {showRooms ? "채팅창 목록 닫기" : "채팅창 목록 보기"}
+        </button>
+      </div>
+
+      {chatRooms.length === 0 ? (
+        <div className="flex flex-1 flex-col items-center justify-center rounded-2xl bg-white p-12 text-center shadow-md">
+          <MessageCircle size={52} className="mb-4 text-slate-200" />
+          <p className="text-lg font-bold text-slate-500">참여중인 채팅방이 없습니다</p>
+        </div>
+      ) : (
+        <div className="flex gap-4 overflow-x-auto" style={{ height: "calc(100vh - 11rem)" }}>
+
+          {/* 채팅방 목록 */}
+          <div
+            className="flex shrink-0 flex-col overflow-hidden rounded-2xl bg-white shadow-md transition-all duration-300 ease-in-out"
+            style={{
+              width: showRooms ? "256px" : "0px",
+              marginRight: showRooms ? "0px" : "-16px",
+              opacity: showRooms ? 1 : 0,
+              pointerEvents: showRooms ? "auto" : "none",
+            }}
+          >
+            <div className="w-64">
+              <div className="border-b border-slate-100 p-4">
+                <p className="font-bold text-slate-800">채팅방 목록</p>
+              </div>
+              <div className="flex-1 divide-y divide-slate-50 overflow-y-auto">
+                {sortedChatRooms.map((room) => (
+                  <button
+                    key={room.id}
+                    onClick={() => void handleRoomClick(room.id)}
+                    className={`flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-slate-50 sm:p-4 ${
+                      String(activeChatRoomId) === String(room.id) ? "bg-slate-50" : ""
+                    }`}
+                  >
+                    <div className="relative flex h-10 w-10 shrink-0">
+                      {room.type === "GROUP" ? (
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-100 text-violet-500 shadow-sm">
+                          <Users size={18} strokeWidth={2} />
+                        </div>
+                      ) : (
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-100 text-sky-500 shadow-sm">
+                          <span className="text-sm font-bold">
+                            {(room.roomNickname || room.partnerNickname || "?").substring(0, 1)}
+                          </span>
+                        </div>
+                      )}
+                      {(room.unreadCount ?? 0) > 0 && (
+                        <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full border-2 border-white bg-hp-600 px-1 text-[9px] font-bold text-white shadow-sm">
+                          {(room.unreadCount ?? 0) > 99 ? "99+" : room.unreadCount}
                         </span>
-                      </div>
-                    )}
-                    {(room.unreadCount ?? 0) > 0 && (
-                      <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full border-2 border-white bg-hp-600 px-1 text-[9px] font-bold text-white shadow-sm">
-                        {(room.unreadCount ?? 0) > 99 ? "99+" : room.unreadCount}
-                      </span>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-slate-800">{getRoomDisplayName(room)}</p>
-                    <p className="mt-0.5 truncate text-xs text-slate-400">
-                      {room.lastMessage || "Start a conversation"}
-                    </p>
-                  </div>
-                </button>
-              ))}
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-slate-800">{getRoomDisplayName(room)}</p>
+                      <p className="mt-0.5 truncate text-xs text-slate-400">
+                        {room.lastMessage || "Start a conversation"}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* 채팅창 */}
-        {activeRoom ? (
-          <div className="flex min-w-[320px] flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-md">
+          {/* 채팅창 */}
+          {activeRoom ? (
+            <div className="flex min-w-[320px] flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-md">
 
-            {/* 헤더 */}
-            <div className="relative flex items-center gap-3 border-b border-slate-100 p-4">
-              {activeRoom.type === "GROUP" ? (
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-500">
-                  <Users size={14} strokeWidth={2} />
-                </div>
-              ) : (
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-100 text-sky-500">
-                  <span className="text-xs font-bold">
-                    {(activeRoom.roomNickname || activeRoom.partnerNickname || "?").substring(0, 1)}
-                  </span>
-                </div>
-              )}
-              <p className="flex-1 font-bold text-slate-800">{getRoomDisplayName(activeRoom)}</p>
+              {/* 헤더 */}
+              <div className="relative flex items-center gap-3 border-b border-slate-100 p-4">
+                {activeRoom.type === "GROUP" ? (
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-500">
+                    <Users size={14} strokeWidth={2} />
+                  </div>
+                ) : (
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-100 text-sky-500">
+                    <span className="text-xs font-bold">
+                      {(activeRoom.roomNickname || activeRoom.partnerNickname || "?").substring(0, 1)}
+                    </span>
+                  </div>
+                )}
+                <p className="flex-1 font-bold text-slate-800">{getRoomDisplayName(activeRoom)}</p>
 
-              {activeRoom.type === "GROUP" && (
                 <div className="relative">
                   <button
                     type="button"
                     onClick={() => setShowRoomInfo((prev) => !prev)}
-                    className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                    className="relative rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
                   >
                     <Menu size={18} />
+                    {activeRoom.type === "GROUP" &&
+                      activeRoom.ownerId === Number(currentUser?.id) &&
+                      activeRoom.participants?.some((p) => p.status === "PENDING") && (
+                        <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
+                      )}
                   </button>
 
                   {showRoomInfo && (
                     <div className="absolute right-0 top-10 z-50 w-64 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl">
                       <div className="max-h-[480px] overflow-y-auto p-3">
-                        {activeRoom.ownerId === Number(currentUser?.id) && (
+                        {activeRoom.type === "GROUP" && activeRoom.ownerId === Number(currentUser?.id) && (
                           <>
                             <div className="mb-2 flex items-center gap-1 text-[11px] font-bold uppercase text-slate-400">
                               참여 요청
@@ -504,12 +301,11 @@ return (
                                     강퇴
                                   </button>
                                 )}
-                              {participant.userId === Number(currentUser?.id) &&
-                                activeRoom.ownerId === Number(currentUser?.id) && (
-                                  <span className="rounded-full bg-hp-100 px-1.5 py-0.5 text-[9px] font-bold text-hp-600">
-                                    방장
-                                  </span>
-                                )}
+                              {participant.userId === activeRoom.ownerId && (
+                                <span className="rounded-full bg-hp-100 px-1.5 py-0.5 text-[9px] font-bold text-hp-600">
+                                  방장
+                                </span>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -524,7 +320,7 @@ return (
                                   value={newRoomName}
                                   onChange={(e) => setNewRoomName(e.target.value)}
                                   onKeyDown={(e) => e.key === "Enter" && void handleUpdateRoomName()}
-                                  placeholder="Enter room name"
+                                  placeholder={activeRoom.roomNickname}
                                   className="w-full rounded-lg border px-2 py-1.5 text-xs outline-none focus:border-hp-500"
                                   autoFocus
                                 />
@@ -545,7 +341,7 @@ return (
                               </div>
                             ) : (
                               <button
-                                onClick={() => { setIsEditingName(true); setNewRoomName(""); }}
+                                onClick={() => { setIsEditingName(true); setNewRoomName(activeRoom.name ?? ""); }}
                                 className="w-full rounded-lg border py-1.5 text-xs text-slate-500 hover:bg-slate-50"
                               >
                                 채팅방 이름 변경
@@ -567,145 +363,109 @@ return (
                     </div>
                   )}
                 </div>
+              </div>
+
+              {activeRoom.participants?.find((p) => Number(p.userId) === Number(currentUser?.id))
+                ?.status === "PENDING" ? (
+                <div className="flex flex-1 flex-col items-center justify-center bg-slate-50 p-10 text-center">
+                  <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-hp-50 text-hp-500">
+                    <Clock size={32} />
+                  </div>
+                  <p className="text-lg font-bold text-slate-700">승인 대기중인 채팅방</p>
+                  <p className="mt-2 text-sm text-slate-400">
+                    방장의 승인 후 채팅에 참여할 수 있습니다. 승인 전까지는 메시지를 보낼 수 없습니다.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 sm:p-5">
+                    {(activeRoom.messages || [])
+                      .filter((m) => m.type !== "READ" && !!m.message)
+                      .map((message, idx, visible) => {
+                        const isMe = Number(message.senderId) === Number(currentUser?.id);
+                        const prev = visible[idx - 1];
+                        const next = visible[idx + 1];
+                        const isSameSender =
+                          !!prev &&
+                          !["ENTER", "QUIT", "NOTICE"].includes(prev.type) &&
+                          String(prev.senderId) === String(message.senderId);
+                        const isLastInGroup =
+                          !next ||
+                          ["ENTER", "QUIT", "NOTICE"].includes(next.type) ||
+                          String(next.senderId) !== String(message.senderId) ||
+                          minuteKey(next.createdAt) !== minuteKey(message.createdAt);
+
+                        return (
+                          <ChatMessageBubble
+                            key={`${message.id ?? idx}-${idx}`}
+                            message={message}
+                            isMe={isMe}
+                            isSameSender={isSameSender}
+                            isLastInGroup={isLastInGroup}
+                            roomId={activeRoom.id}
+                            onProfileClick={openProfileModal}
+                            onDeleted={(messageId) => {
+                              setChatRooms((prev) =>
+                                prev.map((room) =>
+                                  String(room.id) === String(activeChatRoomId)
+                                    ? { ...room, messages: room.messages.map((m) => m.id === messageId ? { ...m, deleted: true } : m) }
+                                    : room,
+                                ),
+                              );
+                            }}
+                          />
+                        );
+                      })}
+                  </div>
+
+                  <div className="flex flex-col gap-2 border-t border-slate-100 p-3 sm:flex-row sm:p-4">
+                    <input
+                      type="text"
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && void handleSendMessage()}
+                      placeholder="메시지를 입력하세요..."
+                      className="w-full flex-1 rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-hp-500"
+                    />
+                    <button
+                      onClick={() => void handleSendMessage()}
+                      className="flex items-center justify-center rounded-xl bg-hp-600 px-4 py-2.5 font-bold text-white hover:bg-hp-700 sm:px-5"
+                    >
+                      <ArrowRight size={18} />
+                    </button>
+                  </div>
+                </>
               )}
             </div>
+          ) : (
+            <div className="flex min-h-[24rem] flex-1 items-center justify-center rounded-2xl bg-white text-sm text-slate-400 shadow-md lg:min-h-0">
+              왼쪽에서 채팅방을 선택해 대화를 시작하세요.
+            </div>
+          )}
+        </div>
+      )}
 
-            {activeRoom.participants?.find((participant) => Number(participant.userId) === Number(currentUser?.id))
-              ?.status === "PENDING" ? (
-              <div className="flex flex-1 flex-col items-center justify-center bg-slate-50 p-10 text-center">
-                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-hp-50 text-hp-500">
-                  <Clock size={32} />
-                </div>
-                <p className="text-lg font-bold text-slate-700">Pending approval</p>
-                <p className="mt-2 text-sm text-slate-400">
-                  방장의 승인 후 채팅에 참여할 수 있습니다. 승인 전까지는 메시지를 보낼 수 없습니다.
-                </p>
-              </div>
-            ) : (
-              <>
-                <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4 sm:p-5">
-                  {(activeRoom.messages || []).map((message, idx) => {
-                    const isMe = Number(message.senderId) === Number(currentUser?.id);
-                    const isSystemMsg =
-                      message.type === "ENTER" ||
-                      message.type === "QUIT" ||
-                      message.type === "NOTICE";
-                    if (message.type === "READ" || !message.message) return null;
+      <ConfirmModal
+        isOpen={kickConfirmOpen}
+        badge="Kick"
+        title="참여자를 강퇴하시겠습니까?"
+        description="강퇴된 참여자는 채팅방에서 즉시 제외됩니다."
+        confirmLabel="강퇴"
+        variant="danger"
+        onConfirm={() => void handleKickParticipant()}
+        onClose={() => { setKickConfirmOpen(false); setKickTargetUserId(null); }}
+      />
 
-                    if (isSystemMsg) {
-                      return (
-                        <div key={idx} className="my-2 flex justify-center">
-                          <div className="rounded-full bg-slate-100 px-4 py-1 text-[11px] font-medium text-slate-500">
-                            {message.message}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div
-                        key={`${message.id ?? idx}-${idx}`}
-                        className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
-                      >
-                        {!isMe && (
-                          <button
-                            type="button"
-                            onClick={() => openProfileModal(message.senderId)}
-                            className="mb-1 ml-1 flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 transition hover:text-hp-600"
-                          >
-                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-hp-100 text-[10px] font-bold text-hp-600">
-                              {(message.senderName || "?").substring(0, 1)}
-                            </span>
-                            <span>{message.senderName || "Unknown"}</span>
-                          </button>
-                        )}
-                        <div className={`flex w-full items-end gap-1 ${isMe ? "justify-end" : "justify-start"}`}>
-                          {isMe && (
-                            <div className="mb-1 flex flex-col items-end gap-0.5">
-                              {(message.unreadCount ?? 0) > 0 && (
-                                <span className="text-[10px] font-bold text-hp-400">
-                                  {message.unreadCount}
-                                </span>
-                              )}
-                              {message.createdAt && (
-                                <span className="text-[10px] text-slate-400">
-                                  {formatMessageTime(message.createdAt)}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                          <div
-                            className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm sm:max-w-[78%] xl:max-w-[70%] ${
-                              isMe
-                                ? "rounded-br-sm bg-hp-600 text-white"
-                                : "rounded-bl-sm bg-slate-100 text-slate-800"
-                            }`}
-                          >
-                            <p>{(message.message ?? (message as any).text) ?? "No content"}</p>
-                          </div>
-                          {!isMe && (
-                            <div className="mb-1 flex flex-col items-start gap-0.5">
-                              {message.createdAt && (
-                                <span className="text-[10px] text-slate-400">
-                                  {formatMessageTime(message.createdAt)}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="flex flex-col gap-2 border-t border-slate-100 p-3 sm:flex-row sm:p-4">
-                  <input
-                    type="text"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && void handleSendMessage()}
-                    placeholder="메시지를 입력하세요..."
-                    className="w-full flex-1 rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-hp-500"
-                  />
-                  <button
-                    onClick={() => void handleSendMessage()}
-                    className="flex items-center justify-center rounded-xl bg-hp-600 px-4 py-2.5 font-bold text-white hover:bg-hp-700 sm:px-5"
-                  >
-                    <ArrowRight size={18} />
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        ) : (
-          <div className="flex min-h-[24rem] flex-1 items-center justify-center rounded-2xl bg-white text-sm text-slate-400 shadow-md lg:min-h-0">
-            왼쪽에서 채팅방을 선택해 대화를 시작하세요.
-          </div>
-        )}
-      </div>
-    )}
-
-    <ConfirmModal
-      isOpen={kickConfirmOpen}
-      badge="Kick"
-      title="참여자를 강퇴하시겠습니까?"
-      description="강퇴된 참여자는 채팅방에서 즉시 제외됩니다."
-      confirmLabel="강퇴"
-      variant="danger"
-      onConfirm={() => void handleKickParticipant()}
-      onClose={() => { setKickConfirmOpen(false); setKickTargetUserId(null); }}
-    />
-
-    <ConfirmModal
-      isOpen={leaveConfirmOpen}
-      badge="Leave Room"
-      title="채팅방을 나가시겠습니까?"
-      description="나가면 대화 내용이 삭제되며 다시 입장하려면 초대가 필요할 수 있습니다."
-      confirmLabel="나가기"
-      variant="danger"
-      onConfirm={() => void handleLeaveRoom()}
-      onClose={() => setLeaveConfirmOpen(false)}
-    />
-  </div>
-);
+      <ConfirmModal
+        isOpen={leaveConfirmOpen}
+        badge="Leave Room"
+        title="채팅방을 나가시겠습니까?"
+        description="나가면 대화 내용이 삭제되며 다시 입장하려면 초대가 필요할 수 있습니다."
+        confirmLabel="나가기"
+        variant="danger"
+        onConfirm={() => void handleLeaveRoom()}
+        onClose={() => setLeaveConfirmOpen(false)}
+      />
+    </div>
+  );
 }
