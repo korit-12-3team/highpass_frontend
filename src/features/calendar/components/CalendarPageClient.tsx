@@ -730,7 +730,7 @@ export default function CalendarPageClient() {
         setSelectedEvent((prev) => (prev?.id === eventId ? null : prev));
       }
     } catch (error) {
-      setCalendarError(error instanceof Error ? error.message : "Failed to delete the event.");
+      toast.error(error instanceof Error ? error.message : "일정 삭제에 실패했습니다.");
     }
   };
 
@@ -750,7 +750,7 @@ export default function CalendarPageClient() {
       await deleteTodoApi(todoId);
       syncTodoList(selectedDateKey, (items: TodoItem[]) => items.filter((todo) => todo.id !== todoId));
     } catch (error) {
-      setCalendarError(error instanceof Error ? error.message : "Failed to delete the todo item.");
+      toast.error(error instanceof Error ? error.message : "할 일 삭제에 실패했습니다.");
     }
   };
 
@@ -774,8 +774,9 @@ export default function CalendarPageClient() {
         items.map((todo) => (todo.id === editingTodoId ? updated : todo)),
       );
       cancelTodoEdit();
+      toast.success("할 일이 수정되었습니다.");
     } catch (error) {
-      setCalendarError(error instanceof Error ? error.message : "Failed to update the todo item.");
+      toast.error(error instanceof Error ? error.message : "할 일 수정에 실패했습니다.");
     }
   };
 

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Eye, Heart, Pencil, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 import type { BoardPost, PostComment } from "@/entities/common/types";
 import {
   createComment,
@@ -14,6 +15,7 @@ import { isPostLiked, saveLikedPost, toggleBoardLike } from "@/features/boards/a
 import { formatBoardCreatedAt, getInitial } from "@/features/boards/utils/detail-utils";
 import { deleteBoard } from "@/features/free-board/api/boards";
 import ReportDialog from "@/features/reports/components/ReportDialog";
+import ConfirmModal from "@/shared/components/common/ConfirmModal";
 import { useApp } from "@/shared/context/AppContext";
 import { updateBoard } from "@/features/free-board/api/boards";
 const TAGS = {
@@ -53,6 +55,8 @@ export default function FreePostPageClient({
   const [postSaving, setPostSaving] = useState(false);
   const [postEditError, setPostEditError] = useState("");
   const [tagInput, setTagInput] = useState("");
+  const [confirmCommentId, setConfirmCommentId] = useState<number | null>(null);
+  const [confirmDeletePost, setConfirmDeletePost] = useState(false);
   const [reportTarget, setReportTarget] = useState<null | {
     targetType: "post" | "comment";
     targetId: string;
@@ -63,6 +67,20 @@ export default function FreePostPageClient({
   useEffect(() => {
     setPost(initialPost ? { ...initialPost, comments: initialComments } : null);
   }, [initialComments, initialPost]);
+
+  const doDeletePost = async () => {
+    if (!post || deletingPost) return;
+    try {
+      setDeletingPost(true);
+      setPostError("");
+      await deleteBoard(String(post.id));
+      router.push(returnTo ? decodeURIComponent(returnTo) : "/free");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "게시글 삭제에 실패했습니다.");
+    } finally {
+      setDeletingPost(false);
+    }
+  };
 
   useEffect(() => {
     if (!currentUser) return;
@@ -180,8 +198,12 @@ export default function FreePostPageClient({
     }
   };
 
-  const removeComment = async (commentId: number) => {
-    if (!currentUser || !window.confirm("댓글을 삭제하시겠습니까?")) return;
+  const removeComment = (commentId: number) => {
+    if (!currentUser) return;
+    setConfirmCommentId(commentId);
+  };
+
+  const doRemoveComment = async (commentId: number) => {
 
     const userId = Number(currentUser.id);
     if (!Number.isFinite(userId)) {
@@ -196,7 +218,7 @@ export default function FreePostPageClient({
       if (editingCommentId === commentId) cancelEditingComment();
       await loadComments();
     } catch (e) {
-      setCommentError(e instanceof Error ? e.message : "댓글 삭제에 실패했습니다.");
+      toast.error(e instanceof Error ? e.message : "댓글 삭제에 실패했습니다.");
     } finally {
       setActiveCommentId(null);
     }
@@ -226,8 +248,9 @@ const saveBoardPost = async () => {
 
     setPost({ ...updated, comments: post.comments || [] });
     setIsEditingPost(false);
+    toast.success("게시글이 수정되었습니다.");
   } catch (error: any) {
-    setPostEditError(error.response?.data?.message || "수정에 실패했습니다.");
+    toast.error(error.response?.data?.message || "수정에 실패했습니다.");
   } finally {
     setPostSaving(false);
   }
@@ -325,19 +348,7 @@ return (
             <span className="text-slate-200">|</span>
             <button
               disabled={deletingPost}
-              onClick={async () => {
-                if (deletingPost || !window.confirm("게시글을 삭제하시겠습니까?")) return;
-                try {
-                  setDeletingPost(true);
-                  setPostError("");
-                  await deleteBoard(String(post.id));
-                  router.push(returnTo ? decodeURIComponent(returnTo) : "/free");
-                } catch (e) {
-                  setPostError(e instanceof Error ? e.message : "게시글 삭제에 실패했습니다.");
-                } finally {
-                  setDeletingPost(false);
-                }
-              }}
+              onClick={() => setConfirmDeletePost(true)}
               className="transition hover:text-red-500 disabled:opacity-50"
             >
               삭제
@@ -592,6 +603,26 @@ return (
         )}
       </div>
     </div>
+    <ConfirmModal
+      isOpen={confirmCommentId !== null}
+      badge="댓글"
+      title="댓글을 삭제하시겠습니까?"
+      description="삭제한 댓글은 복구할 수 없습니다."
+      confirmLabel="삭제"
+      variant="danger"
+      onConfirm={() => { if (confirmCommentId !== null) void doRemoveComment(confirmCommentId); setConfirmCommentId(null); }}
+      onClose={() => setConfirmCommentId(null)}
+    />
+    <ConfirmModal
+      isOpen={confirmDeletePost}
+      badge="게시글"
+      title="게시글을 삭제하시겠습니까?"
+      description="삭제한 게시글은 복구할 수 없습니다."
+      confirmLabel="삭제"
+      variant="danger"
+      onConfirm={() => { setConfirmDeletePost(false); void doDeletePost(); }}
+      onClose={() => setConfirmDeletePost(false)}
+    />
   </div>
 );
 }

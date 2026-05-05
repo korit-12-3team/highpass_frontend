@@ -38,13 +38,43 @@ export default function ChatPageClient() {
     handleReject,
     handleKickParticipant,
     handleRoomClick,
+    handleTransferOwner,
     handleUpdateRoomName,
   } = useChatActions();
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const initialReadHandledRef = useRef<string | null>(null);
   const [showRooms, setShowRooms] = useState(true);
   const [showRoomInfo, setShowRoomInfo] = useState(false);
+
+  useEffect(() => {
+    setShowRoomInfo(false);
+  }, [activeChatRoomId]);
+
+  useEffect(() => {
+    if (!chatInput && textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
+  }, [chatInput]);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; userId: number } | null>(null);
+  const [transferReminderOpen, setTransferReminderOpen] = useState(false);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+  const closedUserIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!contextMenu) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      if (contextMenuRef.current?.contains(e.target as Node)) return;
+      if (e.button === 2) {
+        closedUserIdRef.current = contextMenu.userId;
+        requestAnimationFrame(() => { closedUserIdRef.current = null; });
+      }
+      setContextMenu(null);
+    };
+    document.addEventListener("mousedown", handleMouseDown, true);
+    return () => document.removeEventListener("mousedown", handleMouseDown, true);
+  }, [contextMenu]);
 
   const activeRoom = useMemo(
     () => chatRooms.find((room) => String(room.id) === String(activeChatRoomId)) ?? null,
@@ -63,6 +93,7 @@ export default function ChatPageClient() {
     if (userId == null) return;
     setProfileModal(String(userId));
   };
+
 
   useEffect(() => {
     if (activeRoom && (activeRoom.unreadCount ?? 0) > 0) {
@@ -112,6 +143,35 @@ export default function ChatPageClient() {
 
   return (
     <div className="mx-auto flex h-full min-h-0 max-w-6xl animate-in fade-in flex-col duration-500">
+      {contextMenu && (
+        <div
+          ref={contextMenuRef}
+          className="fixed z-[200] rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+        >
+          <button
+            type="button"
+            className="w-full px-4 py-2 text-left text-xs font-semibold text-hp-600 hover:bg-hp-50"
+            onClick={() => {
+              void handleTransferOwner(contextMenu.userId);
+              setContextMenu(null);
+            }}
+          >
+            방장 위임
+          </button>
+          <button
+            type="button"
+            className="w-full px-4 py-2 text-left text-xs font-semibold text-red-500 hover:bg-red-50"
+            onClick={() => {
+              setKickTargetUserId(contextMenu.userId);
+              setKickConfirmOpen(true);
+              setContextMenu(null);
+            }}
+          >
+            강퇴
+          </button>
+        </div>
+      )}
       <div className="mb-6 flex items-center gap-3">
         <button
           type="button"
@@ -177,6 +237,11 @@ export default function ChatPageClient() {
                           {(room.unreadCount ?? 0) > 99 ? "99+" : room.unreadCount}
                         </span>
                       )}
+                      {room.type === "GROUP" &&
+                        room.ownerId === Number(currentUser?.id) &&
+                        room.participants?.some((p) => p.status === "PENDING") && (
+                          <span className="absolute -left-1 -top-1 h-3 w-3 rounded-full border-2 border-white bg-red-500" />
+                        )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-bold text-slate-800">{getRoomDisplayName(room)}</p>
@@ -279,28 +344,30 @@ export default function ChatPageClient() {
                             <div
                               key={participant.userId}
                               className="flex items-center justify-between rounded-xl p-2 hover:bg-slate-50"
+                              onContextMenu={(e) => {
+                                if (
+                                  activeRoom.ownerId === Number(currentUser?.id) &&
+                                  participant.userId !== Number(currentUser?.id)
+                                ) {
+                                  e.preventDefault();
+                                  if (closedUserIdRef.current === participant.userId) return;
+                                  setContextMenu({ x: e.clientX, y: e.clientY, userId: participant.userId });
+                                }
+                              }}
+                              onClick={() => openProfileModal(participant.userId)}
                             >
-                              <div className="flex items-center gap-2">
-                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-hp-100 text-[10px] font-bold text-hp-600">
+                              <div className="flex items-center gap-2" >
+                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-hp-100 text-[10px] font-bold text-hp-600" >
                                   {participant.nickname.substring(0, 1)}
                                 </div>
                                 <button
                                   type="button"
-                                  onClick={() => openProfileModal(participant.userId)}
+                                  
                                   className="text-xs font-medium text-slate-700 transition hover:text-hp-600"
                                 >
                                   {participant.nickname}
                                 </button>
                               </div>
-                              {activeRoom.ownerId === Number(currentUser?.id) &&
-                                participant.userId !== Number(currentUser?.id) && (
-                                  <button
-                                    onClick={() => { setKickTargetUserId(participant.userId); setKickConfirmOpen(true); }}
-                                    className="rounded-lg border border-red-200 px-1.5 py-0.5 text-[10px] font-bold text-red-400 hover:bg-red-50"
-                                  >
-                                    강퇴
-                                  </button>
-                                )}
                               {participant.userId === activeRoom.ownerId && (
                                 <span className="rounded-full bg-hp-100 px-1.5 py-0.5 text-[9px] font-bold text-hp-600">
                                   방장
@@ -352,7 +419,13 @@ export default function ChatPageClient() {
 
                         <div className="mt-3 border-t border-slate-100 pt-3">
                           <button
-                            onClick={() => setLeaveConfirmOpen(true)}
+                            onClick={() => {
+                              if (activeRoom?.ownerId === Number(currentUser?.id) && (activeRoom?.participants?.filter((p) => p.status === "JOINED").length ?? 0) > 1) {
+                                setTransferReminderOpen(true);
+                                return;
+                              }
+                              setLeaveConfirmOpen(true);
+                            }}
                             className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 py-2 text-xs font-bold text-red-400 hover:bg-red-50"
                           >
                             <LogOut size={14} />
@@ -418,18 +491,29 @@ export default function ChatPageClient() {
                       })}
                   </div>
 
-                  <div className="flex flex-col gap-2 border-t border-slate-100 p-3 sm:flex-row sm:p-4">
-                    <input
-                      type="text"
+                  <div className="flex items-end gap-2 border-t border-slate-100 p-3 sm:p-4">
+                    <textarea
+                      ref={textareaRef}
+                      rows={1}
                       value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && void handleSendMessage()}
+                      onChange={(e) => {
+                        setChatInput(e.target.value);
+                        e.target.style.height = "auto";
+                        e.target.style.height = `${e.target.scrollHeight}px`;
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          void handleSendMessage();
+                        }
+                      }}
                       placeholder="메시지를 입력하세요..."
-                      className="w-full flex-1 rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-hp-500"
+                      className="w-full flex-1 resize-none overflow-hidden rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-hp-500"
+                      style={{ maxHeight: "120px", overflowY: "auto" }}
                     />
                     <button
                       onClick={() => void handleSendMessage()}
-                      className="flex items-center justify-center rounded-xl bg-hp-600 px-4 py-2.5 font-bold text-white hover:bg-hp-700 sm:px-5"
+                      className="flex shrink-0 items-center justify-center rounded-xl bg-hp-600 px-4 py-2.5 font-bold text-white hover:bg-hp-700 sm:px-5"
                     >
                       <ArrowRight size={18} />
                     </button>
@@ -454,6 +538,16 @@ export default function ChatPageClient() {
         variant="danger"
         onConfirm={() => void handleKickParticipant()}
         onClose={() => { setKickConfirmOpen(false); setKickTargetUserId(null); }}
+      />
+
+      <ConfirmModal
+        isOpen={transferReminderOpen}
+        badge="안내"
+        title="방장을 위임해주세요"
+        description="참여자가 있는 경우 방장을 위임한 뒤 나가실 수 있습니다. 참여자를 우클릭해 방장을 위임해주세요."
+        confirmLabel="확인"
+        onConfirm={() => setTransferReminderOpen(false)}
+        onClose={() => setTransferReminderOpen(false)}
       />
 
       <ConfirmModal

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, LogOut } from "lucide-react";
 import type { ChatMessage } from "@/entities/common/types";
 import ReportDialog from "@/features/reports/components/ReportDialog";
@@ -43,17 +43,23 @@ export default function ChatMessageBubble({
 }: Props) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const closedRef = useRef(false);
 
   useEffect(() => {
     if (!contextMenu) return;
-    const close = () => setContextMenu(null);
-    window.addEventListener("click", close);
-    window.addEventListener("scroll", close, true);
-    return () => {
-      window.removeEventListener("click", close);
-      window.removeEventListener("scroll", close, true);
+    const handleMouseDown = (e: MouseEvent) => {
+      if (menuRef.current?.contains(e.target as Node)) return;
+      if (e.button === 2) {
+        closedRef.current = true;
+        requestAnimationFrame(() => { closedRef.current = false; });
+      }
+      setContextMenu(null);
     };
+    document.addEventListener("mousedown", handleMouseDown, true);
+    return () => document.removeEventListener("mousedown", handleMouseDown, true);
   }, [contextMenu]);
+
 
   const isSystemMsg = message.type === "ENTER" || message.type === "QUIT" || message.type === "NOTICE";
 
@@ -94,12 +100,12 @@ export default function ChatMessageBubble({
           </button>
         )}
         <div className={`flex w-full items-end gap-1 ${isMe ? "justify-end" : "justify-start"}`}>
-          {isMe && isLastInGroup && (
+          {isMe && ((message.unreadCount ?? 0) > 0 || isLastInGroup) && (
             <div className="mb-1 flex flex-col items-end gap-0.5">
               {(message.unreadCount ?? 0) > 0 && (
                 <span className="text-[10px] font-bold text-hp-400">{message.unreadCount}</span>
               )}
-              {message.createdAt && (
+              {isLastInGroup && message.createdAt && (
                 <span className="text-[10px] text-slate-400">{formatMessageTime(message.createdAt)}</span>
               )}
             </div>
@@ -110,17 +116,21 @@ export default function ChatMessageBubble({
             }`}
             onContextMenu={(e) => {
               e.preventDefault();
+              if (closedRef.current) return;
               setContextMenu({ x: e.clientX, y: e.clientY });
             }}
           >
             {message.deleted
               ? <p className="italic opacity-50">메시지가 삭제되었습니다.</p>
-              : <p>{(message.message ?? (message as any).text) ?? "No content"}</p>
+              : <p className="whitespace-pre-wrap">{(message.message ?? (message as any).text) ?? "No content"}</p>
             }
           </div>
-          {!isMe && isLastInGroup && (
+          {!isMe && ((message.unreadCount ?? 0) > 0 || isLastInGroup) && (
             <div className="mb-1 flex flex-col items-start gap-0.5">
-              {message.createdAt && (
+              {(message.unreadCount ?? 0) > 0 && (
+                <span className="text-[10px] font-bold text-hp-400">{message.unreadCount}</span>
+              )}
+              {isLastInGroup && message.createdAt && (
                 <span className="text-[10px] text-slate-400">{formatMessageTime(message.createdAt)}</span>
               )}
             </div>
@@ -129,31 +139,31 @@ export default function ChatMessageBubble({
       </div>
 
       {contextMenu && (
-        <div
-          className="fixed z-[100] min-w-[120px] overflow-hidden rounded-xl border border-slate-100 bg-white py-1 shadow-xl"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {isMe ? (
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-rose-500 transition hover:bg-rose-50"
-              onClick={() => void handleDelete()}
-            >
-              <LogOut size={14} />
-              삭제
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-rose-500 transition hover:bg-rose-50"
-              onClick={() => { setReportOpen(true); setContextMenu(null); }}
-            >
-              <AlertTriangle size={14} />
-              신고
-            </button>
-          )}
-        </div>
+          <div
+            ref={menuRef}
+            className="fixed z-[100] min-w-[120px] overflow-hidden rounded-xl border border-slate-100 bg-white py-1 shadow-xl"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+          >
+            {isMe ? (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-rose-500 transition hover:bg-rose-50"
+                onClick={() => void handleDelete()}
+              >
+                <LogOut size={14} />
+                삭제
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-rose-500 transition hover:bg-rose-50"
+                onClick={() => { setReportOpen(true); setContextMenu(null); }}
+              >
+                <AlertTriangle size={14} />
+                신고
+              </button>
+            )}
+          </div>
       )}
 
       {reportOpen && (

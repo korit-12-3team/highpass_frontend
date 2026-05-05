@@ -237,23 +237,30 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               const readerIsCurrentUser =
                 Number(newMessage.senderId) === Number(currentUser?.id);
               const isPersonalRoom = room.type === "PERSONAL";
+              const readerId = Number(newMessage.senderId);
 
               return {
                 ...room,
                 unreadCount: readerIsCurrentUser ? 0 : room.unreadCount,
                 messages: room.messages.map((message) => {
+                  const alreadyCounted = (message.readBy ?? []).includes(readerId);
+                  if (alreadyCounted) return message;
+
+                  // 읽은 사람이 해당 메시지의 발신자면 unreadCount에 포함 안 됐으므로 skip
+                  if (Number(message.senderId) === readerId) return message;
+
                   if (readerIsCurrentUser) {
-                    return message;
+                    // currentUser는 API/STOMP 모두 unreadCount에서 이미 제외돼 있으므로 감소 없이 readBy만 기록
+                    return { ...message, readBy: [...(message.readBy ?? []), readerId] };
                   }
 
-                  return Number(message.senderId) === Number(currentUser?.id)
-                    ? {
-                        ...message,
-                        unreadCount: isPersonalRoom
-                          ? 0
-                          : Math.max(0, (message.unreadCount ?? 1) - 1),
-                      }
-                    : message;
+                  return {
+                    ...message,
+                    readBy: [...(message.readBy ?? []), readerId],
+                    unreadCount: isPersonalRoom
+                      ? 0
+                      : Math.max(0, (message.unreadCount ?? 0) - 1),
+                  };
                 }),
               };
             }),
@@ -363,10 +370,20 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                   ? (room.unreadCount ?? 0)
                   : (room.unreadCount ?? 0) + (alreadyExists ? 0 : 1);
 
+            // STOMP TALK 메시지의 unreadCount는 발신자를 제외한 전체 참여자 수 기준이므로
+            // currentUser 본인은 자신의 뷰에서 제외돼야 함 (API 로드값과 일치시키기 위해 -1)
+            const incomingMessage =
+              !alreadyExists &&
+              newMessage.type === "TALK" &&
+              Number(newMessage.senderId) !== Number(currentUser?.id)
+                ? { ...newMessage, unreadCount: Math.max(0, (newMessage.unreadCount ?? 0) - 1) }
+                : newMessage;
+
             return {
               ...room,
               ...(newMessage.type === "NOTICE" && newMessage.roomName ? { name: newMessage.roomName } : {}),
-              messages: alreadyExists ? roomMessages : [...roomMessages, newMessage],
+              ...(newMessage.type === "NOTICE" && newMessage.newOwnerId ? { ownerId: newMessage.newOwnerId } : {}),
+              messages: alreadyExists ? roomMessages : [...roomMessages, incomingMessage],
               lastMessage: newMessage.message,
               lastMessageAt: newMessage.createdAt ?? room.lastMessageAt,
               unreadCount: nextUnread,

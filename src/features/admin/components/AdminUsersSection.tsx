@@ -1,5 +1,9 @@
+"use client";
+
+import { useState } from "react";
 import { ArrowLeft, FileText } from "lucide-react";
 import type { AdminPost, AdminUser, UserStatus } from "@/features/admin/types";
+import ConfirmModal from "@/shared/components/common/ConfirmModal";
 import {
   formatDateOnly,
   getLastSeenLabel,
@@ -183,6 +187,14 @@ export function AdminUsersSection({
   );
 }
 
+type ConfirmAction = {
+  status: UserStatus;
+  title: string;
+  description: string;
+  confirmLabel: string;
+  variant: "primary" | "danger";
+};
+
 function UserActionButtons({
   user,
   onUpdateUserStatus,
@@ -190,40 +202,67 @@ function UserActionButtons({
   user: AdminUser;
   onUpdateUserStatus: (userId: string, status: UserStatus) => void;
 }) {
-  if (user.status === "deleted") {
-    return (
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => {
-            if (window.confirm("탈퇴 회원을 복구하시겠습니까?")) onUpdateUserStatus(user.id, "active");
-          }}
-          className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700 transition hover:bg-emerald-100"
-        >
-          복구
-        </button>
-      </div>
-    );
-  }
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
 
   return (
-    <div className="flex justify-end gap-2">
-      <button
-        type="button"
-        onClick={() => onUpdateUserStatus(user.id, user.status === "suspended" ? "active" : "suspended")}
-        className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50"
-      >
-        {user.status === "suspended" ? "해제" : "정지"}
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          if (window.confirm("회원을 탈퇴 처리하시겠습니까?")) onUpdateUserStatus(user.id, "deleted");
+    <>
+      {user.status === "deleted" ? (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setConfirmAction({
+              status: "active",
+              title: "탈퇴 회원을 복구하시겠습니까?",
+              description: "복구하면 해당 회원이 다시 서비스를 이용할 수 있습니다.",
+              confirmLabel: "복구",
+              variant: "primary",
+            })}
+            className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700 transition hover:bg-emerald-100"
+          >
+            복구
+          </button>
+        </div>
+      ) : (
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setConfirmAction(
+              user.status === "suspended"
+                ? { status: "active", title: "정지를 해제하시겠습니까?", description: "해제하면 해당 회원이 다시 서비스를 이용할 수 있습니다.", confirmLabel: "해제", variant: "primary" }
+                : { status: "suspended", title: "회원을 정지하시겠습니까?", description: "정지하면 해당 회원의 서비스 이용이 제한됩니다.", confirmLabel: "정지", variant: "danger" }
+            )}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+          >
+            {user.status === "suspended" ? "해제" : "정지"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmAction({
+              status: "deleted",
+              title: "회원을 탈퇴 처리하시겠습니까?",
+              description: "탈퇴 처리하면 해당 회원의 계정이 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+              confirmLabel: "탈퇴",
+              variant: "danger",
+            })}
+            className="rounded-lg bg-rose-50 px-3 py-2 text-xs font-black text-rose-600 transition hover:bg-rose-100"
+          >
+            탈퇴
+          </button>
+        </div>
+      )}
+      <ConfirmModal
+        isOpen={!!confirmAction}
+        badge="Admin"
+        title={confirmAction?.title ?? ""}
+        description={confirmAction?.description}
+        confirmLabel={confirmAction?.confirmLabel ?? "확인"}
+        variant={confirmAction?.variant ?? "primary"}
+        onConfirm={() => {
+          if (confirmAction) onUpdateUserStatus(user.id, confirmAction.status);
+          setConfirmAction(null);
         }}
-        className="rounded-lg bg-rose-50 px-3 py-2 text-xs font-black text-rose-600 transition hover:bg-rose-100"
-      >
-        탈퇴
-      </button>
-    </div>
+        onClose={() => setConfirmAction(null)}
+      />
+    </>
   );
 }

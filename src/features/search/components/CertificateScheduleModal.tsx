@@ -51,7 +51,11 @@ export function CertificateScheduleModal({
   onAdded,
 }: CertificateScheduleModalProps) {
   const handleAddToCalendar = async () => {
-    if (!currentUserId || calendarSaving) return;
+    if (!currentUserId) {
+      toast.warning("로그인이 필요합니다.");
+      return;
+    }
+    if (calendarSaving) return;
 
     if (selectedCalendarItemCount === 0) {
       toast.warning("캘린더에 추가할 일정을 선택해 주세요.");

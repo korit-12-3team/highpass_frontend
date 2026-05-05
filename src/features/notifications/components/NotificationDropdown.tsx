@@ -1,14 +1,17 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 import { NotificationResponse } from "@/entities/common/types";
-import { 
-  deleteNotification, 
-  deleteAllNotifications, 
-  markAsRead 
+import {
+  deleteNotification,
+  deleteAllNotifications,
+  markAsRead
 } from "@/features/notifications/api/notifications";
+import { useApp } from "@/shared/context/AppContext";
+import ConfirmModal from "@/shared/components/common/ConfirmModal";
 
 interface NotificationDropdownProps {
   userId: string;
@@ -24,7 +27,9 @@ export default function NotificationDropdown({
   onClose,
 }: NotificationDropdownProps) {
   const router = useRouter();
+  const { setActiveChatRoomId } = useApp();
   const modalRef = useRef<HTMLDivElement>(null);
+  const [confirmDeleteAllOpen, setConfirmDeleteAllOpen] = useState(false);
 
   // Esc 키를 누르면 닫기
   useEffect(() => {
@@ -42,16 +47,17 @@ export default function NotificationDropdown({
       onRefresh();
     } catch (error) {
       console.error(error);
+      toast.error("알림 삭제에 실패했습니다.");
     }
   };
 
   const handleDeleteAll = async () => {
-    if (!window.confirm("모든 알림을 삭제하시겠습니까?")) return;
     try {
       await deleteAllNotifications(userId);
       onRefresh();
     } catch (error) {
       console.error(error);
+      toast.error("알림 전체 삭제에 실패했습니다.");
     }
   };
 
@@ -66,12 +72,14 @@ export default function NotificationDropdown({
       } else if (targetType === "STUDY") {
         router.push(`/study/${targetId}`);
       } else if (targetType === "CHAT") {
+        setActiveChatRoomId(targetId);
         router.push(`/chat`);
       }
       
       onClose();
     } catch (error) {
       console.error(error);
+      toast.error("알림 처리에 실패했습니다.");
     }
   };
 
@@ -158,7 +166,7 @@ export default function NotificationDropdown({
               총 {notifications.length}개의 알림
             </span>
             <button
-              onClick={handleDeleteAll}
+              onClick={() => setConfirmDeleteAllOpen(true)}
               className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
             >
               <Trash2 size={14} />
@@ -167,6 +175,16 @@ export default function NotificationDropdown({
           </div>
         )}
       </div>
+      <ConfirmModal
+        isOpen={confirmDeleteAllOpen}
+        badge="알림"
+        title="모든 알림을 삭제하시겠습니까?"
+        description="삭제한 알림은 복구할 수 없습니다."
+        confirmLabel="전체 삭제"
+        variant="danger"
+        onConfirm={() => { setConfirmDeleteAllOpen(false); void handleDeleteAll(); }}
+        onClose={() => setConfirmDeleteAllOpen(false)}
+      />
     </div>
   );
 }

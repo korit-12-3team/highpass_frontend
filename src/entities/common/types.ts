@@ -70,8 +70,10 @@ export interface ChatMessage {
   type : string;
   createdAt: string;
   unreadCount?: number;
+  readBy?: number[];
   deleted?: boolean;
   roomName?: string;
+  newOwnerId?: number;
 }
 
 export interface ChatRoom {

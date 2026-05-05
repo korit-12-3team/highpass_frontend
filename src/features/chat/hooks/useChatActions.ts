@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { useApp } from "@/shared/context/AppContext";
 import { getChatRoom, sendMessage, leaveRoom, kickParticipant } from "@/services/realtime/stomp";
 import { fetchWithAuth } from "@/services/auth/auth";
@@ -48,7 +49,7 @@ export function useChatActions() {
       setLeaveConfirmOpen(false);
     } catch {
       setLeaveConfirmOpen(false);
-      alert("채팅방 나가기에 실패했습니다.");
+      toast.error("채팅방 나가기에 실패했습니다.");
     }
   };
 
@@ -74,6 +75,7 @@ export function useChatActions() {
       );
     } catch (error) {
       console.error(error);
+      toast.error("참여 승인에 실패했습니다.");
     }
   };
 
@@ -99,6 +101,7 @@ export function useChatActions() {
       );
     } catch (error) {
       console.error(error);
+      toast.error("참여 거절에 실패했습니다.");
     }
   };
 
@@ -122,7 +125,7 @@ export function useChatActions() {
     } catch {
       setKickConfirmOpen(false);
       setKickTargetUserId(null);
-      alert("참여자 강퇴에 실패했습니다.");
+      toast.error("참여자 강퇴에 실패했습니다.");
     }
   };
 
@@ -132,9 +135,20 @@ export function useChatActions() {
     try {
       const latestRoom = await getChatRoom(Number(roomId));
       setChatRooms((prevRooms) =>
-        prevRooms.map((room) =>
-          String(room.id) === String(roomId) ? { ...room, ...latestRoom } : room,
-        ),
+        prevRooms.map((room) => {
+          if (String(room.id) !== String(roomId)) return room;
+          const existingById = new Map(
+            (room.messages ?? []).filter((m) => m.id != null).map((m) => [String(m.id), m]),
+          );
+          return {
+            ...room,
+            ...latestRoom,
+            messages: (latestRoom.messages ?? []).map((msg) => ({
+              ...msg,
+              readBy: existingById.get(String(msg.id))?.readBy,
+            })),
+          };
+        }),
       );
     } catch (error) {
       console.error("채팅방 정보를 불러오지 못했습니다.", error);
@@ -151,6 +165,30 @@ export function useChatActions() {
       } catch (error) {
         console.error("채팅방 읽음 처리에 실패했습니다.", error);
       }
+    }
+  };
+
+  const handleTransferOwner = async (targetUserId: number) => {
+    if (!activeChatRoomId || !currentUser) return;
+
+    try {
+      const response = await fetchWithAuth(
+        `${CHAT_API_BASE_URL}/chat/rooms/${activeChatRoomId}/owner/${targetUserId}`,
+        { method: "PATCH" },
+      );
+      if (!response.ok) throw new Error("방장 위임에 실패했습니다.");
+
+      setChatRooms((prev) =>
+        prev.map((room) =>
+          String(room.id) === String(activeChatRoomId)
+            ? { ...room, ownerId: targetUserId }
+            : room,
+        ),
+      );
+      toast.success("방장이 위임되었습니다.");
+    } catch (error) {
+      console.error(error);
+      toast.error("방장 위임에 실패했습니다.");
     }
   };
 
@@ -173,8 +211,10 @@ export function useChatActions() {
       );
       setNewRoomName("");
       setIsEditingName(false);
+      toast.success("채팅방 이름이 변경되었습니다.");
     } catch (error) {
       console.error(error);
+      toast.error("채팅방 이름 변경에 실패했습니다.");
     }
   };
 
@@ -197,6 +237,7 @@ export function useChatActions() {
     handleReject,
     handleKickParticipant,
     handleRoomClick,
+    handleTransferOwner,
     handleUpdateRoomName,
   };
 }

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ConfirmModal from "@/shared/components/common/ConfirmModal";
 import { useRouter } from "next/navigation";
-import { Eye, Heart, Loader2, MapPin, MessageCircle, Search, X } from "lucide-react";
+import { Clock, Eye, Heart, Loader2, MapPin, MessageCircle, Search, X } from "lucide-react";
 import { useKakaoLoader } from "react-kakao-maps-sdk";
 import KakaoMap from "@/shared/components/map/KakaoMap";
 import { KAKAO_MAP_APPKEY } from "@/services/config/config";
@@ -15,6 +15,7 @@ import { deleteStudy, updateStudy } from "@/features/study/api/study-api";
 import { formatBoardCreatedAt, getInitial } from "@/features/boards/utils/detail-utils";
 import { useApp } from "@/shared/context/AppContext";
 import { getMyChatRooms, joinStudyChatRoom } from "@/services/realtime/stomp";
+import { toast } from "sonner";
 
 
 const CUSTOM_CERT_FILTER = "기타";
@@ -31,7 +32,7 @@ export default function StudyPostPageClient({
   returnTo: string | null;
 }) {
   const router = useRouter();
-  const { currentUser, setProfileModal, setChatRooms, setActiveChatRoomId } = useApp();
+  const { currentUser, chatRooms, setProfileModal, setChatRooms, setActiveChatRoomId } = useApp();
   const [post, setPost] = useState<BoardPost | null>(() =>
     initialPost ? { ...initialPost, comments: initialComments } : null,
   );
@@ -55,6 +56,9 @@ export default function StudyPostPageClient({
   const [postSaving, setPostSaving] = useState(false);
   const [postDeleting, setPostDeleting] = useState(false);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [joinConfirmOpen, setJoinConfirmOpen] = useState(false);
+  const [confirmCommentId, setConfirmCommentId] = useState<number | null>(null);
+  const [confirmDeletePost, setConfirmDeletePost] = useState(false);
   const commentInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -225,8 +229,12 @@ export default function StudyPostPageClient({
     }
   };
 
-  const removeComment = async (commentId: number) => {
-    if (!currentUser || !window.confirm("댓글을 삭제하시겠습니까?")) return;
+  const removeComment = (commentId: number) => {
+    if (!currentUser) return;
+    setConfirmCommentId(commentId);
+  };
+
+  const doRemoveComment = async (commentId: number) => {
 
     const userId = Number(currentUser.id);
     if (!Number.isFinite(userId)) return;
@@ -237,7 +245,7 @@ export default function StudyPostPageClient({
       if (editingCommentId === commentId) cancelEditingComment();
       await loadComments();
     } catch (e) {
-      setCommentError(e instanceof Error ? e.message : "댓글 삭제에 실패했습니다.");
+      toast.error(e instanceof Error ? e.message : "댓글 삭제에 실패했습니다.");
     } finally {
       setActiveCommentId(null);
     }
@@ -346,8 +354,9 @@ export default function StudyPostPageClient({
       const hydrated = { ...updated, comments: post.comments };
       setPost(hydrated);
       setEditingPost(false);
+      toast.success("게시글이 수정되었습니다.");
     } catch (error) {
-      setPostEditError(error instanceof Error ? error.message : "게시글 수정에 실패했습니다.");
+      toast.error(error instanceof Error ? error.message : "게시글 수정에 실패했습니다.");
     } finally {
       setPostSaving(false);
     }
@@ -355,14 +364,13 @@ export default function StudyPostPageClient({
 
   const removePost = async () => {
     if (!post || postDeleting) return;
-    if (!window.confirm("게시글을 삭제하시겠습니까?")) return;
 
     try {
       setPostDeleting(true);
       await deleteStudy(post.id);
       router.push(returnTo ? decodeURIComponent(returnTo) : "/study");
     } catch (error) {
-      setPostEditError(error instanceof Error ? error.message : "게시글 삭제에 실패했습니다.");
+      toast.error(error instanceof Error ? error.message : "게시글 삭제에 실패했습니다.");
     } finally {
       setPostDeleting(false);
     }
@@ -457,7 +465,7 @@ return (
                     <span className="text-xs text-slate-300">|</span>
                     <button
                       type="button"
-                      onClick={() => void removePost()}
+                      onClick={() => setConfirmDeletePost(true)}
                       disabled={postDeleting}
                       className="text-xs text-slate-400 hover:text-red-400 disabled:opacity-60"
                     >
@@ -467,25 +475,60 @@ return (
                 )}
               </div>
               {post.id && (
-                <button
-                  onClick={async () => {
-                    if (!currentUser) { alert("로그인이 필요합니다."); return; }
-                    try {
-                      const result = await joinStudyChatRoom(post.id);
-                      const rooms = await getMyChatRooms();
-                      setChatRooms(rooms);
-                      setActiveChatRoomId(String(result.roomId));
-                      router.push("/chat");
-                    } catch (error) {
-                      console.error("Join error:", error);
-                      alert("채팅방 입장에 실패했습니다.");
+                <>
+                  {(() => {
+                    const existingRoom = chatRooms.find((r) => String(r.id) === String(post.chatRoomId));
+                    const myParticipant = existingRoom?.participants?.find(
+                      (p) => Number(p.userId) === Number(currentUser?.id),
+                    );
+                    if (myParticipant?.status === "PENDING") {
+                      return (
+                        <button
+                          disabled
+                          className="shrink-0 inline-flex items-center gap-2 rounded-full bg-slate-200 px-4 py-2 text-xs font-bold text-slate-400 cursor-not-allowed"
+                        >
+                          <Clock size={15} />
+                          채팅방 입장 요청중
+                        </button>
+                      );
                     }
-                  }}
-                  className="shrink-0 inline-flex items-center gap-2 rounded-full bg-hp-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-hp-700 active:scale-95"
-                >
-                  <MessageCircle size={15} className="fill-white/20" />
-                  채팅방 입장
-                </button>
+                    return (
+                      <button
+                        onClick={() => {
+                          if (myParticipant?.status === "JOINED") {
+                            setActiveChatRoomId(String(existingRoom!.id));
+                            router.push("/chat");
+                            return;
+                          }
+                          setJoinConfirmOpen(true);
+                        }}
+                        className="shrink-0 inline-flex items-center gap-2 rounded-full bg-hp-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-hp-700 active:scale-95"
+                      >
+                        <MessageCircle size={15} className="fill-white/20" />
+                        채팅방 입장하기
+                      </button>
+                    );
+                  })()}
+                  <ConfirmModal
+                    isOpen={joinConfirmOpen}
+                    title="채팅방 참여 신청"
+                    description="방장 승인 후 채팅방에 입장할 수 있습니다."
+                    confirmLabel="신청하기"
+                    onConfirm={async () => {
+                      setJoinConfirmOpen(false);
+                      try {
+                        const result = await joinStudyChatRoom(post.id);
+                        const rooms = await getMyChatRooms();
+                        setChatRooms(rooms);
+                        toast.success("채팅방 참여를 신청했습니다. 방장의 승인을 기다려주세요.");
+                      } catch (error) {
+                        console.error("Join error:", error);
+                        toast.error("채팅방 참여 신청에 실패했습니다.");
+                      }
+                    }}
+                    onClose={() => setJoinConfirmOpen(false)}
+                  />
+                </>
               )}
             </div>
           </div>
@@ -882,6 +925,26 @@ return (
       </div>
     </div>
 
+    <ConfirmModal
+      isOpen={confirmCommentId !== null}
+      badge="댓글"
+      title="댓글을 삭제하시겠습니까?"
+      description="삭제한 댓글은 복구할 수 없습니다."
+      confirmLabel="삭제"
+      variant="danger"
+      onConfirm={() => { if (confirmCommentId !== null) void doRemoveComment(confirmCommentId); setConfirmCommentId(null); }}
+      onClose={() => setConfirmCommentId(null)}
+    />
+    <ConfirmModal
+      isOpen={confirmDeletePost}
+      badge="게시글"
+      title="게시글을 삭제하시겠습니까?"
+      description="삭제한 게시글은 복구할 수 없습니다."
+      confirmLabel="삭제"
+      variant="danger"
+      onConfirm={() => { setConfirmDeletePost(false); void removePost(); }}
+      onClose={() => setConfirmDeletePost(false)}
+    />
     <ConfirmModal
       isOpen={cancelConfirmOpen}
       badge="Edit"
