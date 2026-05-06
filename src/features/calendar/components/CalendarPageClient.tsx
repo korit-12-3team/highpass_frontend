@@ -981,7 +981,8 @@ export default function CalendarPageClient() {
   return (
     <div className="animate-in fade-in flex h-full flex-col gap-4 duration-500 md:flex-row overflow-hidden">
       <div className="flex-1 overflow-x-auto overflow-y-hidden">
-        <div className="flex h-full min-w-[700px] flex-col rounded-2xl border border-hp-100 bg-white p-5 shadow-sm transition-all duration-300">
+        <div className="flex h-full min-w-[700px] flex-col rounded-2xl border border-hp-100 bg-white p-5 shadow-sm 
+        transition-all duration-300">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-y-4">
           <div className="flex items-center gap-4">
             <div className="w-fit shrink-0">
@@ -1242,7 +1243,7 @@ export default function CalendarPageClient() {
                             </div>
                           );
                         })}
-                      </div>                      <div className="mt-auto flex min-h-4 items-end">
+                      </div>                      <div className="mt-1 flex min-h-4 items-start">
                         {overflowCount > 0 && (
                           <p className={`text-[10px] font-medium leading-none ${day.currentMonth ? "text-slate-400" : "text-slate-300"}`}>
                             + {overflowCount}개
