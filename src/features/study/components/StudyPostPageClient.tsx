@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ConfirmModal from "@/shared/components/common/ConfirmModal";
 import { useRouter } from "next/navigation";
-import { Clock, Eye, Heart, Loader2, MapPin, MessageCircle, Search, X } from "lucide-react";
+import { Clock, Eye, Heart, Loader2, MapPin, MessageCircle, Search, X, ArrowLeft } from "lucide-react";
 import { useKakaoLoader } from "react-kakao-maps-sdk";
 import KakaoMap from "@/shared/components/map/KakaoMap";
 import { KAKAO_MAP_APPKEY } from "@/services/config/config";
-import type { BoardPost, ChatRoom, PostComment, SearchPlace } from "@/entities/common/types";
+import type { BoardPost, PostComment, SearchPlace } from "@/entities/common/types";
 import { createComment, deleteComment as deleteCommentRequest, listComments, updateComment as updateCommentRequest } from "@/features/boards/api/comments";
 import { isPostLiked, saveLikedPost, toggleBoardLike } from "@/features/boards/api/likes";
 import { CERT_DATA } from "@/shared/constants";
@@ -236,10 +236,10 @@ export default function StudyPostPageClient({
 
   const doRemoveComment = async (commentId: number) => {
     if (!currentUser) {
-      setCommentError("로그인이 필요합니다.");
-      return;
+      setCommentError("로그인이 필요합니다.")
+    return; 
     }
-
+    
     const userId = Number(currentUser.id);
     if (!Number.isFinite(userId)) return;
 
@@ -258,34 +258,35 @@ export default function StudyPostPageClient({
   const showMapPreview = true;
   const canManagePost = !!currentUser && currentUser.id === post?.authorId;
 
-  const handleConfirmCancel = () => {
-    if (!post) return;
-    setEditingPost(false);
-    setPostEditTitle(post.title || "");
-    setPostEditContent(post.content || "");
-    const matchedCategory =
-      Object.entries(CERT_DATA).find(([category, certificates]) => category !== CUSTOM_CERT_FILTER && certificates.includes(post.cert || ""))?.[0] ?? "";
-    setPostEditCertCategory(matchedCategory || ((post.cert || "").trim() ? CUSTOM_CERT_FILTER : ""));
-    setPostEditCert(post.cert || "");
-    setPostEditLocation(post.location || "");
-    setPlaceKeyword(post.location || "");
-    setSelectedEditPlace(
-      post.location && typeof post.lat === "number" && typeof post.lng === "number"
-        ? {
-            id: `study-${post.id}`,
-            name: post.location,
-            address: post.location,
-            lat: post.lat,
-            lng: post.lng,
-          }
-        : null,
-    );
-    setPostEditError("");
+  const handleConfirmCancel = (): void => {
+  if (!post) return;
+  setEditingPost(false);
+  setPostEditTitle(post.title || "");
+  setPostEditContent(post.content || "");
+  const matchedCategory =
+    Object.entries(CERT_DATA).find(([category, certificates]) => category !== CUSTOM_CERT_FILTER && certificates.includes(post.cert || ""))?.[0] ?? "";
+  setPostEditCertCategory(matchedCategory || ((post.cert || "").trim() ? CUSTOM_CERT_FILTER : ""));
+  setPostEditCert(post.cert || "");
+  setPostEditLocation(post.location || "");
+  setPlaceKeyword(post.location || "");
+  setSelectedEditPlace(
+    post.location && typeof post.lat === "number" && typeof post.lng === "number"
+      ? {
+          id: `study-${post.id}`,
+          name: post.location,
+          address: post.location,
+          lat: post.lat,
+          lng: post.lng,
+        }
+      : null,
+  );
+  setPostEditError("");
+  setCancelConfirmOpen(false); 
   };
 
-  const cancelPostEdit = () => {
-  setCancelConfirmOpen(true);
-};
+  const cancelPostEdit = (): void => {
+    setCancelConfirmOpen(true);
+  };
 
   const searchPlacesOnKakao = () => {
     if (typeof window === "undefined") return;
@@ -397,25 +398,24 @@ return (
         <div className="flex items-center gap-3 px-5 py-3">
           <button
             onClick={() => router.push(returnTo ? decodeURIComponent(returnTo) : "/study")}
-            className="rounded-full p-2 transition hover:bg-slate-100"
+            className="flex items-center gap-1.5 rounded-full py-1.5 text-xs font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
             aria-label="뒤로"
           >
-            ←
+            <ArrowLeft size={15} />
+            스터디 모집
           </button>
-          <div className="text-sm font-semibold text-slate-700">스터디 모집</div>
         </div>
       </div>
 
       {/* 본문 */}
-      <div className="px-5 py-3 lg:px-7">
-
+      <div className="px-5 py-6 lg:px-7">
         {/* 헤더 */}
         {!editingPost ? (
           <div className="mb-2 space-y-2">
             {/* 1줄: 제목 + 뱃지 */}
             <div className="flex flex-wrap items-center gap-3">
               {post.title ? (
-                <h1 className="text-3xl font-bold leading-tight tracking-[-0.02em] text-slate-950">
+                <h1 className="text-3xl font-bold leading-tight tracking-[-0.02em] text-slate-950 ">
                   {post.title}
                 </h1>
               ) : null}
@@ -523,14 +523,7 @@ return (
                       try {
                         const result = await joinStudyChatRoom(post.id);
                         const rooms = await getMyChatRooms();
-                        const pinnedAt = new Date().toISOString();
-                        setChatRooms(
-                          rooms.map((room: ChatRoom) =>
-                            String(room.id) === String(result.roomId)
-                              ? { ...room, sortPinnedAt: pinnedAt }
-                              : room,
-                          ),
-                        );
+                        setChatRooms(rooms);
                         toast.success("채팅방 참여를 신청했습니다. 방장의 승인을 기다려주세요.");
                       } catch (error) {
                         console.error("Join error:", error);
@@ -546,9 +539,7 @@ return (
         ) : null}
 
         
-
-        {/* 본문 내용 / 수정 폼 */}
-        <div className="border-t border-hp-100 pt-3">
+        <div className="pt-3">
           {editingPost ? (
             <div className="mx-auto space-y-3">
               <div>
@@ -564,7 +555,6 @@ return (
                 <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">자격증 선택</p>
                 <div className="grid gap-3 md:grid-cols-2">
                   <div>
-                    <p className="mb-1 text-xs font-semibold text-slate-500">분류</p>
                     <select
                       value={postEditCertCategory}
                       onChange={(event) => { setPostEditCertCategory(event.target.value); setPostEditCert(""); }}
@@ -577,10 +567,7 @@ return (
                       <option value={CUSTOM_CERT_FILTER}>기타</option>
                     </select>
                   </div>
-                  <div>
-                    <p className="mb-1 text-xs font-semibold text-slate-500">
-                      {isCustomCert ? "자격증명 직접 입력" : "자격증 종류"}
-                    </p>
+                  <div>                 
                     {isCustomCert ? (
                       <input
                         value={postEditCert}
@@ -616,21 +603,27 @@ return (
               </div>
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">스터디 방식</p>
-                <div className="flex gap-2 mb-4">
-                  <button
-                    type="button"
-                    onClick={() => { setPostEditLocation("online"); setSelectedEditPlace(null); setPlaceKeyword("online"); }}
-                    className={`flex-1 rounded-2xl py-3 text-sm font-bold transition ${postEditLocation === "online" ? "bg-hp-600 text-white" : "bg-slate-100 text-slate-500"}`}
-                  >
-                    온라인
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { if(postEditLocation === "online") { setPostEditLocation(""); setPlaceKeyword(""); } }}
-                    className={`flex-1 rounded-2xl py-3 text-sm font-bold transition ${postEditLocation !== "online" ? "bg-hp-600 text-white" : "bg-slate-100 text-slate-500"}`}
-                  >
-                    오프라인
-                  </button>
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex overflow-hidden rounded-lg bg-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => { setPostEditLocation(""); setPlaceKeyword(""); }}
+                      className={`px-4 py-2 text-sm font-bold transition-colors ${
+                        postEditLocation !== "online" ? "bg-hp-600 text-white" : "text-slate-500 hover:bg-slate-200"
+                      }`}
+                    >
+                      오프라인
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setPostEditLocation("online"); setSelectedEditPlace(null); setPlaceKeyword("online"); }}
+                      className={`px-4 py-2 text-sm font-bold transition-colors ${
+                        postEditLocation === "online" ? "bg-hp-600 text-white" : "text-slate-500 hover:bg-slate-200"
+                      }`}
+                    >
+                      온라인
+                    </button>
+                  </div>
                 </div>
 
                 {postEditLocation !== "online" && (
@@ -754,7 +747,7 @@ return (
               <div className="flex justify-end gap-2 border-t border-hp-100 pt-4">
                 <button
                   type="button"
-                  onClick={cancelPostEdit}
+                  onClick={() => setCancelConfirmOpen(true)}
                   className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
                 >
                   취소
@@ -780,8 +773,8 @@ return (
                     onClick={() => void handleToggleLike()}
                     disabled={likeSubmitting}
                     className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                      post.likedByUser ? "bg-red-50 text-red-500" : "text-slate-400 hover:bg-slate-100"
-                    } disabled:opacity-50`}
+                    post.likedByUser ? "text-red-400" : "text-slate-400 hover:bg-slate-100"
+                  } disabled:opacity-50`}
                   >
                     <Heart size={13} className={post.likedByUser ? "fill-current" : ""} />
                     좋아요 {post.likes}
@@ -957,9 +950,12 @@ return (
     <ConfirmModal
       isOpen={cancelConfirmOpen}
       title="수정을 취소하시겠습니까?"
-      description="확인을 누르면 현재 변경사항이 저장되지 않고 이전 상태로 되돌아갑니다."
+      description="변경사항이 저장되지 않습니다."
       confirmLabel="확인"
-      onConfirm={() => { handleConfirmCancel(); setCancelConfirmOpen(false); }}
+      variant="danger"
+      onConfirm={() => {
+        handleConfirmCancel()
+      }}
       onClose={() => setCancelConfirmOpen(false)}
     />
   </div>

@@ -290,9 +290,6 @@ export default function WritePostModal(props: WritePostModalProps) {
                     온라인
                   </button>
                 </div>
-                {isOnlineStudy && (
-                  <span className="text-xs text-slate-400">장소는 미정으로 등록됩니다.</span>
-                )}
               </div>
  
               {/* 장소 검색 */}

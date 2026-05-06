@@ -29,14 +29,15 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
   const requestedCertFilter = searchParams.get("cert") ?? "";
   const requestedLocationSiDo = searchParams.get("siDo") ?? "";
   const requestedLocationGunGu = searchParams.get("gunGu") ?? "";
-
+  
   const [posts, setPosts] = useState<BoardPost[]>(() => sortPosts(initialPosts));
   const [certCategoryFilter, setCertCategoryFilter] = useState(requestedCertCategory);
   const [certFilter, setCertFilter] = useState(requestedCertFilter);
   const [locationFilterSiDo, setLocationFilterSiDo] = useState(requestedLocationSiDo);
   const [locationFilterGunGu, setLocationFilterGunGu] = useState(requestedLocationGunGu);
   const [likeSubmittingPostId, setLikeSubmittingPostId] = useState<string | null>(null);
-
+  const [currentPage, setCurrentPage] = useState(0);
+  
   const certificateCategories = useMemo(
     () => [...Object.keys(CERT_DATA).filter((category) => category !== CUSTOM_CERT_FILTER), CUSTOM_CERT_FILTER],
     [],
@@ -160,6 +161,19 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
     router.push(`/study/${postId}?returnTo=${encodeURIComponent(returnTo)}`);
   };
 
+  const PAGE_SIZE = 5;
+
+  const paginatedPosts = useMemo(() => {
+    const start = currentPage * PAGE_SIZE;
+    return filteredPosts.slice(start, start + PAGE_SIZE);
+  }, [filteredPosts, currentPage]);
+
+  const totalPages = Math.ceil(filteredPosts.length / PAGE_SIZE);
+
+  useEffect(() => {
+  setCurrentPage(0);
+  }, [certCategoryFilter, certFilter, locationFilterSiDo, locationFilterGunGu]);
+
 
 return (
     <div className="mx-auto max-w-5xl animate-in fade-in duration-500 px-4 py-8">
@@ -176,7 +190,6 @@ return (
           }}
           className="inline-flex items-center gap-2 rounded-full bg-hp-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-hp-700 hover:shadow-md active:scale-95"
         >
-          <Zap size={16} />
           모집글 작성
         </button>
       </div>
@@ -271,7 +284,7 @@ return (
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {filteredPosts.map((post) => (
+          {paginatedPosts.map((post) => (
             <article
               key={post.id}
               onClick={() => openPost(post.id)}
@@ -329,9 +342,7 @@ return (
                   }}
                   disabled={likeSubmittingPostId === post.id}
                   className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold transition ${
-                    post.likedByUser
-                      ? "bg-red-50 text-red-500"
-                      : "text-slate-400 hover:bg-slate-200"
+                    post.likedByUser ? "text-red-400" : "text-slate-400 hover:bg-slate-100"
                   } disabled:opacity-50`}
                 >
                   <Heart size={13} className={post.likedByUser ? "fill-current" : ""} />
@@ -357,6 +368,38 @@ return (
               </div>
             </article>
           ))}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-center gap-2">
+          <button
+            onClick={() => setCurrentPage((prev) => Math.max(0, prev - 1))}
+            disabled={currentPage === 0}
+            className="rounded-full px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-100 disabled:opacity-30"
+          >
+            이전
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => (
+            <button
+              key={i}
+              onClick={() => setCurrentPage(i)}
+              className={`h-9 w-9 rounded-full text-sm font-bold transition ${
+                currentPage === i
+                  ? "bg-hp-600 text-white"
+                  : "text-slate-500 hover:bg-slate-100"
+              }`}
+            >
+              {i + 1}
+            </button>
+          ))}
+          <button
+            onClick={() => setCurrentPage((prev) => Math.min(totalPages - 1, prev + 1))}
+            disabled={currentPage === totalPages - 1}
+            className="rounded-full px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-100 disabled:opacity-30"
+          >
+            다음
+          </button>
         </div>
       )}
     </div>

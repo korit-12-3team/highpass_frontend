@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Eye, Heart, MessageCircle } from "lucide-react";
 import type { BoardPost } from "@/entities/common/types";
@@ -33,6 +33,8 @@ export default function FreeBoardPageClient({ initialPosts }: { initialPosts: Bo
   const [likeSubmittingPostId, setLikeSubmittingPostId] = useState<string | null>(null);
   const [inlineCommentDrafts, setInlineCommentDrafts] = useState<Record<string, string>>({});
   const [inlineCommentSubmittingPostId, setInlineCommentSubmittingPostId] = useState<string | null>(null);
+  const [tagFilter, setTagFilter] = useState("");
+
 
   useEffect(() => {
     setPosts(sortPosts(initialPosts));
@@ -114,29 +116,45 @@ export default function FreeBoardPageClient({ initialPosts }: { initialPosts: Bo
     router.push(`/free/${postId}?returnTo=${encodeURIComponent(returnTo)}`);
   };
 
+  const filteredPosts = useMemo(() => {
+  if (!tagFilter) return posts;
+  return posts.filter((post) => post.tags?.includes(tagFilter));
+  }, [posts, tagFilter]);
+
   return (
     <div className="mx-auto max-w-xl animate-in fade-in duration-500">
-      <div className="mb-6 overflow-hidden rounded-[28px] border border-hp-100 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
-        <div className="border-b border-black/5 px-5 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="mt-1 text-2xl font-bold text-slate-950">자유게시판</h2>
-              <p className="mt-1 text-sm text-slate-500">가볍게 공유하고 바로 반응을 확인하는 공간</p>
+        <div className="mb-8">
+            <div className="mb-4 flex items-end justify-between gap-10">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-950 ">자유게시판</h2>
+                <p className="mt-1 text-sm text-slate-500 mb-2">당신의 이야기를 공유해주세요</p>
+              </div>
+              <button
+                onClick={() => { setWriteType("free"); setWriteModalOpen(true); }}
+                className="rounded-full bg-slate-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-md"
+              >
+                새 게시물
+              </button>
             </div>
-            <button
-              onClick={() => {
-                setWriteType("free");
-                setWriteModalOpen(true);
-              }}
-              className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-md"
-            >
-              새 게시물
-            </button>
-          </div>
-        </div>
-      </div>
 
-      {posts.length === 0 ? (
+            <div className="flex flex-wrap gap-2.5 ">
+              {["전체", "잡담", "일상", "유머", "질문","합격후기", "스터디후기", "취업", "정보공유", "꿀팁", "자격증" ].map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => setTagFilter(tag === "전체" ? "" : (tagFilter === tag ? "" : tag))}
+                  className={`rounded-full px-3 py-1 text-xs font-bold transition ${
+                    (tag === "전체" && tagFilter === "") || tagFilter === tag
+                      ? "bg-hp-600 text-white"
+                      : "bg-white text-slate-500 hover:bg-slate-100"
+                  }`}
+                >
+                  {tag === "전체" ? tag : `#${tag}`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+      {filteredPosts.length === 0 ? (
         <div className="rounded-[28px] border border-black/10 bg-white px-6 py-16 text-center text-sm text-slate-400 shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
           아직 게시글이 없습니다.
           <br />
@@ -144,7 +162,7 @@ export default function FreeBoardPageClient({ initialPosts }: { initialPosts: Bo
         </div>
       ) : (
         <div className="space-y-6">
-          {posts.map((post) => (
+          {filteredPosts.map((post) => (
             <article
               key={`free-${post.id}`}
               className="overflow-hidden rounded-[28px] border border-hp-100 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:border-hp-200 hover:shadow-[0_28px_90px_rgba(15,23,42,0.12)]"
@@ -196,22 +214,18 @@ export default function FreeBoardPageClient({ initialPosts }: { initialPosts: Bo
                   <button
                     onClick={() => void handleToggleLike(post.id)}
                     disabled={likeSubmittingPostId === post.id}
-                    className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold transition ${
-                      post.likedByUser ? "bg-red-50 text-red-500 shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900"
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                      post.likedByUser ? "text-red-400" : "text-slate-400 hover:bg-slate-100"
                     } disabled:opacity-50`}
                   >
-                    <Heart size={16} className={post.likedByUser ? "fill-current" : ""} />
+                    <Heart size={13} className={post.likedByUser ? "fill-current" : ""} />
                     좋아요 {post.likes}
                   </button>
-                  <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500">
-                    <Eye size={16} />
-                    {post.views}
-                  </span>
                   <button
                     onClick={() => openPost(post.id)}
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-hp-700"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 transition hover:text-hp-700"
                   >
-                    <MessageCircle size={16} />
+                    <MessageCircle size={13} />
                     댓글 {post.comments?.length || 0}
                   </button>
                 </div>
@@ -219,17 +233,20 @@ export default function FreeBoardPageClient({ initialPosts }: { initialPosts: Bo
                 {post.comments.length > 0 && (
                   <div className="mt-4 space-y-2 rounded-2xl bg-slate-50 px-4 py-3">
                     {post.comments.slice(-2).map((comment) => (
-                      <div key={comment.id} className="flex items-center gap-1 text-sm text-slate-600">
+                      <div key={comment.id} className="flex items-center gap-1 text-xs text-slate-600">
+                        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[9px] font-bold text-slate-600">
+                          {getInitial(comment.author)}
+                        </div>
                         <span className="font-semibold text-slate-800">{comment.author}</span>
                         <span className="text-slate-300">·</span>
                         <span className="truncate">{comment.text}</span>
+                        <span className="shrink-0 text-[11px] text-slate-400 ml-auto">{formatBoardCreatedAt(comment.createdAt)}</span>
                       </div>
                     ))}
                   </div>
                 )}
-
-                <div className="mt-4 flex items-center gap-3 rounded-2xl border border-black/10 bg-slate-50 px-4 py-3 transition focus-within:border-hp-300 focus-within:bg-white focus-within:shadow-sm">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[11px] font-bold text-white">
+                <div className="mt-4 flex items-center gap-3 rounded-2xl border border-black/10 bg-slate-50 px-4 py-2 transition focus-within:border-hp-300 focus-within:bg-white focus-within:shadow-sm">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[11px] font-bold text-white">
                     {getInitial(currentUser?.nickname || "U")}
                   </div>
                   <input
