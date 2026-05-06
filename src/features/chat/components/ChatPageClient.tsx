@@ -5,6 +5,7 @@ import { ArrowRight, MessageCircle, Clock, LogOut, Users, PanelLeft, Menu } from
 import { useApp } from "@/shared/context/AppContext";
 import { fetchWithAuth } from "@/services/auth/auth";
 import { CHAT_API_BASE_URL } from "@/services/config/config";
+import { getChatRoomReadState } from "@/services/realtime/stomp";
 import ConfirmModal from "@/shared/components/common/ConfirmModal";
 import ChatMessageBubble from "@/features/chat/components/ChatMessageBubble";
 import { getRoomDisplayName, minuteKey } from "@/features/chat/utils/chatRoom";
@@ -28,12 +29,15 @@ export default function ChatPageClient() {
     setIsEditingName,
     leaveConfirmOpen,
     setLeaveConfirmOpen,
+    cancelJoinRequestConfirmOpen,
+    setCancelJoinRequestConfirmOpen,
     kickConfirmOpen,
     setKickConfirmOpen,
     kickTargetUserId,
     setKickTargetUserId,
     handleSendMessage,
     handleLeaveRoom,
+    handleCancelJoinRequest,
     handleApprove,
     handleReject,
     handleKickParticipant,
@@ -83,11 +87,16 @@ export default function ChatPageClient() {
 
   const sortedChatRooms = useMemo(() => {
     return [...chatRooms].sort((a, b) => {
-      const aTime = a.lastMessageAt ?? a.messages?.at(-1)?.createdAt ?? "";
-      const bTime = b.lastMessageAt ?? b.messages?.at(-1)?.createdAt ?? "";
-      return bTime.localeCompare(aTime);
+      const aTime = Date.parse(a.sortPinnedAt ?? a.lastMessageAt ?? a.messages?.at(-1)?.createdAt ?? "");
+      const bTime = Date.parse(b.sortPinnedAt ?? b.lastMessageAt ?? b.messages?.at(-1)?.createdAt ?? "");
+      return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime);
     });
   }, [chatRooms]);
+
+  const activeParticipantStatus = activeRoom?.participants?.find(
+    (participant) => Number(participant.userId) === Number(currentUser?.id),
+  )?.status;
+  const isPendingRoom = activeParticipantStatus === "PENDING";
 
   const openProfileModal = (userId?: number | string | null) => {
     if (userId == null) return;
@@ -107,15 +116,8 @@ export default function ChatPageClient() {
 
   useEffect(() => {
     if (!activeRoom || !activeChatRoomId || !currentUser?.id) return;
+    if (isPendingRoom) return;
     if (initialReadHandledRef.current === String(activeChatRoomId)) return;
-
-    const hasUnreadRoom = (activeRoom.unreadCount ?? 0) > 0;
-    const hasUnreadMessages = (activeRoom.messages ?? []).some(
-      (message) =>
-        Number(message.senderId) !== Number(currentUser.id) && (message.unreadCount ?? 0) > 0,
-    );
-
-    if (!hasUnreadRoom && !hasUnreadMessages) return;
     initialReadHandledRef.current = String(activeChatRoomId);
 
     void (async () => {
@@ -123,9 +125,36 @@ export default function ChatPageClient() {
         await fetchWithAuth(`${CHAT_API_BASE_URL}/chat/rooms/${activeChatRoomId}/read`, {
           method: "POST",
         });
+        const messageIds = (activeRoom.messages ?? [])
+          .map((message) => Number(message.id))
+          .filter(Number.isFinite);
+        const readState = messageIds.length > 0
+          ? await getChatRoomReadState(Number(activeChatRoomId), messageIds)
+          : null;
+        const readStateByMessageId = readState
+          ? new Map(readState.messages.map((state) => [Number(state.messageId), state]))
+          : null;
+
         setChatRooms((prevRooms) =>
           prevRooms.map((room) =>
-            String(room.id) === String(activeChatRoomId) ? { ...room, unreadCount: 0 } : room,
+            String(room.id) === String(activeChatRoomId)
+              ? {
+                  ...room,
+                  unreadCount: 0,
+                  messages: readStateByMessageId
+                    ? room.messages.map((message) => {
+                        const state = readStateByMessageId.get(Number(message.id));
+                        return state
+                          ? {
+                              ...message,
+                              unreadCount: state.unreadCount,
+                              readBy: state.readers,
+                            }
+                          : message;
+                      })
+                    : room.messages,
+                }
+              : room,
           ),
         );
       } catch (error) {
@@ -133,7 +162,7 @@ export default function ChatPageClient() {
         console.error("채팅방 초기 읽음 처리에 실패했습니다.", error);
       }
     })();
-  }, [activeRoom, activeChatRoomId, currentUser?.id, setChatRooms]);
+  }, [activeRoom, activeChatRoomId, currentUser?.id, isPendingRoom, setChatRooms]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -274,21 +303,22 @@ export default function ChatPageClient() {
                 )}
                 <p className="flex-1 font-bold text-slate-800">{getRoomDisplayName(activeRoom)}</p>
 
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowRoomInfo((prev) => !prev)}
-                    className="relative rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                  >
-                    <Menu size={18} />
-                    {activeRoom.type === "GROUP" &&
-                      activeRoom.ownerId === Number(currentUser?.id) &&
-                      activeRoom.participants?.some((p) => p.status === "PENDING") && (
-                        <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
-                      )}
-                  </button>
+                {!isPendingRoom && (
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowRoomInfo((prev) => !prev)}
+                      className="relative rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                    >
+                      <Menu size={18} />
+                      {activeRoom.type === "GROUP" &&
+                        activeRoom.ownerId === Number(currentUser?.id) &&
+                        activeRoom.participants?.some((p) => p.status === "PENDING") && (
+                          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
+                        )}
+                    </button>
 
-                  {showRoomInfo && (
+                    {showRoomInfo && (
                     <div className="absolute right-0 top-10 z-50 w-64 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl">
                       <div className="max-h-[480px] overflow-y-auto p-3">
                         {activeRoom.type === "GROUP" && activeRoom.ownerId === Number(currentUser?.id) && (
@@ -434,12 +464,12 @@ export default function ChatPageClient() {
                         </div>
                       </div>
                     </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {activeRoom.participants?.find((p) => Number(p.userId) === Number(currentUser?.id))
-                ?.status === "PENDING" ? (
+              {isPendingRoom ? (
                 <div className="flex flex-1 flex-col items-center justify-center bg-slate-50 p-10 text-center">
                   <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-hp-50 text-hp-500">
                     <Clock size={32} />
@@ -448,6 +478,14 @@ export default function ChatPageClient() {
                   <p className="mt-2 text-sm text-slate-400">
                     방장의 승인 후 채팅에 참여할 수 있습니다. 승인 전까지는 메시지를 보낼 수 없습니다.
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => setCancelJoinRequestConfirmOpen(true)}
+                    className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 px-4 py-2 text-sm font-bold text-red-500 hover:bg-red-50"
+                  >
+                    <LogOut size={16} />
+                    요청 취소
+                  </button>
                 </div>
               ) : (
                 <>
@@ -476,6 +514,8 @@ export default function ChatPageClient() {
                             isSameSender={isSameSender}
                             isLastInGroup={isLastInGroup}
                             roomId={activeRoom.id}
+                            roomName={getRoomDisplayName(activeRoom)}
+                            roomType={activeRoom.type}
                             onProfileClick={openProfileModal}
                             onDeleted={(messageId) => {
                               setChatRooms((prev) =>
@@ -531,7 +571,6 @@ export default function ChatPageClient() {
 
       <ConfirmModal
         isOpen={kickConfirmOpen}
-        badge="Kick"
         title="참여자를 강퇴하시겠습니까?"
         description="강퇴된 참여자는 채팅방에서 즉시 제외됩니다."
         confirmLabel="강퇴"
@@ -542,7 +581,6 @@ export default function ChatPageClient() {
 
       <ConfirmModal
         isOpen={transferReminderOpen}
-        badge="안내"
         title="방장을 위임해주세요"
         description="참여자가 있는 경우 방장을 위임한 뒤 나가실 수 있습니다. 참여자를 우클릭해 방장을 위임해주세요."
         confirmLabel="확인"
@@ -551,8 +589,17 @@ export default function ChatPageClient() {
       />
 
       <ConfirmModal
+        isOpen={cancelJoinRequestConfirmOpen}
+        title="참여 요청을 취소하시겠습니까?"
+        description="취소하면 채팅방 목록에서 사라지며 다시 참여하려면 요청을 다시 보내야 합니다."
+        confirmLabel="요청 취소"
+        variant="danger"
+        onConfirm={() => void handleCancelJoinRequest()}
+        onClose={() => setCancelJoinRequestConfirmOpen(false)}
+      />
+
+      <ConfirmModal
         isOpen={leaveConfirmOpen}
-        badge="Leave Room"
         title="채팅방을 나가시겠습니까?"
         description="나가면 대화 내용이 삭제되며 다시 입장하려면 초대가 필요할 수 있습니다."
         confirmLabel="나가기"

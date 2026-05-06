@@ -159,7 +159,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const certValue = writeType === "study" ? postCert || postCertCategory || null : null;
 
     if (writeType === "study") {
-      await createStudy({
+      const createdStudy = await createStudy({
         userId: String(currentUser.id),
         author: currentUser.nickname,
         title: postTitle.trim(),
@@ -173,6 +173,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         createChatRoom,
       });
       if (createChatRoom) {
+        if (createdStudy.chatRoomId && typeof window !== "undefined") {
+          window.sessionStorage.setItem("highpass-pinned-chat-room-id", String(createdStudy.chatRoomId));
+        }
         setChatRoomsRefreshKey((k) => k + 1);
       }
     } else {

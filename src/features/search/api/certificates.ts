@@ -161,19 +161,34 @@ export async function listCertificateSchedules(): Promise<CertificateSchedule[]>
   ];
 }
 
+export async function getLastSyncedAt(): Promise<string | null> {
+  const response = await http.get("/api/certificates/last-synced");
+  const payload = unwrapData(response.data) as { lastSyncedAt?: string } | undefined;
+  return payload?.lastSyncedAt || null;
+}
+
 export async function syncCertificateSchedules(): Promise<CertificateSyncResult> {
-  const response = await http.post("/api/certificates/admin/sync");
-  if (typeof response.data === "string" && response.data.trim().startsWith("<")) {
+  const [qnetResponse, dataResponse] = await Promise.all([
+    http.post("/api/certificates/admin/sync"),
+    http.post("/api/certificates/admin/data-industry-sync"),
+  ]);
+
+  if (typeof qnetResponse.data === "string" && qnetResponse.data.trim().startsWith("<")) {
     throw new Error("자격증 동기화 API가 JSON 대신 HTML을 반환했습니다. 백엔드 인증 또는 보안 설정을 확인해 주세요.");
   }
-  const payload = unwrapData(response.data) as Partial<CertificateSyncResult> | undefined;
+  if (typeof dataResponse.data === "string" && dataResponse.data.trim().startsWith("<")) {
+    throw new Error("데이터 자격검정 동기화 API가 JSON 대신 HTML을 반환했습니다.");
+  }
+
+  const qnet = unwrapData(qnetResponse.data) as Partial<CertificateSyncResult> | undefined;
+  const data = unwrapData(dataResponse.data) as Partial<CertificateSyncResult> | undefined;
 
   return {
-    fetchedCount: safeNumber(payload?.fetchedCount),
-    createdCount: safeNumber(payload?.createdCount),
-    updatedCount: safeNumber(payload?.updatedCount),
-    totalCount: safeNumber(payload?.totalCount),
-    message: safeString(payload?.message, "자격증 일정 동기화가 완료되었습니다."),
+    fetchedCount: safeNumber(qnet?.fetchedCount) + safeNumber(data?.fetchedCount),
+    createdCount: safeNumber(qnet?.createdCount) + safeNumber(data?.createdCount),
+    updatedCount: safeNumber(qnet?.updatedCount) + safeNumber(data?.updatedCount),
+    totalCount: safeNumber(qnet?.totalCount) + safeNumber(data?.totalCount),
+    message: "자격증 일정 동기화가 완료되었습니다.",
   };
 }
 

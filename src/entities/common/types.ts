@@ -63,7 +63,7 @@ export interface BoardPost {
 }
 
 export interface ChatMessage {
-  id: number;
+  id?: number;
   senderId: string;
   senderName?: string;
   message: string;
@@ -89,6 +89,7 @@ export interface ChatRoom {
   displayName?: string;
   lastMessage?: string;
   lastMessageAt?: string;
+  sortPinnedAt?: string;
   participants?: ChatRoomParticipant[];
 }
 
@@ -96,6 +97,17 @@ export interface ChatRoomParticipant {
   userId: number;
   nickname: string;
   status: string;
+}
+
+export interface ChatMessageReadState {
+  messageId: number;
+  unreadCount: number;
+  readers: number[];
+}
+
+export interface ChatRoomReadState {
+  roomId: number;
+  messages: ChatMessageReadState[];
 }
 
 export interface SearchPlace {

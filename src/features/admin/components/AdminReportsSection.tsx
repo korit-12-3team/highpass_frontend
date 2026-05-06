@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CircleHelp, Clock3, MessageSquareWarning, X } from "lucide-react";
+import { CircleHelp, Clock3, MessageSquareWarning, MessagesSquare, X } from "lucide-react";
 import type {
   AdminReport,
   PostStatus,
@@ -13,6 +13,23 @@ import {
 
 function reporterLabel(report: AdminReport) {
   return report.reporter?.name || report.reporter?.email || "알 수 없음";
+}
+
+function reportTitle(report: AdminReport) {
+  if (report.targetType === "chat" && report.chatDetail?.roomName) {
+    return report.chatDetail.roomName;
+  }
+  return report.targetLabel;
+}
+
+function chatRoomTypeBadge(report: AdminReport) {
+  if (report.targetType !== "chat") return null;
+  const roomType = report.chatDetail?.roomType;
+  const label = roomType === "GROUP" ? "그룹 채팅방" : "1:1 채팅방";
+  const cls = roomType === "GROUP"
+    ? "bg-violet-50 text-violet-700"
+    : "bg-sky-50 text-sky-700";
+  return { label, cls };
 }
 
 function targetTypeLabel(targetType: AdminReport["targetType"]) {
@@ -51,6 +68,25 @@ function reportKindTone(report: AdminReport) {
       };
 }
 
+function targetNickname(report: AdminReport): string | undefined {
+  switch (report.targetType) {
+    case "user": return report.userDetail?.nickname;
+    case "post": return report.postDetail?.author;
+    case "comment": return report.commentDetail?.author;
+    case "chat": return report.chatDetail?.partner?.nickname;
+    default: return undefined;
+  }
+}
+
+function targetEmail(report: AdminReport): string | undefined {
+  switch (report.targetType) {
+    case "user": return report.userDetail?.email;
+    case "chat": return report.chatDetail?.partner?.email;
+    case "inquiry": return report.inquiryDetail?.accountEmail;
+    default: return undefined;
+  }
+}
+
 export function AdminReportsSection({
   reports,
   onUpdateReportStatus,
@@ -58,7 +94,7 @@ export function AdminReportsSection({
   onUpdateUserStatus,
 }: {
   reports: AdminReport[];
-  onUpdateReportStatus: (reportId: string, status: ReportStatus) => void;
+  onUpdateReportStatus: (reportId: string, status: ReportStatus, message?: string) => void;
   onUpdatePostStatus: (postId: string, status: PostStatus) => void;
   onUpdateUserStatus: (userId: string, status: UserStatus) => void;
 }) {
@@ -128,7 +164,7 @@ function ReportStatusSection({
   reports: AdminReport[];
   emptyMessage: string;
   onSelectReport: (report: AdminReport) => void;
-  onUpdateReportStatus: (reportId: string, status: ReportStatus) => void;
+  onUpdateReportStatus: (reportId: string, status: ReportStatus, message?: string) => void;
 }) {
   return (
     <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
@@ -174,12 +210,22 @@ function ReportStatusSection({
                         <div className="min-w-0">
                           <p className="truncate font-black text-slate-950">
                             <span className={`mr-2 rounded-full px-2 py-0.5 text-[11px] ${tone.badge}`}>
-                              {reportKindLabel(report)}
+                              {report.targetType === "inquiry"
+                                ? reportKindLabel(report)
+                                : `${reportKindLabel(report)} - ${targetTypeLabel(report.targetType)}`}
                             </span>
-                            {report.targetLabel}
+                            {(() => {
+                              const badge = chatRoomTypeBadge(report);
+                              return badge ? (
+                                <span className={`mr-1.5 rounded-full px-2 py-0.5 text-[11px] font-black ${badge.cls}`}>
+                                  {badge.label}
+                                </span>
+                              ) : null;
+                            })()}
+                            {reportTitle(report)}
                           </p>
                           <p className="mt-1 text-xs font-semibold text-slate-500">
-                            {targetTypeLabel(report.targetType)} · {formatAdminReportDate(report.createdAt)}
+                            {formatAdminReportDate(report.createdAt)}
                           </p>
                         </div>
                       </div>
@@ -242,11 +288,16 @@ function AdminReportDetailModal({
 }: {
   report: AdminReport;
   onClose: () => void;
-  onUpdateReportStatus: (reportId: string, status: ReportStatus) => void;
+  onUpdateReportStatus: (reportId: string, status: ReportStatus, message?: string) => void;
   onUpdatePostStatus: (postId: string, status: PostStatus) => void;
   onUpdateUserStatus: (userId: string, status: UserStatus) => void;
 }) {
+  const [responseDraft, setResponseDraft] = useState(report.adminResponse ?? "");
   const tone = reportKindTone(report);
+
+  const handleUpdateStatus = (status: ReportStatus) => {
+    onUpdateReportStatus(report.id, status, responseDraft.trim() || undefined);
+  };
 
   return (
     <div
@@ -263,10 +314,9 @@ function AdminReportDetailModal({
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className={`rounded-full px-2.5 py-1 text-xs font-black ${tone.badge}`}>
-                {reportKindLabel(report)}
-              </span>
-              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700">
-                {targetTypeLabel(report.targetType)}
+                {report.targetType === "inquiry"
+                  ? reportKindLabel(report)
+                  : `${reportKindLabel(report)} - ${targetTypeLabel(report.targetType)}`}
               </span>
               <span
                 className={`inline-flex rounded-full px-2.5 py-1 text-xs font-black ring-1 ${statusClass(report.status)}`}
@@ -275,7 +325,15 @@ function AdminReportDetailModal({
               </span>
             </div>
             <h3 className="mt-3 break-words text-2xl font-black text-slate-950">
-              {report.targetLabel}
+              {(() => {
+                const badge = chatRoomTypeBadge(report);
+                return badge ? (
+                  <span className={`mr-2 rounded-full px-2.5 py-1 text-sm font-black ${badge.cls}`}>
+                    {badge.label}
+                  </span>
+                ) : null;
+              })()}
+              {reportTitle(report)}
             </h3>
             <p className="mt-2 text-sm font-semibold text-slate-500">
               작성자 {reporterLabel(report)} · {formatAdminReportDate(report.createdAt)}
@@ -293,10 +351,19 @@ function AdminReportDetailModal({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <InfoCard label="구분" value={reportKindLabel(report)} />
-            <InfoCard label="대상 유형" value={targetTypeLabel(report.targetType)} />
-            <InfoCard label="대상 ID" value={report.targetId} />
-            <InfoCard label="상태" value={reportStatusLabel[report.status]} />
+            {(() => {
+              const nickname = targetNickname(report);
+              const email = targetEmail(report);
+              if (!nickname && !email) {
+                return <InfoCard label="대상 ID" value={report.targetId} />;
+              }
+              return (
+                <>
+                  {nickname ? <InfoCard label="닉네임" value={nickname} /> : null}
+                  {email ? <InfoCard label="이메일" value={email} /> : null}
+                </>
+              );
+            })()}
           </div>
 
           <section className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
@@ -305,12 +372,35 @@ function AdminReportDetailModal({
               {report.reason}
             </p>
           </section>
+
+          <section className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+            <div className="flex items-center gap-2">
+              <MessagesSquare size={15} className="text-slate-500" />
+              <h4 className="text-sm font-black text-slate-950">관리자 답변</h4>
+              {report.respondedAt ? (
+                <span className="text-xs font-semibold text-slate-400">
+                  {formatAdminReportDate(report.respondedAt)} 전송됨
+                </span>
+              ) : null}
+            </div>
+            <textarea
+              value={responseDraft}
+              onChange={(e) => setResponseDraft(e.target.value)}
+              rows={4}
+              maxLength={2000}
+              placeholder="사용자에게 전달할 답변을 입력하세요. 처리완료 또는 반려 버튼을 누를 때 함께 저장됩니다."
+              className="mt-3 w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-800 placeholder:text-slate-400 focus:border-hp-300 focus:bg-white focus:outline-none"
+            />
+            <p className="mt-1 text-right text-xs font-semibold text-slate-400">
+              {responseDraft.length} / 2000
+            </p>
+          </section>
         </div>
 
         <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-5 py-4">
           <button
             type="button"
-            onClick={() => onUpdateReportStatus(report.id, "resolved")}
+            onClick={() => handleUpdateStatus("resolved")}
             disabled={report.status === "resolved"}
             className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -318,7 +408,7 @@ function AdminReportDetailModal({
           </button>
           <button
             type="button"
-            onClick={() => onUpdateReportStatus(report.id, "dismissed")}
+            onClick={() => handleUpdateStatus("dismissed")}
             disabled={report.status === "dismissed"}
             className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
           >

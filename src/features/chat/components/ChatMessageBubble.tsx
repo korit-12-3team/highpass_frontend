@@ -12,6 +12,8 @@ type Props = {
   isSameSender: boolean;
   isLastInGroup: boolean;
   roomId: string | number;
+  roomName?: string;
+  roomType?: string;
   onProfileClick: (userId: string | number) => void;
   onDeleted: (messageId: number) => void;
 };
@@ -38,6 +40,8 @@ export default function ChatMessageBubble({
   isSameSender,
   isLastInGroup,
   roomId,
+  roomName,
+  roomType,
   onProfileClick,
   onDeleted,
 }: Props) {
@@ -45,6 +49,7 @@ export default function ChatMessageBubble({
   const [reportOpen, setReportOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const closedRef = useRef(false);
+  const shouldShowUnreadCount = isMe || roomType !== "PERSONAL";
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -125,9 +130,9 @@ export default function ChatMessageBubble({
               : <p className="whitespace-pre-wrap">{(message.message ?? (message as any).text) ?? "No content"}</p>
             }
           </div>
-          {!isMe && ((message.unreadCount ?? 0) > 0 || isLastInGroup) && (
+          {!isMe && (((message.unreadCount ?? 0) > 0 && shouldShowUnreadCount) || isLastInGroup) && (
             <div className="mb-1 flex flex-col items-start gap-0.5">
-              {(message.unreadCount ?? 0) > 0 && (
+              {shouldShowUnreadCount && (message.unreadCount ?? 0) > 0 && (
                 <span className="text-[10px] font-bold text-hp-400">{message.unreadCount}</span>
               )}
               {isLastInGroup && message.createdAt && (
@@ -172,7 +177,10 @@ export default function ChatMessageBubble({
           targetType="chat"
           targetId={String(roomId)}
           title="메시지 신고"
-          subtitle={`${message.senderName ?? "알 수 없음"}님의 메시지를 신고합니다.`}
+          subtitle={roomName
+            ? `${message.senderName ?? "알 수 없음"}님의 메시지를 신고합니다. (채팅방: ${roomName})`
+            : `${message.senderName ?? "알 수 없음"}님의 메시지를 신고합니다.`}
+          quotedMessage={!message.deleted ? (message.message ?? (message as any).text ?? undefined) : undefined}
           onClose={() => setReportOpen(false)}
         />
       )}

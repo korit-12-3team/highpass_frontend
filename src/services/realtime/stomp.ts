@@ -2,6 +2,7 @@ import SockJS from "sockjs-client";
 import { Client, IMessage } from "@stomp/stompjs";
 import { CHAT_API_BASE_URL, STOMP_ENDPOINT_URL } from "@/services/config/config";
 import { fetchWithAuth } from "@/services/auth/auth";
+import type { ChatRoomReadState } from "@/entities/common/types";
 
 async function readErrorMessage(response: Response, fallback: string) {
   try {
@@ -54,7 +55,14 @@ export const sendMessage = (client: Client | null, messageData: any) => {
 };
 
 function normalizeRoom(room: any) {
-  return { ...room, lastMessageAt: room.lastMessageAt ?? room.lastMessageTime };
+  const lastMessageAt =
+    room.lastMessageAt ??
+    room.lastMessageTime ??
+    room.messages?.at?.(-1)?.createdAt ??
+    room.createdAt ??
+    new Date().toISOString();
+
+  return { ...room, lastMessageAt };
 }
 
 export const getMyChatRooms = async () => {
@@ -88,7 +96,7 @@ export const enterChatRoom = async (partnerId: number | string) => {
   if (!response.ok) {
     throw new Error(await readErrorMessage(response, "채팅방을 생성하지 못했습니다."));
   }
-  return response.json();
+  return normalizeRoom(await response.json());
 };
 
 export const joinStudyChatRoom = async (
@@ -118,6 +126,15 @@ export const leaveRoom = async (roomId: number) => {
   }
 };
 
+export const cancelJoinRequest = async (roomId: number) => {
+  const response = await fetchWithAuth(`${CHAT_API_BASE_URL}/chat/rooms/${roomId}/join-request`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response, "참여 요청 취소에 실패했습니다."));
+  }
+};
+
 export const markChatRoomAsRead = async (roomId: number) => {
   const response = await fetchWithAuth(`${CHAT_API_BASE_URL}/chat/rooms/${roomId}/read`, {
     method: "POST",
@@ -125,6 +142,21 @@ export const markChatRoomAsRead = async (roomId: number) => {
   if (!response.ok) {
     throw new Error(await readErrorMessage(response, "채팅방 읽음 처리에 실패했습니다."));
   }
+};
+
+export const getChatRoomReadState = async (
+  roomId: number,
+  messageIds: number[],
+): Promise<ChatRoomReadState> => {
+  const response = await fetchWithAuth(`${CHAT_API_BASE_URL}/chat/rooms/${roomId}/read-state`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messageIds }),
+  });
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response, "채팅방 읽음 상태를 불러오지 못했습니다."));
+  }
+  return response.json();
 };
 
 export const kickParticipant = async (roomId: number, targetUserId: number) => {

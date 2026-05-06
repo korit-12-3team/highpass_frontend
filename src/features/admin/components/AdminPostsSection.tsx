@@ -17,6 +17,7 @@ import {
   statusClass,
 } from "@/features/admin/components/AdminCommon";
 import { listComments } from "@/features/boards/api/comments";
+import ConfirmModal from "@/shared/components/common/ConfirmModal";
 
 export function AdminPostsSection({
   posts,
@@ -31,6 +32,20 @@ export function AdminPostsSection({
   onBack: () => void;
   onUpdatePostStatus: (postId: string, status: PostStatus) => void;
 }) {
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description?: string;
+    confirmLabel: string;
+    variant: "primary" | "danger";
+    onConfirm: () => void;
+  }>({ isOpen: false, title: "", confirmLabel: "", variant: "primary", onConfirm: () => {} });
+
+  const closeConfirm = () => setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+
+  const openConfirm = (cfg: Omit<typeof confirmModal, "isOpen">) =>
+    setConfirmModal({ isOpen: true, ...cfg });
+
   if (selectedPost) {
     return (
       <section className="rounded-lg border border-slate-200 bg-white">
@@ -121,12 +136,12 @@ export function AdminPostsSection({
                 onClick={() => onOpenPost(post)}
                 className="cursor-pointer bg-white transition hover:bg-hp-50/80"
               >
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-hp-100 text-hp-700">
+                <td className="max-w-0 w-2/5 px-4 py-3">
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-hp-100 text-hp-700">
                       <FileText size={18} />
                     </span>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="truncate font-black text-slate-950">{post.title}</p>
                       <p className="mt-1 truncate text-xs font-semibold text-slate-500">
                         {post.content || "내용 없음"}
@@ -134,26 +149,26 @@ export function AdminPostsSection({
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3">
+                <td className="whitespace-nowrap px-4 py-3">
                   <span className="inline-flex items-center gap-2 font-bold text-slate-700">
                     <UserRound size={16} />
                     {post.author}
                   </span>
                 </td>
-                <td className="px-4 py-3 font-semibold text-slate-600">
+                <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-600">
                   {post.type === "study" ? "스터디 모집" : "자유 게시글"}
                 </td>
-                <td className="px-4 py-3">
+                <td className="whitespace-nowrap px-4 py-3">
                   <span
                     className={`inline-flex rounded-full px-2.5 py-1 text-xs font-black ring-1 ${statusClass(post.status)}`}
                   >
                     {postStatusLabel[post.status]}
                   </span>
                 </td>
-                <td className="px-4 py-3 font-semibold text-slate-600">
+                <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-600">
                   {formatDateOnly(post.createdAt)}
                 </td>
-                <td className="px-4 py-3 text-right font-semibold text-slate-600">
+                <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-slate-600">
                   조회 {post.views} · 댓글 {post.comments} · 신고 {post.reports}
                 </td>
                 <td
@@ -163,14 +178,28 @@ export function AdminPostsSection({
                   <div className="flex justify-end gap-2">
                     <button
                       type="button"
-                      onClick={() =>
-                        onUpdatePostStatus(
-                          post.id,
+                      onClick={() => {
+                        const nextStatus =
                           post.status === "deleted" || post.status === "hidden"
                             ? "visible"
-                            : "hidden",
-                        )
-                      }
+                            : "hidden";
+                        const isRestore = post.status === "deleted";
+                        const isUnhide = post.status === "hidden";
+                        openConfirm({
+                          title: isRestore ? "게시글 복구" : isUnhide ? "게시글 공개" : "게시글 숨김",
+                          description: isRestore
+                            ? "삭제된 게시글을 복구합니다. 게시글이 다시 공개됩니다."
+                            : isUnhide
+                              ? "숨겨진 게시글을 다시 공개합니다."
+                              : "이 게시글을 숨김 처리합니다. 작성자 외에는 보이지 않게 됩니다.",
+                          confirmLabel: isRestore ? "복구" : isUnhide ? "공개" : "숨김",
+                          variant: isRestore || isUnhide ? "primary" : "danger",
+                          onConfirm: () => {
+                            onUpdatePostStatus(post.id, nextStatus);
+                            closeConfirm();
+                          },
+                        });
+                      }}
                       className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50"
                     >
                       <CheckCircle2 size={14} />
@@ -183,9 +212,16 @@ export function AdminPostsSection({
                     <button
                       type="button"
                       onClick={() => {
-                        if (window.confirm("게시글을 삭제 처리하시겠습니까?")) {
-                          onUpdatePostStatus(post.id, "deleted");
-                        }
+                        openConfirm({
+                          title: "게시글 삭제",
+                          description: "이 게시글을 삭제 처리합니다. 관리자 페이지에서 복구할 수 있습니다.",
+                          confirmLabel: "삭제",
+                          variant: "danger",
+                          onConfirm: () => {
+                            onUpdatePostStatus(post.id, "deleted");
+                            closeConfirm();
+                          },
+                        });
                       }}
                       disabled={post.status === "deleted"}
                       className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-3 py-2 text-xs font-black text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40"
@@ -200,6 +236,15 @@ export function AdminPostsSection({
           </tbody>
         </table>
       </div>
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        description={confirmModal.description}
+        confirmLabel={confirmModal.confirmLabel}
+        variant={confirmModal.variant}
+        onConfirm={confirmModal.onConfirm}
+        onClose={closeConfirm}
+      />
     </section>
   );
 }

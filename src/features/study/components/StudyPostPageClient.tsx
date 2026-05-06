@@ -519,7 +519,14 @@ return (
                       try {
                         const result = await joinStudyChatRoom(post.id);
                         const rooms = await getMyChatRooms();
-                        setChatRooms(rooms);
+                        const pinnedAt = new Date().toISOString();
+                        setChatRooms(
+                          rooms.map((room) =>
+                            String(room.id) === String(result.roomId)
+                              ? { ...room, sortPinnedAt: pinnedAt }
+                              : room,
+                          ),
+                        );
                         toast.success("채팅방 참여를 신청했습니다. 방장의 승인을 기다려주세요.");
                       } catch (error) {
                         console.error("Join error:", error);
@@ -927,7 +934,6 @@ return (
 
     <ConfirmModal
       isOpen={confirmCommentId !== null}
-      badge="댓글"
       title="댓글을 삭제하시겠습니까?"
       description="삭제한 댓글은 복구할 수 없습니다."
       confirmLabel="삭제"
@@ -937,7 +943,6 @@ return (
     />
     <ConfirmModal
       isOpen={confirmDeletePost}
-      badge="게시글"
       title="게시글을 삭제하시겠습니까?"
       description="삭제한 게시글은 복구할 수 없습니다."
       confirmLabel="삭제"
@@ -947,7 +952,6 @@ return (
     />
     <ConfirmModal
       isOpen={cancelConfirmOpen}
-      badge="Edit"
       title="수정을 취소하시겠습니까?"
       description="확인을 누르면 현재 변경사항이 저장되지 않고 이전 상태로 되돌아갑니다."
       confirmLabel="확인"

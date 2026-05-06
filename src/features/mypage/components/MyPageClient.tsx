@@ -22,6 +22,7 @@ import { EmptyState, SectionCard } from "@/features/mypage/components/MyPageComm
 import { MyPageHeader, MyPageTabNav } from "@/features/mypage/components/MyPageHeader";
 import { MyPagePasswordModal } from "@/features/mypage/components/MyPagePasswordModal";
 import { MyPageProfileSection } from "@/features/mypage/components/MyPageProfileSection";
+import { MyPageReportsSection } from "@/features/mypage/components/MyPageReportsSection";
 import { MyPageWithdrawModal } from "@/features/mypage/components/MyPageWithdrawModal";
 import { SupportInquiryModal } from "@/features/support/components/SupportInquiryModal";
 import { listStudies } from "@/features/study/api/study-api";
@@ -38,14 +39,14 @@ type ProfileEditState = {
   newPasswordConfirm: string;
 };
 
-type MyPageTab = "profile" | "posts" | "comments" | "likes" | "settings";
+type MyPageTab = "profile" | "posts" | "comments" | "likes" | "settings" | "reports";
 type MyPageBoardFilter = "all" | "study" | "free";
 type MyCommentItem = {
   comment: PostComment;
   post: BoardPost;
 };
 
-const PROFILE_TABS: MyPageTab[] = ["profile", "posts", "comments", "likes", "settings"];
+const PROFILE_TABS: MyPageTab[] = ["profile", "posts", "comments", "likes", "reports", "settings"];
 const MIN_PASSWORD_LENGTH = 8;
 
 function stripAllWhitespace(value: string) {
@@ -586,6 +587,8 @@ export default function MyPageClient({
           <PostList posts={filteredLikedPosts} onOpenPost={openBoardPost} />
         </SectionCard>
       ) : null}
+
+      {activeTab === "reports" ? <MyPageReportsSection /> : null}
 
       {activeTab === "settings" ? (
         <SectionCard title="알림 설정" description="댓글과 좋아요 알림 수신 여부를 설정할 수 있습니다.">

@@ -5,9 +5,11 @@ import {
   Ban,
   CheckCircle2,
   Clock3,
+  Database,
   Eye,
   FileText,
   MessageSquareWarning,
+  RefreshCw,
   Search,
   ShieldCheck,
   UserMinus,
@@ -32,7 +34,7 @@ import { AdminReportsSection } from "@/features/admin/components/AdminReportsSec
 import { AdminSidebar } from "@/features/admin/components/AdminSidebar";
 import { AdminUsersSection } from "@/features/admin/components/AdminUsersSection";
 import { listComments } from "@/features/boards/api/comments";
-import { listCertificateSchedules, syncCertificateSchedules, type CertificateSchedule } from "@/features/search/api/certificates";
+import { getLastSyncedAt, listCertificateSchedules, syncCertificateSchedules, type CertificateSchedule } from "@/features/search/api/certificates";
 import type { PostComment } from "@/entities/common/types";
 import type {
   AdminPost,
@@ -100,6 +102,7 @@ export default function AdminPageClient() {
   const [certificateSyncing, setCertificateSyncing] = useState(false);
   const [certificateSyncMessage, setCertificateSyncMessage] = useState("");
   const [certificateSyncError, setCertificateSyncError] = useState("");
+  const [certificateLastSyncedAt, setCertificateLastSyncedAt] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState(() =>
     getStoredText(ADMIN_SELECTED_USER_STORAGE_KEY),
   );
@@ -162,10 +165,11 @@ export default function AdminPageClient() {
     void loadSection<AdminPost>("posts", setPosts);
     void loadSection<AdminReport>("reports", setReports);
     setApiStatus((prev) => ({ ...prev, certificates: "loading" }));
-    void listCertificateSchedules()
-      .then((items) => {
+    void Promise.all([listCertificateSchedules(), getLastSyncedAt()])
+      .then(([items, lastSyncedAt]) => {
         if (cancelled) return;
         setCertificateSchedules(items);
+        setCertificateLastSyncedAt(lastSyncedAt);
         setApiStatus((prev) => ({ ...prev, certificates: "ready" }));
       })
       .catch(() => {
@@ -274,6 +278,8 @@ export default function AdminPageClient() {
   const deletedPostCount = posts.filter((post) => post.status === "deleted").length;
   const resolvedReportCount = reports.filter((report) => report.status === "resolved").length;
   const dismissedReportCount = reports.filter((report) => report.status === "dismissed").length;
+  const qnetCount = certificateSchedules.filter((s) => s.sourceType === "qnet").length;
+  const dataIndustryCount = certificateSchedules.filter((s) => s.sourceType === "data-industry").length;
 
   const sectionTitle =
     activeSection === "users"
@@ -331,9 +337,16 @@ export default function AdminPageClient() {
     }
 
     if (activeSection === "certificates") {
+      const lastSyncLabel = certificateSyncing
+        ? "진행 중"
+        : certificateLastSyncedAt
+          ? new Date(certificateLastSyncedAt).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" })
+          : "기록 없음";
       return [
-        { id: "certificates-total", icon: <FileText size={18} />, label: "저장 일정", value: certificateSchedules.length },
-        { id: "certificates-sync", icon: <CheckCircle2 size={18} />, label: "갱신 상태", value: certificateSyncing ? "진행 중" : "대기" },
+        { id: "certificates-total", icon: <FileText size={18} />, label: "전체 일정", value: certificateSchedules.length },
+        { id: "certificates-qnet", icon: <CheckCircle2 size={18} />, label: "Q-NET", value: qnetCount },
+        { id: "certificates-data", icon: <Database size={18} />, label: "데이터자격검정", value: dataIndustryCount },
+        { id: "certificates-sync", icon: <RefreshCw size={18} />, label: "마지막 갱신", value: lastSyncLabel },
       ];
     }
 
@@ -345,12 +358,15 @@ export default function AdminPageClient() {
     ];
   }, [
     activeSection,
+    certificateLastSyncedAt,
     certificateSchedules.length,
     certificateSyncing,
+    dataIndustryCount,
     deletedPostCount,
     dismissedReportCount,
     hiddenPostCount,
     posts,
+    qnetCount,
     reportCount,
     reports.length,
     resolvedReportCount,
@@ -389,9 +405,9 @@ export default function AdminPageClient() {
     }
   };
 
-  const updateReportStatus = async (reportId: string, status: ReportStatus) => {
+  const updateReportStatus = async (reportId: string, status: ReportStatus, message?: string) => {
     try {
-      const updatedReport = await updateAdminReportStatus(reportId, status);
+      const updatedReport = await updateAdminReportStatus(reportId, status, message);
       setReports((prev) =>
         prev.map((report) =>
           report.id === reportId ? updatedReport : report,
@@ -417,11 +433,15 @@ export default function AdminPageClient() {
       setApiStatus((prev) => ({ ...prev, certificates: "loading" }));
 
       const result = await syncCertificateSchedules();
-      const nextSchedules = await listCertificateSchedules();
+      const [nextSchedules, lastSyncedAt] = await Promise.all([
+        listCertificateSchedules(),
+        getLastSyncedAt(),
+      ]);
 
       setCertificateSchedules(nextSchedules);
+      setCertificateLastSyncedAt(lastSyncedAt);
       setCertificateSyncMessage(
-        `${result.message} fetched ${result.fetchedCount}, created ${result.createdCount}, updated ${result.updatedCount}`,
+        `${result.message} 조회 ${result.fetchedCount}건, 신규 ${result.createdCount}건, 갱신 ${result.updatedCount}건`,
       );
       setApiStatus((prev) => ({ ...prev, certificates: "ready" }));
     } catch (error) {
@@ -627,8 +647,8 @@ export default function AdminPageClient() {
         {activeSection === "reports" ? (
           <AdminReportsSection
             reports={filteredReports}
-            onUpdateReportStatus={(reportId, status) =>
-              void updateReportStatus(reportId, status)
+            onUpdateReportStatus={(reportId, status, message) =>
+              void updateReportStatus(reportId, status, message)
             }
             onUpdatePostStatus={(postId, status) =>
               void updatePostStatus(postId, status)
@@ -641,7 +661,11 @@ export default function AdminPageClient() {
 
         {activeSection === "certificates" ? (
           <AdminCertificatesSection
+            schedules={certificateSchedules}
             totalSchedules={certificateSchedules.length}
+            qnetCount={qnetCount}
+            dataIndustryCount={dataIndustryCount}
+            lastSyncedAt={certificateLastSyncedAt}
             syncing={certificateSyncing}
             syncMessage={certificateSyncMessage}
             syncError={certificateSyncError}
@@ -719,7 +743,7 @@ function AdminPostPreviewModal({
               {post.title}
             </h3>
             <p className="mt-2 text-sm font-semibold text-slate-500">
-              {post.author} 쨌 {formatAdminPreviewDate(post.createdAt)} 쨌 議고쉶??{post.views}
+              {post.author} · {formatAdminPreviewDate(post.createdAt)} · 조회수 {post.views}
             </p>
           </div>
         </div>
@@ -727,15 +751,15 @@ function AdminPostPreviewModal({
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           <article className="rounded-lg border border-slate-200 bg-white p-4">
             <p className="min-h-36 whitespace-pre-wrap break-words text-sm leading-7 text-slate-700">
-              {post.content || "?댁슜???놁뒿?덈떎."}
+              {post.content || "내용이 없습니다."}
             </p>
           </article>
 
           <section className="mt-4 rounded-lg border border-slate-200 bg-white">
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-              <h4 className="text-sm font-black text-slate-950">?볤?</h4>
+              <h4 className="text-sm font-black text-slate-950">댓글</h4>
               <span className="text-xs font-black text-slate-400">
-                {comments.length}媛?
+                {comments.length}개
               </span>
             </div>
 

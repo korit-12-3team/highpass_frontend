@@ -252,7 +252,6 @@ function UserActionButtons({
       )}
       <ConfirmModal
         isOpen={!!confirmAction}
-        badge="Admin"
         title={confirmAction?.title ?? ""}
         description={confirmAction?.description}
         confirmLabel={confirmAction?.confirmLabel ?? "확인"}

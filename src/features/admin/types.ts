@@ -52,4 +52,40 @@ export type AdminReport = {
   };
   createdAt: string;
   status: ReportStatus;
+  adminResponse?: string;
+  respondedAt?: string;
+  userDetail?: {
+    userId: string;
+    nickname: string;
+    email: string;
+  };
+  postDetail?: {
+    postId: string;
+    postType: string;
+    title: string;
+    content: string;
+    author: string;
+  };
+  commentDetail?: {
+    commentId: string;
+    content: string;
+    author: string;
+    postType: string;
+    postId: string;
+    postTitle: string;
+  };
+  chatDetail?: {
+    roomId: string;
+    roomName: string;
+    roomType?: "PERSONAL" | "GROUP";
+    partner?: {
+      userId: string;
+      nickname: string;
+      email: string;
+    };
+  };
+  inquiryDetail?: {
+    title: string;
+    accountEmail: string;
+  };
 };

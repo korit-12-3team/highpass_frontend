@@ -35,7 +35,7 @@ export async function updateAdminPostStatus(postId: string, status: PostStatus):
   return response.data as AdminPost;
 }
 
-export async function updateAdminReportStatus(reportId: string, status: ReportStatus): Promise<AdminReport> {
-  const response = await http.patch(`/api/admin/reports/${encodeURIComponent(reportId)}/status`, { status });
+export async function updateAdminReportStatus(reportId: string, status: ReportStatus, message?: string): Promise<AdminReport> {
+  const response = await http.patch(`/api/admin/reports/${encodeURIComponent(reportId)}/status`, { status, message });
   return response.data as AdminReport;
 }

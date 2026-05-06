@@ -2,7 +2,6 @@
 
 interface ConfirmModalProps {
   isOpen: boolean;
-  badge?: string;
   title: string;
   description?: string;
   confirmLabel: string;
@@ -13,7 +12,6 @@ interface ConfirmModalProps {
 
 export default function ConfirmModal({
   isOpen,
-  badge,
   title,
   description,
   confirmLabel,
@@ -29,11 +27,15 @@ export default function ConfirmModal({
       : "bg-hp-600 text-white hover:bg-hp-700";
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 px-4">
-      <div className="w-full max-w-sm rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.24)]">
-        {badge && (
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">{badge}</p>
-        )}
+    <div
+      className="pointer-events-auto fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 px-4"
+      onClick={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      <div
+        className="w-full max-w-sm rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.24)]"
+        onClick={(event) => event.stopPropagation()}
+      >
         <h3 className="mt-2 text-xl font-black text-slate-950">{title}</h3>
         {description && (
           <p className="mt-3 text-sm font-semibold leading-6 text-slate-500">{description}</p>

@@ -605,7 +605,6 @@ return (
     </div>
     <ConfirmModal
       isOpen={confirmCommentId !== null}
-      badge="댓글"
       title="댓글을 삭제하시겠습니까?"
       description="삭제한 댓글은 복구할 수 없습니다."
       confirmLabel="삭제"
@@ -615,7 +614,6 @@ return (
     />
     <ConfirmModal
       isOpen={confirmDeletePost}
-      badge="게시글"
       title="게시글을 삭제하시겠습니까?"
       description="삭제한 게시글은 복구할 수 없습니다."
       confirmLabel="삭제"

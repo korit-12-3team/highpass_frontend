@@ -3,9 +3,16 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { useApp } from "@/shared/context/AppContext";
-import { getChatRoom, sendMessage, leaveRoom, kickParticipant } from "@/services/realtime/stomp";
+import {
+  getChatRoom,
+  sendMessage,
+  leaveRoom,
+  kickParticipant,
+  cancelJoinRequest,
+} from "@/services/realtime/stomp";
 import { fetchWithAuth } from "@/services/auth/auth";
 import { CHAT_API_BASE_URL } from "@/services/config/config";
+import type { ChatMessage } from "@/entities/common/types";
 
 export function useChatActions() {
   const {
@@ -20,6 +27,7 @@ export function useChatActions() {
   const [newRoomName, setNewRoomName] = useState("");
   const [isEditingName, setIsEditingName] = useState(false);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const [cancelJoinRequestConfirmOpen, setCancelJoinRequestConfirmOpen] = useState(false);
   const [kickConfirmOpen, setKickConfirmOpen] = useState(false);
   const [kickTargetUserId, setKickTargetUserId] = useState<number | null>(null);
 
@@ -50,6 +58,21 @@ export function useChatActions() {
     } catch {
       setLeaveConfirmOpen(false);
       toast.error("채팅방 나가기에 실패했습니다.");
+    }
+  };
+
+  const handleCancelJoinRequest = async () => {
+    if (!activeChatRoomId || !currentUser) return;
+
+    try {
+      await cancelJoinRequest(Number(activeChatRoomId));
+      setChatRooms((prev) => prev.filter((room) => String(room.id) !== String(activeChatRoomId)));
+      setActiveChatRoomId(null);
+      setCancelJoinRequestConfirmOpen(false);
+      toast.success("참여 요청을 취소했습니다.");
+    } catch {
+      setCancelJoinRequestConfirmOpen(false);
+      toast.error("참여 요청 취소에 실패했습니다.");
     }
   };
 
@@ -143,7 +166,7 @@ export function useChatActions() {
           return {
             ...room,
             ...latestRoom,
-            messages: (latestRoom.messages ?? []).map((msg) => ({
+            messages: (latestRoom.messages ?? []).map((msg: ChatMessage) => ({
               ...msg,
               readBy: existingById.get(String(msg.id))?.readBy,
             })),
@@ -227,12 +250,15 @@ export function useChatActions() {
     setIsEditingName,
     leaveConfirmOpen,
     setLeaveConfirmOpen,
+    cancelJoinRequestConfirmOpen,
+    setCancelJoinRequestConfirmOpen,
     kickConfirmOpen,
     setKickConfirmOpen,
     kickTargetUserId,
     setKickTargetUserId,
     handleSendMessage,
     handleLeaveRoom,
+    handleCancelJoinRequest,
     handleApprove,
     handleReject,
     handleKickParticipant,

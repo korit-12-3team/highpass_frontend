@@ -55,6 +55,7 @@ type ReportDialogProps = {
   title: string;
   subtitle: string;
   description?: string;
+  quotedMessage?: string;
   onClose: () => void;
   onSubmitted?: () => void;
 };
@@ -66,6 +67,7 @@ export default function ReportDialog({
   title,
   subtitle,
   description = "신고 내용은 관리자에게 전달되며 운영 검토에 사용됩니다.",
+  quotedMessage,
   onClose,
   onSubmitted,
 }: ReportDialogProps) {
@@ -93,13 +95,17 @@ export default function ReportDialog({
       return;
     }
 
+    const fullDetail = quotedMessage
+      ? `[신고 메시지]\n${quotedMessage}\n\n[신고 이유]\n${trimmedDetail}`
+      : trimmedDetail;
+
     try {
       setSubmitting(true);
       await createReport({
         targetType,
         targetId,
         reasonCode,
-        detail: trimmedDetail,
+        detail: fullDetail,
       });
       toast.success("신고가 접수되었습니다.");
       onSubmitted?.();
@@ -142,6 +148,15 @@ export default function ReportDialog({
             <X size={16} />
           </button>
         </div>
+
+        {quotedMessage ? (
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">신고 대상 메시지</p>
+            <p className="mt-2 line-clamp-4 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">
+              {quotedMessage}
+            </p>
+          </div>
+        ) : null}
 
         <div className="mt-5 space-y-4">
           <div>

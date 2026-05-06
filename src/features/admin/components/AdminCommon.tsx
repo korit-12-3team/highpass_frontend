@@ -75,12 +75,12 @@ export function AdminStat({
   value: number | string;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+    <div className="min-w-0 rounded-lg border border-slate-200 bg-white px-4 py-3">
       <div className="flex items-center justify-between">
         <p className="text-xs font-black uppercase text-slate-400">{label}</p>
         <span className="text-hp-600">{icon}</span>
       </div>
-      <p className="mt-2 text-2xl font-black text-slate-950">{value}</p>
+      <p className="mt-2 break-keep text-2xl font-black text-slate-950">{value}</p>
     </div>
   );
 }

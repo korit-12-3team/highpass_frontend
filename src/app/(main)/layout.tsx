@@ -15,6 +15,7 @@ import { listNotifications } from "@/features/notifications/api/notifications";
 import {
   createChatClient,
   enterChatRoom,
+  getChatRoomReadState,
   getMyChatRooms,
   markChatRoomAsRead,
 } from "@/services/realtime/stomp";
@@ -55,6 +56,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     setPostCertCategory,
     selectedPlace,
     setSelectedPlace,
+    selectedTags,
     setSelectedTags,
     createChatRoom,
     setCreateChatRoom,
@@ -81,6 +83,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   const activeChatRoomIdRef = useRef(activeChatRoomId);
   const pathnameRef = useRef(pathname);
+  const chatRoomsRef = useRef(chatRooms);
+  const readStateTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {
     activeChatRoomIdRef.current = activeChatRoomId;
@@ -89,6 +93,65 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     pathnameRef.current = pathname;
   }, [pathname]);
+
+  useEffect(() => {
+    chatRoomsRef.current = chatRooms;
+  }, [chatRooms]);
+
+  const refreshChatReadState = (roomId: number) => {
+    const existingTimer = readStateTimersRef.current.get(roomId);
+    if (existingTimer) clearTimeout(existingTimer);
+
+    const timer = setTimeout(() => {
+      readStateTimersRef.current.delete(roomId);
+
+      const targetRoom = chatRoomsRef.current.find((room) => Number(room.id) === roomId);
+      const messageIds = (targetRoom?.messages ?? [])
+        .map((message) => Number(message.id))
+        .filter(Number.isFinite);
+
+      if (messageIds.length === 0) return;
+
+      void getChatRoomReadState(roomId, messageIds)
+        .then((readState) => {
+          const stateByMessageId = new Map(
+            readState.messages.map((state) => [Number(state.messageId), state]),
+          );
+
+          setChatRooms((prevRooms) =>
+            prevRooms.map((room) =>
+              Number(room.id) !== roomId
+                ? room
+                : {
+                    ...room,
+                    messages: room.messages.map((message) => {
+                      const state = stateByMessageId.get(Number(message.id));
+                      return state
+                        ? {
+                            ...message,
+                            unreadCount: state.unreadCount,
+                            readBy: state.readers,
+                          }
+                        : message;
+                    }),
+                  },
+            ),
+          );
+        })
+        .catch((error) => {
+          console.error("Failed to refresh chat read state:", error);
+        });
+    }, 350);
+
+    readStateTimersRef.current.set(roomId, timer);
+  };
+
+  useEffect(() => {
+    return () => {
+      readStateTimersRef.current.forEach((timer) => clearTimeout(timer));
+      readStateTimersRef.current.clear();
+    };
+  }, []);
 
   const ready = authReady && isAuthenticated && !!currentUser;
 
@@ -207,10 +270,26 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         const rooms = await getMyChatRooms();
         if (cancelled) return;
 
-        setChatRooms(rooms);
+        const pinnedRoomId =
+          typeof window !== "undefined"
+            ? window.sessionStorage.getItem("highpass-pinned-chat-room-id")
+            : null;
+        const nextRooms = pinnedRoomId
+          ? rooms.map((room: any) =>
+              String(room.id) === pinnedRoomId
+                ? { ...room, sortPinnedAt: new Date().toISOString() }
+                : room,
+            )
+          : rooms;
+
+        if (pinnedRoomId && typeof window !== "undefined") {
+          window.sessionStorage.removeItem("highpass-pinned-chat-room-id");
+        }
+
+        setChatRooms(nextRooms);
         setActiveChatRoomId((prev) => {
-          const exists = prev != null && rooms.some((r: any) => String(r.id) === String(prev));
-          return exists ? prev : (rooms[0]?.id ?? null);
+          const exists = prev != null && nextRooms.some((r: any) => String(r.id) === String(prev));
+          return exists ? prev : (nextRooms[0]?.id ?? null);
         });
       } catch (error) {
         console.error("Failed to load chat rooms:", error);
@@ -230,41 +309,19 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       chatRooms.map((room) => Number(room.id)).filter(Number.isFinite),
       (newMessage) => {
         if (newMessage.type === "READ") {
-          setChatRooms((prev) =>
-            prev.map((room) => {
-              if (Number(room.id) !== Number(newMessage.roomId)) return room;
+          const roomId = Number(newMessage.roomId);
+          if (Number.isFinite(roomId)) {
+            const readerIsCurrentUser = Number(newMessage.senderId) === Number(currentUser?.id);
+            if (readerIsCurrentUser) {
+              setChatRooms((prev) =>
+                prev.map((room) =>
+                  Number(room.id) === roomId ? { ...room, unreadCount: 0 } : room,
+                ),
+              );
+            }
 
-              const readerIsCurrentUser =
-                Number(newMessage.senderId) === Number(currentUser?.id);
-              const isPersonalRoom = room.type === "PERSONAL";
-              const readerId = Number(newMessage.senderId);
-
-              return {
-                ...room,
-                unreadCount: readerIsCurrentUser ? 0 : room.unreadCount,
-                messages: room.messages.map((message) => {
-                  const alreadyCounted = (message.readBy ?? []).includes(readerId);
-                  if (alreadyCounted) return message;
-
-                  // 읽은 사람이 해당 메시지의 발신자면 unreadCount에 포함 안 됐으므로 skip
-                  if (Number(message.senderId) === readerId) return message;
-
-                  if (readerIsCurrentUser) {
-                    // currentUser는 API/STOMP 모두 unreadCount에서 이미 제외돼 있으므로 감소 없이 readBy만 기록
-                    return { ...message, readBy: [...(message.readBy ?? []), readerId] };
-                  }
-
-                  return {
-                    ...message,
-                    readBy: [...(message.readBy ?? []), readerId],
-                    unreadCount: isPersonalRoom
-                      ? 0
-                      : Math.max(0, (message.unreadCount ?? 0) - 1),
-                  };
-                }),
-              };
-            }),
-          );
+            refreshChatReadState(roomId);
+          }
           return;
         }
 
@@ -541,11 +598,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               return;
             }
 
-            const dbRoom = await enterChatRoom(profile.id);
+            const dbRoom = {
+              ...(await enterChatRoom(profile.id)),
+              sortPinnedAt: new Date().toISOString(),
+            };
 
             setChatRooms((prev) => {
               const isIncluded = prev.some((room) => room.id === dbRoom.id);
-              return isIncluded ? prev : [...prev, dbRoom];
+              return isIncluded ? prev : [dbRoom, ...prev];
             });
             setActiveChatRoomId(dbRoom.id);
             setProfileModal(null);
@@ -573,6 +633,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         setPostCertCategory={setPostCertCategory}
         selectedPlace={selectedPlace}
         setSelectedPlace={setSelectedPlace}
+        selectedTags={selectedTags}
+        setSelectedTags={setSelectedTags}
         createChatRoom={createChatRoom}
         setCreateChatRoom={setCreateChatRoom}
         onClose={resetWriteForm}
@@ -596,7 +658,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
       <ConfirmModal
         isOpen={logoutConfirmOpen}
-        badge="Logout"
         title="로그아웃하시겠습니까?"
         description="확인을 누르면 현재 계정에서 로그아웃됩니다."
         confirmLabel="로그아웃"

@@ -1,14 +1,15 @@
 import React from "react";
-import { FileText, Heart, MessageSquare, Settings, User } from "lucide-react";
+import { FileText, Heart, MessageSquare, MessageSquareWarning, Settings, User } from "lucide-react";
 import type { UserProfile } from "@/entities/common/types";
 
-type MyPageTab = "profile" | "posts" | "comments" | "likes" | "settings";
+type MyPageTab = "profile" | "posts" | "comments" | "likes" | "settings" | "reports";
 
 const TAB_ITEMS: { id: MyPageTab; label: string; icon: React.ReactNode }[] = [
   { id: "profile", label: "회원정보", icon: <User size={16} /> },
   { id: "posts", label: "내 게시물", icon: <FileText size={16} /> },
   { id: "likes", label: "좋아요", icon: <Heart size={16} /> },
   { id: "comments", label: "내 댓글", icon: <MessageSquare size={16} /> },
+  { id: "reports", label: "신고/문의", icon: <MessageSquareWarning size={16} /> },
   { id: "settings", label: "설정", icon: <Settings size={16} /> },
 ];
 

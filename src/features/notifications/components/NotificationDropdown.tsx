@@ -177,7 +177,6 @@ export default function NotificationDropdown({
       </div>
       <ConfirmModal
         isOpen={confirmDeleteAllOpen}
-        badge="알림"
         title="모든 알림을 삭제하시겠습니까?"
         description="삭제한 알림은 복구할 수 없습니다."
         confirmLabel="전체 삭제"
