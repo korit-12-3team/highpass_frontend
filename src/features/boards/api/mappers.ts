@@ -21,6 +21,7 @@ export type BoardApiRecord = {
   comments?: unknown;
   cert?: unknown;
   location?: unknown;
+  address?: unknown;
   lat?: unknown;
   lng?: unknown;
   likedByUser?: unknown;
@@ -96,6 +97,7 @@ export function mapApiRecordToBoardPost(record: BoardApiRecord): BoardPost {
     comments: safeComments(record.comments),
     cert: record.cert == null ? null : safeString(record.cert),
     location: typeof record.location === "string" ? record.location : undefined,
+    address: typeof record.address === "string" ? record.address : undefined,
     lat: typeof record.lat === "number" ? record.lat : undefined,
     lng: typeof record.lng === "number" ? record.lng : undefined,
     likedByUser: typeof record.likedByUser === "boolean" ? record.likedByUser : undefined,
@@ -118,6 +120,7 @@ export function mapStudyRecordToBoardPost(record: StudyApiRecord): BoardPost {
     comments: [],
     cert: safeString(record.cert) || null,
     location: safeString(record.locationName ?? record.address),
+    address: safeString(record.address),
     lat: typeof record.latitude === "number" ? record.latitude : undefined,
     lng: typeof record.longitude === "number" ? record.longitude : undefined,
     likedByUser: typeof record.likedByUser === "boolean" ? record.likedByUser : undefined,

@@ -63,6 +63,7 @@ export async function createStudy(input: {
       comments: [],
       cert: input.cert ?? null,
       location: input.locationName ?? input.address,
+      address: input.address,
       lat: input.latitude,
       lng: input.longitude,
       likedByUser: false,

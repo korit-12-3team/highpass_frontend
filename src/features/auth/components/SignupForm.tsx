@@ -216,34 +216,43 @@ export default function SignupForm({ isSocialSignup, socialSignupData }: SignupF
             <p className="mt-1 text-xs text-slate-500">이메일과 비밀번호는 소셜 계정 인증값을 사용합니다.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(140px,180px)] gap-2">
-            <input
-              type="text"
-              value={emailLocalPart}
-              onChange={(e) => setEmailLocalPart(stripAllWhitespace(e.target.value))}
-              placeholder="email"
-              className="w-full rounded-xl border border-hp-200 bg-hp-50 px-4 py-3 text-slate-800 outline-none focus:border-hp-500"
-              required
-            />
-            <div className="flex items-center justify-center text-slate-500">@</div>
-            <select
-              value={emailDomain}
-              onChange={(e) => setEmailDomain(e.target.value)}
-              className="appearance-none rounded-xl border border-hp-200 bg-hp-50 px-3 py-3 text-slate-800 outline-none focus:border-hp-500"
-              required
-            >
-              <option value="">선택</option>
-              {EMAIL_DOMAIN_OPTIONS.map((domain) => (
-                <option key={domain} value={domain}>
-                  {domain}
-                </option>
-              ))}
-            </select>
+          <div>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(140px,180px)] gap-2">
+              <input
+                type="text"
+                value={emailLocalPart}
+                onChange={(e) => {
+                  setEmailLocalPart(stripAllWhitespace(e.target.value));
+                  setError("");
+                }}
+                placeholder="이메일"
+                className="w-full rounded-xl border border-hp-200 bg-hp-50 px-4 py-3 text-slate-800 outline-none focus:border-hp-500"
+                required
+              />
+              <div className="flex items-center justify-center text-slate-500">@</div>
+              <select
+                value={emailDomain}
+                onChange={(e) => {
+                  setEmailDomain(e.target.value);
+                  setError("");
+                }}
+                className="appearance-none rounded-xl border border-hp-200 bg-hp-50 px-3 py-3 text-slate-800 outline-none focus:border-hp-500"
+                required
+              >
+                <option value="">선택</option>
+                {EMAIL_DOMAIN_OPTIONS.map((domain) => (
+                  <option key={domain} value={domain}>
+                    {domain}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <p className="mt-1.5 text-xs text-slate-500">가입에 사용할 이메일 주소를 선택해 주세요.</p>
           </div>
         )}
 
         {!isSocialSignup ? (
-          <>
+          <div className="space-y-2">
             <input
               type="password"
               value={password}
@@ -257,6 +266,9 @@ export default function SignupForm({ isSocialSignup, socialSignupData }: SignupF
               className="w-full rounded-xl border border-hp-200 bg-hp-50 px-4 py-3 text-slate-800 outline-none focus:border-hp-500"
               required
             />
+            <p className={`text-xs ${isPasswordTooShort ? "text-red-500" : "text-slate-500"}`}>
+              비밀번호는 {MIN_PASSWORD_LENGTH}자 이상 입력해 주세요.
+            </p>
             <input
               type="password"
               value={passwordConfirm}
@@ -274,53 +286,66 @@ export default function SignupForm({ isSocialSignup, socialSignupData }: SignupF
               className="w-full rounded-xl border border-hp-200 bg-hp-50 px-4 py-3 text-slate-800 outline-none focus:border-hp-500"
               required
             />
-          </>
+            <p className={`text-xs ${isPasswordMismatch ? "text-red-500" : "text-slate-500"}`}>
+              위에 입력한 비밀번호와 동일하게 입력해 주세요.
+            </p>
+          </div>
         ) : null}
 
-        <input
-          type="text"
-          value={nickname}
-          onChange={(e) => {
-            setNickname(stripAllWhitespace(e.target.value));
-            setError("");
-          }}
-          onBlur={() => setNickname((prev) => stripAllWhitespace(prev))}
-          placeholder="닉네임"
-          className="w-full rounded-xl border border-hp-200 bg-hp-50 px-4 py-3 text-slate-800 outline-none focus:border-hp-500"
-          required
-        />
-
-        <div className="grid grid-cols-2 gap-2">
-          <select
-            value={siDo}
+        <div>
+          <input
+            type="text"
+            value={nickname}
             onChange={(e) => {
-              setSiDo(e.target.value);
-              setGunGu("");
+              setNickname(stripAllWhitespace(e.target.value));
+              setError("");
             }}
-            className="appearance-none rounded-xl border border-hp-200 bg-hp-50 px-3 py-3 text-slate-800 outline-none focus:border-hp-500"
+            onBlur={() => setNickname((prev) => stripAllWhitespace(prev))}
+            placeholder="닉네임"
+            className="w-full rounded-xl border border-hp-200 bg-hp-50 px-4 py-3 text-slate-800 outline-none focus:border-hp-500"
             required
-          >
-            <option value="">시/도 선택</option>
-            {Object.keys(REGION_DATA).map((region) => (
-              <option key={region} value={region}>
-                {region}
-              </option>
-            ))}
-          </select>
-          <select
-            value={gunGu}
-            onChange={(e) => setGunGu(e.target.value)}
-            disabled={!siDo}
-            className="appearance-none rounded-xl border border-hp-200 bg-hp-50 px-3 py-3 text-slate-800 outline-none focus:border-hp-500 disabled:opacity-40"
-            required
-          >
-            <option value="">구/군 선택</option>
-            {(REGION_DATA[siDo] || []).map((region) => (
-              <option key={region} value={region}>
-                {region}
-              </option>
-            ))}
-          </select>
+          />
+          <p className="mt-1.5 text-xs text-slate-500">닉네임에는 공백을 사용할 수 없습니다.</p>
+        </div>
+
+        <div>
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              value={siDo}
+              onChange={(e) => {
+                setSiDo(e.target.value);
+                setGunGu("");
+                setError("");
+              }}
+              className="appearance-none rounded-xl border border-hp-200 bg-hp-50 px-3 py-3 text-slate-800 outline-none focus:border-hp-500"
+              required
+            >
+              <option value="">시/도 선택</option>
+              {Object.keys(REGION_DATA).map((region) => (
+                <option key={region} value={region}>
+                  {region}
+                </option>
+              ))}
+            </select>
+            <select
+              value={gunGu}
+              onChange={(e) => {
+                setGunGu(e.target.value);
+                setError("");
+              }}
+              disabled={!siDo}
+              className="appearance-none rounded-xl border border-hp-200 bg-hp-50 px-3 py-3 text-slate-800 outline-none focus:border-hp-500 disabled:opacity-40"
+              required
+            >
+              <option value="">시/군/구 선택</option>
+              {(REGION_DATA[siDo] || []).map((region) => (
+                <option key={region} value={region}>
+                  {region}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="mt-1.5 text-xs text-slate-500">스터디 추천과 지역 기반 검색에 사용할 지역을 선택해 주세요.</p>
         </div>
 
         <div>
@@ -330,7 +355,10 @@ export default function SignupForm({ isSocialSignup, socialSignupData }: SignupF
               <button
                 type="button"
                 key={item}
-                onClick={() => setAgeRange(item)}
+                onClick={() => {
+                  setAgeRange(item);
+                  setError("");
+                }}
                 className={`rounded-lg py-2 text-sm font-medium transition-colors ${
                   ageRange === item ? "bg-hp-600 text-white" : "border border-hp-200 bg-white text-slate-600 hover:border-hp-400"
                 }`}
@@ -339,6 +367,7 @@ export default function SignupForm({ isSocialSignup, socialSignupData }: SignupF
               </button>
             ))}
           </div>
+          <p className="mt-1.5 text-xs text-slate-500">프로필에 표시될 연령대를 선택해 주세요.</p>
         </div>
 
         <div>
@@ -348,7 +377,10 @@ export default function SignupForm({ isSocialSignup, socialSignupData }: SignupF
               <button
                 type="button"
                 key={item}
-                onClick={() => setGender(item)}
+                onClick={() => {
+                  setGender(item);
+                  setError("");
+                }}
                 className={`rounded-lg py-2 text-sm font-medium transition-colors ${
                   gender === item ? "bg-hp-600 text-white" : "border border-hp-200 bg-white text-slate-600 hover:border-hp-400"
                 }`}
@@ -357,6 +389,7 @@ export default function SignupForm({ isSocialSignup, socialSignupData }: SignupF
               </button>
             ))}
           </div>
+          <p className="mt-1.5 text-xs text-slate-500">프로필 기본 정보로 사용됩니다.</p>
         </div>
 
         {error || showPasswordMismatch || showPasswordTooShort ? (
@@ -385,7 +418,7 @@ export default function SignupForm({ isSocialSignup, socialSignupData }: SignupF
           }
           className="w-full rounded-xl bg-hp-600 py-3.5 font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
         >
-          {loading ? "..." : "회원가입"}
+          {loading ? "처리 중..." : "회원가입"}
         </button>
       </form>
 

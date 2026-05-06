@@ -48,6 +48,7 @@ export interface BoardPost {
   content: string;
   author: string;
   location?: string;
+  address?: string;
   lat?: number;
   lng?: number;
   views: number;

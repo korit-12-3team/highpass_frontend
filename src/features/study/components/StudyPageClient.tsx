@@ -12,6 +12,33 @@ import { useApp } from "@/shared/context/AppContext";
 
 const CUSTOM_CERT_FILTER = "기타";
 
+function normalizeRegionText(value?: string) {
+  return (value ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function getPostRegionText(post: BoardPost) {
+  return normalizeRegionText([post.address, post.location].filter(Boolean).join(" "));
+}
+
+function matchesSiDo(regionText: string, siDo: string) {
+  if (!siDo) return true;
+  const normalizedSiDo = normalizeRegionText(siDo);
+  const shortName = normalizedSiDo
+    .replace(/특별자치시|특별자치도|특별시|광역시|자치도|도$/g, "")
+    .replace(/^충청북$/, "충북")
+    .replace(/^충청남$/, "충남")
+    .replace(/^전라북$/, "전북")
+    .replace(/^전라남$/, "전남")
+    .replace(/^경상북$/, "경북")
+    .replace(/^경상남$/, "경남");
+  return regionText.includes(normalizedSiDo) || (!!shortName && regionText.includes(shortName));
+}
+
+function matchesGunGu(regionText: string, gunGu: string) {
+  if (!gunGu) return true;
+  return regionText.includes(normalizeRegionText(gunGu));
+}
+
 function sortPosts(posts: BoardPost[]) {
   return posts.slice().sort((a, b) => {
     const dt = getBoardCreatedAtTime(b.createdAt) - getBoardCreatedAtTime(a.createdAt);
@@ -119,8 +146,14 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
         return false;
       }
 
-      if (locationFilterGunGu && !post.location?.includes(locationFilterGunGu)) return false;
-      if (locationFilterSiDo && !locationFilterGunGu && !post.location?.includes(locationFilterSiDo)) return false;
+      if (locationFilterSiDo || locationFilterGunGu) {
+        if (post.location === "online") return false;
+        const regionText = getPostRegionText(post);
+        if (!regionText) return false;
+        if (!matchesSiDo(regionText, locationFilterSiDo)) return false;
+        if (!matchesGunGu(regionText, locationFilterGunGu)) return false;
+      }
+
       return true;
     });
   }, [certCategoryFilter, certFilter, certificateOptionSet, locationFilterGunGu, locationFilterSiDo, posts]);
@@ -177,7 +210,6 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
 
 return (
     <div className="mx-auto max-w-5xl animate-in fade-in duration-500 px-4 py-8">
-      {/* Header */}
       <div className="mb-8 flex items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-950">스터디 모집</h2>
@@ -194,7 +226,6 @@ return (
         </button>
       </div>
 
-      {/* Filter Section: No Borders, Only Shadow */}
       <div className="mb-6 grid gap-4 lg:grid-cols-[1.2fr_1fr_120px]">
         <div className="rounded-2xl bg-white p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
           <p className="mb-3 ml-1 text-[10px] font-black uppercase tracking-wider text-slate-400">자격증 영역</p>
@@ -226,7 +257,7 @@ return (
                 disabled={!certCategoryFilter}
                 className="rounded-xl border-none bg-slate-50 px-3 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-hp-100 disabled:opacity-40"
               >
-                <option value="">{ !certCategoryFilter ? "분류 선택" : "자격증 선택" }</option>
+                <option value="">{!certCategoryFilter ? "분류 선택" : "자격증 선택"}</option>
                 {certOptions.map((cert) => (
                   <option key={cert} value={cert}>{cert}</option>
                 ))}
@@ -257,7 +288,7 @@ return (
               disabled={!locationFilterSiDo}
               className="rounded-xl border-none bg-slate-50 px-3 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-hp-100 disabled:opacity-40"
             >
-              <option value="">전체 구/군</option>
+              <option value="">전체 시/군/구</option>
               {(REGION_DATA[locationFilterSiDo] || []).map((gunGu) => (
                 <option key={gunGu} value={gunGu}>{gunGu}</option>
               ))}
@@ -290,8 +321,8 @@ return (
               onClick={() => openPost(post.id)}
               className="group cursor-pointer rounded-2xl border border-slate-200 bg-white px-6 py-4 transition hover:bg-slate-50/50 hover:shadow-sm"
             >
-              <div className="flex flex-wrap items-center gap-2.5 mb-3">
-                <h3 className="text-lg font-bold tracking-tight text-slate-900 group-hover:text-hp-600 transition-colors">
+              <div className="mb-3 flex flex-wrap items-center gap-2.5">
+                <h3 className="text-lg font-bold tracking-tight text-slate-900 transition-colors group-hover:text-hp-600">
                   {post.title}
                 </h3>
                 <span className="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-bold text-amber-600">
@@ -312,29 +343,29 @@ return (
                   </span>
                 )}
               </div>
-              
-              <p className="line-clamp-2 whitespace-pre-line text-sm leading-relaxed text-slate-500 font-medium">
+
+              <p className="line-clamp-2 whitespace-pre-line text-sm font-medium leading-relaxed text-slate-500">
                 {post.content}
               </p>
 
-                <div className="mt-2 flex items-center border-t border-slate-50 pt-2">
-                  <div className="flex flex-1 items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setProfileModal(post.authorId);
-                      }}
-                      className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold text-slate-700 transition hover:bg-slate-200"
-                    >
-                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-hp-100 text-[10px] font-bold text-hp-700">
-                        {getInitial(post.author)}
-                      </div>
-                      {post.author}
-                    </button>
-                    <span className="text-[11px] font-medium text-slate-400">{formatBoardCreatedAt(post.createdAt)}</span>
-                  </div>
-                                
+              <div className="mt-2 flex items-center border-t border-slate-50 pt-2">
+                <div className="flex flex-1 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setProfileModal(post.authorId);
+                    }}
+                    className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold text-slate-700 transition hover:bg-slate-200"
+                  >
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-hp-100 text-[10px] font-bold text-hp-700">
+                      {getInitial(post.author)}
+                    </div>
+                    {post.author}
+                  </button>
+                  <span className="text-[11px] font-medium text-slate-400">{formatBoardCreatedAt(post.createdAt)}</span>
+                </div>
+
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
