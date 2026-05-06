@@ -7,7 +7,7 @@ import { Clock, Eye, Heart, Loader2, MapPin, MessageCircle, Search, X } from "lu
 import { useKakaoLoader } from "react-kakao-maps-sdk";
 import KakaoMap from "@/shared/components/map/KakaoMap";
 import { KAKAO_MAP_APPKEY } from "@/services/config/config";
-import type { BoardPost, PostComment, SearchPlace } from "@/entities/common/types";
+import type { BoardPost, ChatRoom, PostComment, SearchPlace } from "@/entities/common/types";
 import { createComment, deleteComment as deleteCommentRequest, listComments, updateComment as updateCommentRequest } from "@/features/boards/api/comments";
 import { isPostLiked, saveLikedPost, toggleBoardLike } from "@/features/boards/api/likes";
 import { CERT_DATA } from "@/shared/constants";
@@ -235,6 +235,10 @@ export default function StudyPostPageClient({
   };
 
   const doRemoveComment = async (commentId: number) => {
+    if (!currentUser) {
+      setCommentError("로그인이 필요합니다.");
+      return;
+    }
 
     const userId = Number(currentUser.id);
     if (!Number.isFinite(userId)) return;
@@ -521,7 +525,7 @@ return (
                         const rooms = await getMyChatRooms();
                         const pinnedAt = new Date().toISOString();
                         setChatRooms(
-                          rooms.map((room) =>
+                          rooms.map((room: ChatRoom) =>
                             String(room.id) === String(result.roomId)
                               ? { ...room, sortPinnedAt: pinnedAt }
                               : room,

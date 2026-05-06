@@ -204,6 +204,10 @@ export default function FreePostPageClient({
   };
 
   const doRemoveComment = async (commentId: number) => {
+    if (!currentUser) {
+      setCommentError("로그인이 필요합니다.");
+      return;
+    }
 
     const userId = Number(currentUser.id);
     if (!Number.isFinite(userId)) {

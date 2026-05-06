@@ -72,7 +72,7 @@ export default function NotificationDropdown({
       } else if (targetType === "STUDY") {
         router.push(`/study/${targetId}`);
       } else if (targetType === "CHAT") {
-        setActiveChatRoomId(targetId);
+        setActiveChatRoomId(String(targetId));
         router.push(`/chat`);
       }
       
