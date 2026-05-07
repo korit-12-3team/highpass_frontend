@@ -9,6 +9,7 @@ import { isPostLiked, saveLikedPost, toggleBoardLike } from "@/features/boards/a
 import { formatBoardCreatedAt, getBoardCreatedAtTime, getInitial } from "@/features/boards/utils/detail-utils";
 import { CERT_DATA, REGION_DATA } from "@/shared/constants";
 import { useApp } from "@/shared/context/AppContext";
+import { getStudyRegionBadge } from "@/features/study/utils/region";
 
 const CUSTOM_CERT_FILTER = "기타";
 
@@ -332,16 +333,12 @@ return (
                   <span className="rounded-full bg-blue-50 px-3 py-1 text-[11px] font-bold text-blue-600">
                     온라인
                   </span>
-                ) : !post.location ? (
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-400">
-                    장소 미정
-                  </span>
-                ) : (
+                ) : getStudyRegionBadge(post) ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1 text-[11px] font-bold text-sky-600">
                     <MapPin size={12} />
-                    {post.location}
+                    {getStudyRegionBadge(post)}
                   </span>
-                )}
+                ) : null}
               </div>
 
               <p className="line-clamp-2 whitespace-pre-line text-sm font-medium leading-relaxed text-slate-500">

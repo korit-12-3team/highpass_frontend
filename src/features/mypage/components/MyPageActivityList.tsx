@@ -1,8 +1,9 @@
 import React from "react";
-import { Clock3, FileText, MessageSquare } from "lucide-react";
+import { Clock3, FileText, MapPin, MessageSquare } from "lucide-react";
 import type { BoardPost, PostComment } from "@/entities/common/types";
 import { formatBoardDate } from "@/features/boards/utils/detail-utils";
 import { EmptyState } from "@/features/mypage/components/MyPageCommon";
+import { getStudyRegionBadge } from "@/features/study/utils/region";
 
 type MyCommentItem = {
   comment: PostComment;
@@ -44,6 +45,16 @@ export function PostList({ posts, onOpenPost }: { posts: BoardPost[]; onOpenPost
           <div className="flex flex-wrap items-center gap-2">
             <PostTypeBadge type={post.type} />
             {post.cert ? <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">{post.cert}</span> : null}
+            {post.type === "study" && post.location === "online" ? (
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600">
+                온라인
+              </span>
+            ) : post.type === "study" && getStudyRegionBadge(post) ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1 text-xs font-bold text-sky-600">
+                <MapPin size={12} />
+                {getStudyRegionBadge(post)}
+              </span>
+            ) : null}
             <span className="inline-flex items-center gap-1 text-xs text-slate-400">
               <Clock3 size={12} />
               {formatBoardDate(post.createdAt)}
