@@ -58,6 +58,7 @@ export default function FreePostPageClient({
   const [confirmCommentId, setConfirmCommentId] = useState<number | null>(null);
   const [confirmDeletePost, setConfirmDeletePost] = useState(false);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [cancelCommentConfirmOpen, setCancelCommentConfirmOpen] = useState(false);
   const [reportTarget, setReportTarget] = useState<null | {
     targetType: "post" | "comment";
     targetId: string;
@@ -287,6 +288,10 @@ const handleConfirmCancel = (): void => {
   setPostEditError("");
 };
 
+const handleTagClick = (tag: string) => {
+    router.push("/free?tag=" + encodeURIComponent(tag));
+};
+
 return (
   <div className="mx-auto max-w-xl animate-in fade-in duration-500">
     {reportTarget ? (
@@ -467,7 +472,14 @@ return (
             {post.tags && post.tags.length > 0 && (
               <div className="mt-5 flex flex-wrap gap-1.5">
                 {post.tags.map((tag) => (
-                  <span key={tag} className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-500">#{tag}</span>
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => handleTagClick(tag)}
+                  className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-500 transition hover:bg-hp-100 hover:text-hp-700"
+                >
+                  #{tag}
+                </button>
                 ))}
               </div>
             )}
@@ -534,7 +546,7 @@ return (
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-600">
                       {getInitial(comment.author)}
                     </div>
-                    <div className="min-w-0 flex-1 max-w-[75%]">
+                    <div className="min-w-0 flex-1">
                       <div className="rounded-2xl rounded-tl-sm bg-slate-100 px-3 py-2">
                         <div className="mb-1.5 flex items-center gap-2">
                           {comment.authorId ? (
@@ -555,7 +567,7 @@ return (
                             <div className="ml-auto flex items-center gap-1">
                               {editingCommentId === comment.id ? (
                                 <button
-                                  onClick={cancelEditingComment}
+                                  onClick={() => setCancelCommentConfirmOpen(true)}
                                   className="rounded-full p-1 text-slate-400 transition hover:bg-slate-200"
                                 >
                                   <X size={12} />
@@ -603,9 +615,13 @@ return (
                           <div>
                             <textarea
                               value={editingCommentText}
-                              onChange={(e) => setEditingCommentText(e.target.value)}
-                              rows={3}
-                              className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none"
+                              rows={1}
+                              onChange={(e) => {
+                                setEditingCommentText(e.target.value);
+                                e.target.style.height = "auto";
+                                e.target.style.height = e.target.scrollHeight + "px";
+                              }}
+                              className="w-full resize-none overflow-hidden rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none"
                             />
                             <div className="mt-2 flex justify-end">
                               <button
@@ -657,6 +673,19 @@ return (
       variant="danger"
       onConfirm={() => handleConfirmCancel()}
       onClose={() => setCancelConfirmOpen(false)}
+    />
+
+    <ConfirmModal
+      isOpen={cancelCommentConfirmOpen}
+      title="댓글 수정을 취소하시겠습니까?"
+      description="변경사항이 저장되지 않습니다."
+      confirmLabel="확인"
+      variant="danger"
+      onConfirm={() => {
+        setCancelCommentConfirmOpen(false);
+        cancelEditingComment();
+      }}
+      onClose={() => setCancelCommentConfirmOpen(false)}
     />
   </div>
 );

@@ -133,6 +133,10 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
       router.replace(nextUrl, { scroll: false });
     }
   }, [certCategoryFilter, certFilter, locationFilterGunGu, locationFilterSiDo, pathname, router, searchParams]);
+  
+    useEffect(() => {
+    setCurrentPage(0);
+    }, [certCategoryFilter, certFilter, locationFilterSiDo, locationFilterGunGu]);
 
   const filteredPosts = useMemo(() => {
     return posts.filter((post) => {
@@ -204,17 +208,13 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
 
   const totalPages = Math.ceil(filteredPosts.length / PAGE_SIZE);
 
-  useEffect(() => {
-  setCurrentPage(0);
-  }, [certCategoryFilter, certFilter, locationFilterSiDo, locationFilterGunGu]);
-
 
 return (
-    <div className="mx-auto max-w-5xl animate-in fade-in duration-500 px-4 py-8">
+    <div className="mx-auto max-w-4xl animate-in fade-in duration-500 px-4 py-8">
       <div className="mb-8 flex items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-950">스터디 모집</h2>
-          <p className="mt-1 text-sm font-medium text-slate-500">자격증과 지역 필터로 원하는 스터디를 찾을 수 있습니다.</p>
+          <p className="mt-1 text-sm font-medium text-slate-500">자격증과 지역 필터로 원하는 스터디를 찾을 수 있습니다</p>
         </div>
         <button
           onClick={() => {

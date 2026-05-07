@@ -60,7 +60,10 @@ export default function StudyPostPageClient({
   const [joinConfirmOpen, setJoinConfirmOpen] = useState(false);
   const [confirmCommentId, setConfirmCommentId] = useState<number | null>(null);
   const [confirmDeletePost, setConfirmDeletePost] = useState(false);
+  const [cancelCommentConfirmOpen, setCancelCommentConfirmOpen] = useState(false);
   const commentInputRef = useRef<HTMLInputElement>(null);
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
+
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -389,6 +392,13 @@ export default function StudyPostPageClient({
       </div>
     );
   }
+
+  useEffect(() => {
+  navigator.geolocation.getCurrentPosition(
+    (pos) => setCurrentLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+    () => setCurrentLocation(null),
+      );
+    }, []);
   
 return (
   <div className="mx-auto max-w-4xl animate-in fade-in duration-500">
@@ -399,10 +409,10 @@ return (
         <div className="flex items-center gap-3 px-5 py-3">
           <button
             onClick={() => router.push(returnTo ? decodeURIComponent(returnTo) : "/study")}
-            className="flex items-center gap-1.5 rounded-full py-1.5 text-xs font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+            className="flex items-center gap-1.5 rounded-full py-1.5 text-sm font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
             aria-label="뒤로"
           >
-            <ArrowLeft size={15} />
+            <ArrowLeft size={18} />
             스터디 모집
           </button>
         </div>
@@ -788,23 +798,47 @@ return (
 
         {/* 스터디 스팟 - 본문 아래 */}
         {!editingPost && (
-          <div className="mt-1 border-hp-100 pt-1">
+          <div className="mt-4 border-t border-hp-100 pt-4">
             {post.location === "online" ? (
               <div className="flex items-center gap-2 rounded-2xl bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-600">
                 <span>🌐</span> 온라인 스터디입니다.
               </div>
             ) : !post.location || !post.lat || !post.lng ? null : (
-              <>
-                <div className="overflow-hidden rounded-3xl border border-hp-100">
-                  <KakaoMap
-                    markers={[{ lat: post.lat, lng: post.lng, locationName: post.location }]}
-                    center={{ lat: post.lat, lng: post.lng }}
-                    level={3}
-                  />
+              <div className="overflow-hidden rounded-3xl border border-hp-100">              
+                  {/* 헤더 */}
+                  <div className="flex items-center justify-between border-b border-hp-100 bg-slate-50 px-4 py-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-0.5">스터디 장소</p>
+                      <div className="flex items-center gap-1.5">
+                        <MapPin size={14} className="shrink-0 text-hp-500" />
+                        <p className="text-sm font-bold text-slate-800">{post.location}</p>
+                      </div>
+                      {post.address && (
+                        <p className="mt-0.5 text-xs text-slate-400 pl-[22px]">{post.address}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                    <a
+                      href={
+                        currentLocation
+                          ? "https://map.kakao.com/link/from/현재위치," + currentLocation.lat + "," + currentLocation.lng + "/to/" + encodeURIComponent(post.location) + "," + post.lat + "," + post.lng
+                          : "https://map.kakao.com/link/to/" + encodeURIComponent(post.location) + "," + post.lat + "," + post.lng
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 transition hover:bg-slate-100"
+                    >
+                     길찾기
+                    </a>
+                  </div>
                 </div>
-              </>
+                <KakaoMap
+                  markers={[{ lat: post.lat, lng: post.lng, locationName: post.location }]}
+                  center={{ lat: post.lat, lng: post.lng }}
+                  level={3}
+                />
+              </div>
             )}
-
           </div>
         )}
         
@@ -829,7 +863,7 @@ return (
                         />
                         <div className="flex justify-end gap-2">
                           <button
-                            onClick={cancelEditingComment}
+                            onClick={() => setCancelCommentConfirmOpen(true)}
                             className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-50"
                           >
                             취소
@@ -954,6 +988,18 @@ return (
         handleConfirmCancel()
       }}
       onClose={() => setCancelConfirmOpen(false)}
+    />
+    <ConfirmModal
+      isOpen={cancelCommentConfirmOpen}
+      title="댓글 수정을 취소하시겠습니까?"
+      description="변경사항이 저장되지 않습니다."
+      confirmLabel="확인"
+      variant="danger"
+      onConfirm={() => {
+        setCancelCommentConfirmOpen(false);
+        cancelEditingComment();
+      }}
+      onClose={() => setCancelCommentConfirmOpen(false)}
     />
   </div>
 );

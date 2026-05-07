@@ -33,7 +33,7 @@ export default function FreeBoardPageClient({ initialPosts }: { initialPosts: Bo
   const [likeSubmittingPostId, setLikeSubmittingPostId] = useState<string | null>(null);
   const [inlineCommentDrafts, setInlineCommentDrafts] = useState<Record<string, string>>({});
   const [inlineCommentSubmittingPostId, setInlineCommentSubmittingPostId] = useState<string | null>(null);
-  const [tagFilter, setTagFilter] = useState("");
+  const [tagFilter, setTagFilter] = useState(() => searchParams.get("tag") ?? "");
 
 
   useEffect(() => {
@@ -121,6 +121,10 @@ export default function FreeBoardPageClient({ initialPosts }: { initialPosts: Bo
   return posts.filter((post) => post.tags?.includes(tagFilter));
   }, [posts, tagFilter]);
 
+  useEffect(() => {
+  setTagFilter(searchParams.get("tag") ?? "");
+  }, [searchParams]);
+
   return (
     <div className="mx-auto max-w-xl animate-in fade-in duration-500">
         <div className="mb-8">
@@ -141,8 +145,15 @@ export default function FreeBoardPageClient({ initialPosts }: { initialPosts: Bo
               {["전체", "잡담", "일상", "유머", "질문","합격후기", "스터디후기", "취업", "정보공유", "꿀팁", "자격증" ].map((tag) => (
                 <button
                   key={tag}
-                  onClick={() => setTagFilter(tag === "전체" ? "" : (tagFilter === tag ? "" : tag))}
-                  className={`rounded-full px-3 py-1 text-xs font-bold transition ${
+                    onClick={() => {
+                      const next = tag === "전체" ? "" : (tagFilter === tag ? "" : tag);
+                      setTagFilter(next);
+                      const params = new URLSearchParams(searchParams.toString());
+                      if (next) params.set("tag", next);
+                      else params.delete("tag");
+                      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+                    }}                  
+                    className={`rounded-full px-3 py-1 text-xs font-bold transition ${
                     (tag === "전체" && tagFilter === "") || tagFilter === tag
                       ? "bg-hp-600 text-white"
                       : "bg-white text-slate-500 hover:bg-slate-100"
@@ -167,7 +178,7 @@ export default function FreeBoardPageClient({ initialPosts }: { initialPosts: Bo
               key={`free-${post.id}`}
               className="overflow-hidden rounded-[28px] border border-hp-100 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:border-hp-200 hover:shadow-[0_28px_90px_rgba(15,23,42,0.12)]"
             >
-              <div className="flex items-center gap-3 border-b border-hp-100 bg-gradient-to-r from-white to-hp-50/40 px-4 py-3">
+              <div className="flex items-center gap-3 bg-gradient-to-r from-white to-hp-50/40 px-4 py-3">
                 <button
                   onClick={() => setProfileModal(post.authorId)}
                   className="flex h-10 w-10 items-center justify-center rounded-full bg-hp-100 p-[2px] transition hover:scale-105 hover:bg-hp-200"
@@ -190,7 +201,7 @@ export default function FreeBoardPageClient({ initialPosts }: { initialPosts: Bo
               </div>
 
               <button onClick={() => openPost(post.id)} className="group block w-full text-left">
-                <div className="border-b border-hp-100 bg-gradient-to-br from-white via-hp-50/30 to-white px-5 py-6 transition group-hover:from-hp-50/50 group-hover:via-white group-hover:to-hp-50/20">
+                <div className=" bg-gradient-to-br from-white via-hp-50/30 to-white px-5 py-6 transition group-hover:from-hp-50/50 group-hover:via-white group-hover:to-hp-50/20">
                   {post.title ? <h3 className="text-xl font-bold leading-tight text-slate-950 transition group-hover:text-hp-800">{post.title}</h3> : null}
                   <p className={`text-[15px] leading-7 text-slate-700 ${post.title ? "mt-3" : ""}`}>
                     {post.content}</p> 
@@ -218,7 +229,7 @@ export default function FreeBoardPageClient({ initialPosts }: { initialPosts: Bo
                       post.likedByUser ? "text-red-400" : "text-slate-400 hover:bg-slate-100"
                     } disabled:opacity-50`}
                   >
-                    <Heart size={13} className={post.likedByUser ? "fill-current" : ""} />
+                    <Heart size={14} className={post.likedByUser ? "fill-current" : ""} />
                     좋아요 {post.likes}
                   </button>
                   <button
