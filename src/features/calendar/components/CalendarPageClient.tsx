@@ -1035,25 +1035,7 @@ export default function CalendarPageClient() {
               >
                 <ArrowRight size={20} className="text-slate-400" />
               </button>
-            </div>
-            <div className="flex shrink-0 overflow-hidden rounded-lg border border-hp-200 text-xs font-bold">
-              <button
-                onClick={() => setCalendarView("month")}
-                className={`px-3 py-1.5 transition-colors ${
-                  calendarView === "month" ? "bg-hp-600 text-white" : "text-hp-600 hover:bg-hp-50"
-                }`}
-              >
-                월간
-              </button>
-              <button
-                onClick={() => setCalendarView("week")}
-                className={`border-l border-hp-200 px-3 py-1.5 transition-colors ${
-                  calendarView === "week" ? "bg-hp-600 text-white" : "text-hp-600 hover:bg-hp-50"
-                }`}
-              >
-                주간
-              </button>
-            </div>
+            </div>           
           </div>
           <div className="flex items-center gap-3 flex-nowrap">
             <button
@@ -1164,7 +1146,7 @@ export default function CalendarPageClient() {
                     }}
                     onDragOver={handleEventDragOver}
                     onDrop={(e) => handleEventDrop(e, cellDateKey)}
-                    className={`relative aspect-[1/0.8] min-h-0 border-r border-b border-hp-100 p-1.5 text-left transition-colors ${
+                    className={`relative  min-h-0 border-r border-b border-hp-100 p-1.5 text-left transition-colors ${
                       day.currentMonth
                         ? isSelected
                           ? "bg-hp-50"

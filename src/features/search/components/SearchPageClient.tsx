@@ -140,9 +140,14 @@ export default function SearchPageClient() {
   }, [activeTab, pathname, router, searchKeyword, searchParams]);
 
   useEffect(() => {
-    if (!certModalOpen) return;
-    setCertScheduleType("written");
-    setCalendarSelection({ apply: true, exam: true, result: true });
+  if (!certModalOpen) return;
+  console.log(certModalOpen)
+  const isPractical = 
+    certModalOpen.sourceType === "data-industry" && 
+    certModalOpen.examType === "실기";
+
+  setCertScheduleType(isPractical ? "practical" : "written");
+  setCalendarSelection({ apply: true, exam: true, result: true });
   }, [certModalOpen]);
 
   const mergedSchedules = useMemo(() => mergeSchedules(schedules), [schedules]);
@@ -396,88 +401,6 @@ export default function SearchPageClient() {
           }}
         />
       )}
-
-      {/* ↓↓↓ 디자인 확인용 — 삭제 대상 ↓↓↓ */}
-      <div className="mb-6 rounded-2xl border border-hp-100 bg-white p-4 shadow-sm">
-        <p className="mb-3 text-xs font-bold text-emerald-600">[ 접수 중 강조 디자인 확인용 ]</p>
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full min-w-[800px] text-sm">
-            <thead>
-              <tr className="bg-hp-600 text-white">
-                <th className="px-4 py-3 text-left font-semibold">종목명</th>
-                <th className="whitespace-nowrap px-3 py-3 text-center font-semibold">회차</th>
-                <th className="whitespace-nowrap px-3 py-3 text-center font-semibold">필기 접수</th>
-                <th className="whitespace-nowrap px-3 py-3 text-center font-semibold">필기 시험일</th>
-                <th className="whitespace-nowrap px-3 py-3 text-center font-semibold">필기 발표</th>
-                <th className="whitespace-nowrap px-3 py-3 text-center font-semibold">실기 접수</th>
-                <th className="whitespace-nowrap px-3 py-3 text-center font-semibold">실기 시험일</th>
-                <th className="whitespace-nowrap px-3 py-3 text-center font-semibold">실기 발표</th>
-                <th className="px-3 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {/* 일반 행 */}
-              <tr className="border-t border-slate-100 bg-white hover:bg-hp-50">
-                <td className="px-4 py-3">
-                  <span className="font-semibold text-slate-800">정보처리기사</span>
-                </td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-600">1회</td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">2025-01-13 ~ 2025-01-16</td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">2025-02-15</td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">2025-03-12</td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">2025-03-24 ~ 2025-03-27</td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">2025-04-26</td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">2025-06-20</td>
-                <td className="px-3 py-3 text-center">
-                  <button className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-hp-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-hp-700">
-                    <CalendarIcon size={13} />추가
-                  </button>
-                </td>
-              </tr>
-              {/* 접수 중 강조 행 */}
-              <tr className="border-t border-emerald-100 bg-emerald-50/50 hover:bg-emerald-50 transition">
-                <td className="px-4 py-3">
-                  <span className="font-semibold text-slate-800">정보처리산업기사</span>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    <span className="rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] font-bold text-white">필기 접수중</span>
-                  </div>
-                </td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-600">2회</td>
-                <td className="whitespace-nowrap px-3 py-3 text-center font-semibold text-emerald-600">2025-04-21 ~ 2025-05-09</td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">2025-06-07</td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">2025-07-02</td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">2025-07-28 ~ 2025-07-31</td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">2025-09-06</td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">2025-11-26</td>
-                <td className="px-3 py-3 text-center">
-                  <button className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-hp-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-hp-700">
-                    <CalendarIcon size={13} />추가
-                  </button>
-                </td>
-              </tr>
-              {/* 일반 행 (zebra) */}
-              <tr className="border-t border-slate-100 bg-slate-50/60 hover:bg-hp-50">
-                <td className="px-4 py-3">
-                  <span className="font-semibold text-slate-800">전기기사</span>
-                </td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-600">1회</td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">2025-01-06 ~ 2025-01-09</td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">2025-03-01</td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">2025-03-28</td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-300">—</td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-300">—</td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-300">—</td>
-                <td className="px-3 py-3 text-center">
-                  <button className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-hp-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-hp-700">
-                    <CalendarIcon size={13} />추가
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      {/* ↑↑↑ 디자인 확인용 — 삭제 대상 ↑↑↑ */}
     </div>
   );
 }
@@ -631,21 +554,24 @@ function DataIndustryScheduleTable({
                     : <span className="text-slate-300">—</span>}
                 </td>
                 <td className={`whitespace-nowrap px-3 py-3 text-center font-semibold ${writtenActive ? "text-emerald-600" : "text-slate-700"}`}>
-                  {item.writtenApplyRanges.length > 0
-                    ? formatDateRange(item.writtenApplyRanges[0]?.start, item.writtenApplyRanges[0]?.end)
+                  {(item.writtenApplyRanges.length > 0 ? item.writtenApplyRanges : item.practicalApplyRanges).length > 0
+                    ? formatDateRange(
+                        (item.writtenApplyRanges.length > 0 ? item.writtenApplyRanges : item.practicalApplyRanges)[0]?.start,
+                        (item.writtenApplyRanges.length > 0 ? item.writtenApplyRanges : item.practicalApplyRanges)[0]?.end,
+                      )
                     : <span className="font-normal text-slate-300">—</span>}
                 </td>
                 <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">
-                  {item.writtenExamDate || <span className="text-slate-300">—</span>}
+                  {item.writtenExamDate || item.practicalExamDate || <span className="text-slate-300">—</span>}
                 </td>
                 <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">
-                  {item.examStartTime || <span className="text-slate-300">—</span>}
+                  {item.examStartTime || item.practicalExamDate || <span className="text-slate-300">—</span>}
                 </td>
                 <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">
-                  {item.writtenResultDate || <span className="text-slate-300">—</span>}
+                  {item.writtenResultDate|| item.practicalExamDate  || <span className="text-slate-300">—</span>}
                 </td>
                 <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">
-                  {item.examPlace || <span className="text-slate-300">—</span>}
+                  {item.examPlace || item.practicalExamDate || <span className="text-slate-300">—</span>}
                 </td>
                 <td className="px-3 py-3 text-center">
                   <button

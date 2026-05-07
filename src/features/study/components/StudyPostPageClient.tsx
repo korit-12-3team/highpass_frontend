@@ -489,7 +489,7 @@ return (
                   </>
                 )}
               </div>
-              {post.id && (
+              {post.id && post.chatRoomId && (
                 <>
                   {(() => {
                     const existingRoom = chatRooms.find((r) => String(r.id) === String(post.chatRoomId));

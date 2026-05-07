@@ -100,6 +100,7 @@ export function mergeSchedules(schedules: CertificateSchedule[]): MergedCertific
   schedules.forEach((item) => {
     const key = makeMergeKey(item);
     const existing = grouped.get(key);
+    const isPractical = item.sourceType === "data-industry" && item.examType === "실기";
 
     if (!existing) {
       grouped.set(key, {
@@ -113,17 +114,19 @@ export function mergeSchedules(schedules: CertificateSchedule[]): MergedCertific
         examStartTime: item.examStartTime,
         examPlace: item.examPlace,
         examType: item.examType,
-        writtenExamDate: item.writtenExamDate,
-        writtenResultDate: item.writtenResultDate,
-        practicalExamDate: item.practicalExamDate,
-        practicalResultDate: item.practicalResultDate,
-        writtenApplyRanges: mergeApplyRanges([
+        writtenExamDate: isPractical ? undefined : item.writtenExamDate,
+        writtenResultDate: isPractical ? undefined : item.writtenResultDate,
+        practicalExamDate: isPractical ? item.writtenExamDate : item.practicalExamDate,
+        practicalResultDate: isPractical ? item.writtenResultDate : item.practicalResultDate,
+        writtenApplyRanges: isPractical ? [] : mergeApplyRanges([
           { start: item.writtenApplyStart, end: item.writtenApplyEnd, label: "정기접수" },
         ]),
-        practicalApplyRanges: mergeApplyRanges([
+        practicalApplyRanges: isPractical ? mergeApplyRanges([
+          { start: item.writtenApplyStart, end: item.writtenApplyEnd, label: "정기접수" },
+        ]) : mergeApplyRanges([
           { start: item.practicalApplyStart, end: item.practicalApplyEnd, label: "정기접수" },
         ]),
-      });
+       });
       return;
     }
 

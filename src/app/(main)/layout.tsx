@@ -386,7 +386,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             
           }
 
-          if (!document.hidden) {
+          if (String(newMessage.roomId) !== String(activeChatRoomId)) {
             toast(newMessage.senderName ?? "새 메시지", {
               description: newMessage.message,
               style: {
