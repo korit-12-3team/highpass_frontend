@@ -127,45 +127,37 @@ export default function FreeBoardPageClient({ initialPosts }: { initialPosts: Bo
   }, [searchParams]);
 
   return (
-    <div className="mx-auto max-w-xl animate-in fade-in duration-500">
-        <div className="mb-8">
-            <div className="mb-4 flex items-end justify-between gap-10">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-950 ">자유게시판</h2>
-                <p className="mt-1 text-sm text-slate-500 mb-2">당신의 이야기를 공유해주세요</p>
-              </div>
-              <button
-                onClick={() => { setWriteType("free"); setWriteModalOpen(true); }}
-                className="rounded-full bg-slate-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-md"
-              >
-                새 게시물
-              </button>
-            </div>
-
-            <div className="flex flex-wrap gap-2.5 ">
-              {["전체", "잡담", "일상", "유머", "질문","합격후기", "스터디후기", "취업", "정보공유", "꿀팁", "자격증" ].map((tag) => (
-                <button
-                  key={tag}
-                    onClick={() => {
-                      const next = tag === "전체" ? "" : (tagFilter === tag ? "" : tag);
-                      setTagFilter(next);
-                      const params = new URLSearchParams(searchParams.toString());
-                      if (next) params.set("tag", next);
-                      else params.delete("tag");
-                      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-                    }}                  
-                    className={`rounded-full px-3 py-1 text-xs font-bold transition ${
-                    (tag === "전체" && tagFilter === "") || tagFilter === tag
-                      ? "bg-hp-600 text-white"
-                      : "bg-white text-slate-500 hover:bg-slate-100"
-                  }`}
-                >
-                  {tag === "전체" ? tag : `#${tag}`}
-                </button>
-              ))}
-            </div>
+    <div className="mx-auto max-w-2xl animate-in fade-in duration-500">
+      <div className="mb-4 rounded-2xl border border-sky-300/40 bg-white/50 px-6 py-5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.7),0_4px_24px_rgba(0,0,0,0.06)] backdrop-blur-2xl">
+        <div className="mb-6 flex items-end justify-between gap-10">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900">자유게시판</h2>
+            <p className="mt-1 text-sm text-slate-500">당신의 이야기를 공유해주세요</p>
           </div>
+          <button
+            onClick={() => { setWriteType("free"); setWriteModalOpen(true); }}
+            className="rounded-full bg-white/70 px-5 py-2 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-sm transition hover:-translate-y-0.5 hover:bg-white/90 hover:shadow-md"
+          >
+            새 게시물
+          </button>
+        </div>
 
+        <div className="flex flex-wrap gap-2">
+          {["전체", "잡담", "일상", "유머", "질문", "합격후기", "스터디후기", "취업", "정보공유", "꿀팁", "자격증"].map((tag) => (
+            <button
+              key={tag}
+              onClick={() => setTagFilter(tag === "전체" ? "" : (tagFilter === tag ? "" : tag))}
+              className={`rounded-full px-3 py-1 text-xs font-bold transition ${
+                (tag === "전체" && tagFilter === "") || tagFilter === tag
+                  ? "bg-white text-slate-800 shadow-md ring-1 ring-sky-200"
+                  : "bg-white/30 text-slate-600 hover:bg-white/50"
+              }`}
+            >
+              {tag === "전체" ? tag : `#${tag}`}
+            </button>
+          ))}
+        </div>
+      </div>
       {filteredPosts.length === 0 ? (
         <div className="rounded-[28px] border border-black/10 bg-white px-6 py-16 text-center text-sm text-slate-400 shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
           아직 게시글이 없습니다.

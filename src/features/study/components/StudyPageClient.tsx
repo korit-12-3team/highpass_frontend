@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Eye, Heart, MapPin, MessageCircle, Zap } from "lucide-react";
+import { Eye, Heart, MapPin, MessageCircle, Search, ChevronUp, ChevronDown, X } from "lucide-react";
 import type { BoardPost } from "@/entities/common/types";
 import { listComments } from "@/features/boards/api/comments";
 import { isPostLiked, saveLikedPost, toggleBoardLike } from "@/features/boards/api/likes";
@@ -36,11 +36,6 @@ function matchesSiDo(regionText: string, siDo: string) {
   return regionText.includes(normalizedSiDo) || (!!shortName && regionText.includes(shortName));
 }
 
-function matchesGunGu(regionText: string, gunGu: string) {
-  if (!gunGu) return true;
-  return regionText.includes(normalizeRegionText(gunGu));
-}
-
 function sortPosts(posts: BoardPost[]) {
   return posts.slice().sort((a, b) => {
     const dt = getBoardCreatedAtTime(b.createdAt) - getBoardCreatedAtTime(a.createdAt);
@@ -49,120 +44,121 @@ function sortPosts(posts: BoardPost[]) {
   });
 }
 
+function toggle<T>(arr: T[], item: T): T[] {
+  return arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item];
+}
+
+type ActivePanel = "cert" | "location" | "search" | null;
+
 export default function StudyPageClient({ initialPosts }: { initialPosts: BoardPost[] }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { currentUser, setProfileModal, setWriteModalOpen, setWriteType } = useApp();
-  const requestedCertCategory = searchParams.get("certCategory") ?? "";
-  const requestedCertFilter = searchParams.get("cert") ?? "";
-  const requestedLocationSiDo = searchParams.get("siDo") ?? "";
-  const requestedLocationGunGu = searchParams.get("gunGu") ?? "";
-  
+
   const [posts, setPosts] = useState<BoardPost[]>(() => sortPosts(initialPosts));
-  const [certCategoryFilter, setCertCategoryFilter] = useState(requestedCertCategory);
-  const [certFilter, setCertFilter] = useState(requestedCertFilter);
-  const [locationFilterSiDo, setLocationFilterSiDo] = useState(requestedLocationSiDo);
-  const [locationFilterGunGu, setLocationFilterGunGu] = useState(requestedLocationGunGu);
+  const [selectedCerts, setSelectedCerts] = useState<string[]>([]);
+  const [selectedCertCategory, setSelectedCertCategory] = useState("");
+  const [selectedSiDos, setSelectedSiDos] = useState<string[]>([]);
+  const [selectedGunGus, setSelectedGunGus] = useState<string[]>([]);
+  const [searchKeyword, setSearchKeyword] = useState("");
   const [likeSubmittingPostId, setLikeSubmittingPostId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
-  
+  const [activePanel, setActivePanel] = useState<ActivePanel>(null);
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const isCertActive = selectedCerts.length > 0 || !!selectedCertCategory;
+  const isLocationActive = selectedSiDos.length > 0;
+  const isSearchActive = !!searchKeyword;
+
   const certificateCategories = useMemo(
-    () => [...Object.keys(CERT_DATA).filter((category) => category !== CUSTOM_CERT_FILTER), CUSTOM_CERT_FILTER],
+    () => [...Object.keys(CERT_DATA).filter((c) => c !== CUSTOM_CERT_FILTER), CUSTOM_CERT_FILTER],
     [],
   );
-  const certificateOptionSet = useMemo(() => new Set(Object.values(CERT_DATA).flat()), []);
+
   const certOptions = useMemo(
-    () => (certCategoryFilter && certCategoryFilter !== CUSTOM_CERT_FILTER ? CERT_DATA[certCategoryFilter] || [] : []),
-    [certCategoryFilter],
+    () => (selectedCertCategory && selectedCertCategory !== CUSTOM_CERT_FILTER ? CERT_DATA[selectedCertCategory] || [] : []),
+    [selectedCertCategory],
   );
 
-  useEffect(() => {
-    setPosts(sortPosts(initialPosts));
-  }, [initialPosts]);
+  const certLabel = selectedCerts.length > 0
+    ? selectedCerts.length === 1 ? selectedCerts[0] : `${selectedCerts[0]} 외 ${selectedCerts.length - 1}개`
+    : "자격증";
+
+  const locationLabel = selectedSiDos.length > 0
+    ? selectedSiDos.length === 1
+      ? selectedGunGus.length > 0
+        ? `${selectedSiDos[0]} · ${selectedGunGus.length}개 구`
+        : selectedSiDos[0]
+      : `${selectedSiDos[0]} 외 ${selectedSiDos.length - 1}개`
+    : "지역";
+
+  useEffect(() => { setPosts(sortPosts(initialPosts)); }, [initialPosts]);
 
   useEffect(() => {
     if (!currentUser) return;
-    setPosts((prev) =>
-      prev.map((post) => ({
-        ...post,
-        likedByUser: isPostLiked(currentUser.id, "STUDY", post.id),
-      })),
-    );
+    setPosts((prev) => prev.map((post) => ({ ...post, likedByUser: isPostLiked(currentUser.id, "STUDY", post.id) })));
   }, [currentUser]);
 
   useEffect(() => {
-    setCertCategoryFilter(requestedCertCategory);
-  }, [requestedCertCategory]);
-
-  useEffect(() => {
-    setCertFilter(requestedCertFilter);
-  }, [requestedCertFilter]);
-
-  useEffect(() => {
-    setLocationFilterSiDo(requestedLocationSiDo);
-  }, [requestedLocationSiDo]);
-
-  useEffect(() => {
-    setLocationFilterGunGu(requestedLocationGunGu);
-  }, [requestedLocationGunGu]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString());
-
-    if (certCategoryFilter) params.set("certCategory", certCategoryFilter);
-    else params.delete("certCategory");
-
-    if (certCategoryFilter && certFilter) params.set("cert", certFilter);
-    else params.delete("cert");
-
-    if (locationFilterSiDo) params.set("siDo", locationFilterSiDo);
-    else {
-      params.delete("siDo");
-      params.delete("gunGu");
-    }
-
-    if (locationFilterSiDo && locationFilterGunGu) params.set("gunGu", locationFilterGunGu);
-    else params.delete("gunGu");
-
-    const nextQuery = params.toString();
-    const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
-    const currentQuery = searchParams.toString();
-    const currentUrl = currentQuery ? `${pathname}?${currentQuery}` : pathname;
-
-    if (nextUrl !== currentUrl) {
-      router.replace(nextUrl, { scroll: false });
-    }
-  }, [certCategoryFilter, certFilter, locationFilterGunGu, locationFilterSiDo, pathname, router, searchParams]);
-  
-    useEffect(() => {
     setCurrentPage(0);
-    }, [certCategoryFilter, certFilter, locationFilterSiDo, locationFilterGunGu]);
+  }, [selectedCerts, selectedSiDos, selectedGunGus, searchKeyword]);
+
+  useEffect(() => {
+    if (activePanel === "search") {
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+    }
+  }, [activePanel]);
+
+  // 시/도 변경 시 해당 시/도에 속하지 않는 군/구 제거
+  useEffect(() => {
+    setSelectedGunGus((prev) =>
+      prev.filter((gunGu) =>
+        selectedSiDos.some((siDo) => (REGION_DATA[siDo] || []).includes(gunGu))
+      )
+    );
+  }, [selectedSiDos]);
 
   const filteredPosts = useMemo(() => {
     return posts.filter((post) => {
-      if (certCategoryFilter === CUSTOM_CERT_FILTER) {
-        if (!post.cert || certificateOptionSet.has(post.cert)) return false;
-        if (certFilter && !post.cert.toLowerCase().includes(certFilter.toLowerCase())) return false;
-      } else if (certCategoryFilter) {
-        const categoryCertificates = CERT_DATA[certCategoryFilter] || [];
-        if (!post.cert || !categoryCertificates.includes(post.cert)) return false;
-        if (certFilter && post.cert !== certFilter) return false;
-      } else if (certFilter) {
-        return false;
+      // 자격증 필터 (OR)
+      if (selectedCerts.length > 0) {
+        if (!post.cert || !selectedCerts.includes(post.cert)) return false;
       }
 
-      if (locationFilterSiDo || locationFilterGunGu) {
+      // 지역 필터 (OR)
+      if (selectedSiDos.length > 0) {
         if (post.location === "online") return false;
         const regionText = getPostRegionText(post);
         if (!regionText) return false;
-        if (!matchesSiDo(regionText, locationFilterSiDo)) return false;
-        if (!matchesGunGu(regionText, locationFilterGunGu)) return false;
+
+        const matchesSiDoAny = selectedSiDos.some((siDo) => matchesSiDo(regionText, siDo));
+        if (!matchesSiDoAny) return false;
+
+        if (selectedGunGus.length > 0) {
+          const normalizedRegion = normalizeRegionText(regionText);
+          const matchesGunGuAny = selectedGunGus.some((gunGu) =>
+            normalizedRegion.includes(normalizeRegionText(gunGu))
+          );
+          if (!matchesGunGuAny) return false;
+        }
+      }
+
+      // 검색 필터
+      if (searchKeyword) {
+        const kw = searchKeyword.toLowerCase();
+        if (
+          !post.title?.toLowerCase().includes(kw) &&
+          !post.content?.toLowerCase().includes(kw) &&
+          !post.cert?.toLowerCase().includes(kw) &&
+          !post.author?.toLowerCase().includes(kw)
+        ) return false;
       }
 
       return true;
     });
-  }, [certCategoryFilter, certFilter, certificateOptionSet, locationFilterGunGu, locationFilterSiDo, posts]);
+  }, [selectedCerts, selectedSiDos, selectedGunGus, searchKeyword, posts]);
 
   const updatePostLocally = (postId: string, updater: (post: BoardPost) => BoardPost) => {
     setPosts((prev) => sortPosts(prev.map((post) => (post.id === postId ? updater(post) : post))));
@@ -172,11 +168,9 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
     if (!currentUser || likeSubmittingPostId === postId) return;
     const post = posts.find((item) => item.id === postId);
     if (!post) return;
-
     const userId = Number(currentUser.id);
     const targetId = Number(post.id);
     if (!Number.isFinite(userId) || !Number.isFinite(targetId)) return;
-
     try {
       setLikeSubmittingPostId(post.id);
       const nextLiked = !post.likedByUser;
@@ -201,115 +195,259 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
   };
 
   const PAGE_SIZE = 5;
-
   const paginatedPosts = useMemo(() => {
     const start = currentPage * PAGE_SIZE;
     return filteredPosts.slice(start, start + PAGE_SIZE);
   }, [filteredPosts, currentPage]);
-
   const totalPages = Math.ceil(filteredPosts.length / PAGE_SIZE);
 
+  const togglePanel = (panel: ActivePanel) => {
+    setActivePanel((prev) => (prev === panel ? null : panel));
+  };
 
-return (
+  const resetAll = () => {
+    setSelectedCerts([]);
+    setSelectedCertCategory("");
+    setSelectedSiDos([]);
+    setSelectedGunGus([]);
+    setSearchKeyword("");
+  };
+
+  return (
     <div className="mx-auto max-w-4xl animate-in fade-in duration-500 px-4 py-8">
-      <div className="mb-8 flex items-end justify-between gap-4">
+      <div className="mb-6 flex items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-950">스터디 모집</h2>
           <p className="mt-1 text-sm font-medium text-slate-500">자격증과 지역 필터로 원하는 스터디를 찾을 수 있습니다</p>
         </div>
         <button
-          onClick={() => {
-            setWriteType("study");
-            setWriteModalOpen(true);
-          }}
+          onClick={() => { setWriteType("study"); setWriteModalOpen(true); }}
           className="inline-flex items-center gap-2 rounded-full bg-hp-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-hp-700 hover:shadow-md active:scale-95"
         >
           모집글 작성
         </button>
       </div>
 
-      <div className="mb-6 grid gap-4 lg:grid-cols-[1.2fr_1fr_120px]">
-        <div className="rounded-2xl bg-white p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
-          <p className="mb-3 ml-1 text-[10px] font-black uppercase tracking-wider text-slate-400">자격증 영역</p>
-          <div className="grid gap-2 md:grid-cols-2">
-            <select
-              value={certCategoryFilter}
-              onChange={(e) => {
-                setCertCategoryFilter(e.target.value);
-                setCertFilter("");
-              }}
-              className="rounded-xl border-none bg-slate-50 px-3 py-2.5 text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-hp-100"
-            >
-              <option value="">전체 자격증</option>
-              {certificateCategories.map((category) => (
-                <option key={category} value={category}>{category}</option>
+      {/* 필터 바 */}
+      <div className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        {/* 헤더 탭 */}
+        <div className="grid grid-cols-3 divide-x divide-slate-200">
+          <button
+            onClick={() => togglePanel("cert")}
+            className={`flex items-center justify-between px-5 py-3.5 text-left transition hover:bg-slate-50 ${activePanel === "cert" ? "bg-slate-50" : ""}`}
+          >
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">자격증</p>
+              <p className={`mt-0.5 truncate text-sm font-bold ${isCertActive ? "text-hp-600" : "text-slate-400"}`}>
+                {certLabel}
+              </p>
+            </div>
+            {activePanel === "cert" ? <ChevronUp size={15} className="ml-2 shrink-0 text-slate-400" /> : <ChevronDown size={15} className="ml-2 shrink-0 text-slate-400" />}
+          </button>
+
+          <button
+            onClick={() => togglePanel("location")}
+            className={`flex items-center justify-between px-5 py-3.5 text-left transition hover:bg-slate-50 ${activePanel === "location" ? "bg-slate-50" : ""}`}
+          >
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">지역</p>
+              <p className={`mt-0.5 truncate text-sm font-bold ${isLocationActive ? "text-hp-600" : "text-slate-400"}`}>
+                {locationLabel}
+              </p>
+            </div>
+            {activePanel === "location" ? <ChevronUp size={15} className="ml-2 shrink-0 text-slate-400" /> : <ChevronDown size={15} className="ml-2 shrink-0 text-slate-400" />}
+          </button>
+
+          <button
+            onClick={() => togglePanel("search")}
+            className={`flex items-center justify-between px-5 py-3.5 text-left transition hover:bg-slate-50 ${activePanel === "search" ? "bg-slate-50" : ""}`}
+          >
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">검색</p>
+              <p className={`mt-0.5 truncate text-sm font-bold ${isSearchActive ? "text-hp-600" : "text-slate-400"}`}>
+                {searchKeyword || "검색어 입력"}
+              </p>
+            </div>
+            <Search size={15} className="ml-2 shrink-0 text-slate-400" />
+          </button>
+        </div>
+
+        {/* 자격증 패널 */}
+        {activePanel === "cert" && (
+          <div className="border-t border-slate-200 p-5">
+            {/* 카테고리 탭 */}
+            <div className="mb-4 flex flex-wrap gap-2">
+              {certificateCategories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCertCategory(selectedCertCategory === cat ? "" : cat)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                    selectedCertCategory === cat ? "bg-hp-600 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                  }`}
+                >
+                  {cat}
+                </button>
               ))}
-            </select>
-            {certCategoryFilter === CUSTOM_CERT_FILTER ? (
-              <input
-                value={certFilter}
-                onChange={(e) => setCertFilter(e.target.value)}
-                placeholder="기타 자격증명 입력"
-                className="rounded-xl border-none bg-slate-50 px-3 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-hp-100"
-              />
-            ) : (
-              <select
-                value={certFilter}
-                onChange={(e) => setCertFilter(e.target.value)}
-                disabled={!certCategoryFilter}
-                className="rounded-xl border-none bg-slate-50 px-3 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-hp-100 disabled:opacity-40"
-              >
-                <option value="">{!certCategoryFilter ? "분류 선택" : "자격증 선택"}</option>
+            </div>
+
+            {/* 자격증 목록 */}
+            {selectedCertCategory && selectedCertCategory !== CUSTOM_CERT_FILTER && certOptions.length > 0 && (
+              <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
                 {certOptions.map((cert) => (
-                  <option key={cert} value={cert}>{cert}</option>
+                  <button
+                    key={cert}
+                    onClick={() => setSelectedCerts((prev) => toggle(prev, cert))}
+                    className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                      selectedCerts.includes(cert)
+                        ? "bg-hp-600 text-white"
+                        : "bg-slate-50 text-slate-500 hover:bg-slate-100"
+                    }`}
+                  >
+                    {cert}
+                  </button>
                 ))}
-              </select>
+              </div>
+            )}
+
+            {selectedCertCategory === CUSTOM_CERT_FILTER && (
+              <div className="border-t border-slate-100 pt-4">
+                <input
+                  placeholder="자격증명 직접 입력 후 Enter"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-hp-500"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const val = (e.target as HTMLInputElement).value.trim();
+                      if (val) { setSelectedCerts((prev) => toggle(prev, val)); (e.target as HTMLInputElement).value = ""; }
+                    }
+                  }}
+                />
+              </div>
+            )}
+
+            {isCertActive && (
+              <div className="mt-4 flex justify-end border-t border-slate-100 pt-3">
+                <button onClick={() => { setSelectedCerts([]); setSelectedCertCategory(""); }} className="text-xs font-bold text-slate-400 hover:text-slate-600">
+                  초기화
+                </button>
+              </div>
             )}
           </div>
-        </div>
+        )}
 
-        <div className="rounded-2xl bg-white p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
-          <p className="mb-3 ml-1 text-[10px] font-black uppercase tracking-wider text-slate-400">지역 영역</p>
-          <div className="grid gap-2 md:grid-cols-2">
-            <select
-              value={locationFilterSiDo}
-              onChange={(e) => {
-                setLocationFilterSiDo(e.target.value);
-                setLocationFilterGunGu("");
-              }}
-              className="rounded-xl border-none bg-slate-50 px-3 py-2.5 text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-hp-100"
-            >
-              <option value="">전체 지역</option>
+        {/* 지역 패널 */}
+        {activePanel === "location" && (
+          <div className="border-t border-slate-200 p-5">
+            {/* 시/도 */}
+            <div className="flex flex-wrap gap-2">
               {Object.keys(REGION_DATA).map((siDo) => (
-                <option key={siDo} value={siDo}>{siDo}</option>
+                <button
+                  key={siDo}
+                  onClick={() => setSelectedSiDos((prev) => toggle(prev, siDo))}
+                  className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                    selectedSiDos.includes(siDo) ? "bg-hp-600 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                  }`}
+                >
+                  {siDo}
+                </button>
               ))}
-            </select>
-            <select
-              value={locationFilterGunGu}
-              onChange={(e) => setLocationFilterGunGu(e.target.value)}
-              disabled={!locationFilterSiDo}
-              className="rounded-xl border-none bg-slate-50 px-3 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-hp-100 disabled:opacity-40"
-            >
-              <option value="">전체 시/군/구</option>
-              {(REGION_DATA[locationFilterSiDo] || []).map((gunGu) => (
-                <option key={gunGu} value={gunGu}>{gunGu}</option>
-              ))}
-            </select>
-          </div>
-        </div>
+            </div>
 
-        <button
-          onClick={() => {
-            setCertCategoryFilter("");
-            setCertFilter("");
-            setLocationFilterSiDo("");
-            setLocationFilterGunGu("");
-          }}
-          className="flex h-full items-center justify-center rounded-2xl bg-white text-xs font-bold text-slate-400 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition hover:bg-slate-50 hover:text-slate-600 active:scale-95"
-        >
-          초기화
-        </button>
+            {/* 군/구 - 선택된 시/도들의 군/구 전부 표시 */}
+            {selectedSiDos.length > 0 && (
+              <div className="mt-4 border-t border-slate-100 pt-4">
+                {selectedSiDos.map((siDo) => (
+                  (REGION_DATA[siDo] || []).length > 0 && (
+                    <div key={siDo} className="mb-3">
+                      <p className="mb-2 text-[10px] font-black tracking-wider text-slate-400">{siDo}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {(REGION_DATA[siDo] || []).map((gunGu) => (
+                          <button
+                            key={gunGu}
+                            onClick={() => setSelectedGunGus((prev) => toggle(prev, gunGu))}
+                            className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                              selectedGunGus.includes(gunGu)
+                                ? "bg-hp-600 text-white"
+                                : "bg-slate-50 text-slate-500 hover:bg-slate-100"
+                            }`}
+                          >
+                            {gunGu}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                ))}
+              </div>
+            )}
+
+            {isLocationActive && (
+              <div className="mt-4 flex justify-end border-t border-slate-100 pt-3">
+                <button onClick={() => { setSelectedSiDos([]); setSelectedGunGus([]); }} className="text-xs font-bold text-slate-400 hover:text-slate-600">
+                  초기화
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 검색 패널 */}
+        {activePanel === "search" && (
+          <div className="border-t border-slate-200 p-5">
+            <div className="relative">
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                ref={searchInputRef}
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                placeholder="제목, 내용, 자격증명, 작성자 검색"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-9 text-sm outline-none focus:border-hp-500"
+              />
+              {searchKeyword && (
+                <button onClick={() => setSearchKeyword("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* 활성 필터 태그 */}
+      {(isCertActive || isLocationActive || isSearchActive) && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          {selectedCerts.map((cert) => (
+            <span key={cert} className="inline-flex items-center gap-1.5 rounded-full bg-hp-50 px-3 py-1 text-xs font-bold text-hp-700">
+              {cert}
+              <button onClick={() => setSelectedCerts((prev) => prev.filter((c) => c !== cert))}><X size={11} /></button>
+            </span>
+          ))}
+          {selectedSiDos.map((siDo) => (
+            <span key={siDo} className="inline-flex items-center gap-1.5 rounded-full bg-hp-50 px-3 py-1 text-xs font-bold text-hp-700">
+              {siDo}
+              <button onClick={() => {
+                setSelectedSiDos((prev) => prev.filter((s) => s !== siDo));
+                setSelectedGunGus((prev) => prev.filter((g) => !(REGION_DATA[siDo] || []).includes(g)));
+              }}><X size={11} /></button>
+            </span>
+          ))}
+          {selectedGunGus.map((gunGu) => (
+            <span key={gunGu} className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+              {gunGu}
+              <button onClick={() => setSelectedGunGus((prev) => prev.filter((g) => g !== gunGu))}><X size={11} /></button>
+            </span>
+          ))}
+          {isSearchActive && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-hp-50 px-3 py-1 text-xs font-bold text-hp-700">
+              "{searchKeyword}"
+              <button onClick={() => setSearchKeyword("")}><X size={11} /></button>
+            </span>
+          )}
+          <button onClick={resetAll} className="text-xs font-bold text-slate-400 hover:text-slate-600">
+            전체 초기화
+          </button>
+        </div>
+      )}
 
       {filteredPosts.length === 0 ? (
         <div className="rounded-3xl border border-slate-100 bg-white py-20 text-center text-sm font-medium text-slate-400">
@@ -331,18 +469,14 @@ return (
                   {post.cert || "기타"}
                 </span>
                 {post.location === "online" ? (
-                  <span className="rounded-full bg-blue-50 px-3 py-1 text-[11px] font-bold text-blue-600">
-                    온라인
-                  </span>
+                  <span className="rounded-full bg-blue-50 px-3 py-1 text-[11px] font-bold text-blue-600">온라인</span>
                 ) : getStudyRegionBadge(post) ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1 text-[11px] font-bold text-sky-600">
                     <MapPin size={12} />
                     {getStudyRegionBadge(post)}
                   </span>
                 ) : (
-                  <span className="rounded-full bg-slate-50 px-3 py-1 text-[11px] font-bold text-slate-400">
-                    장소 미정
-                  </span>
+                  <span className="rounded-full bg-slate-50 px-3 py-1 text-[11px] font-bold text-slate-300">장소 미정</span>
                 )}
               </div>
 
@@ -354,10 +488,7 @@ return (
                 <div className="flex flex-1 items-center gap-2">
                   <button
                     type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setProfileModal(post.authorId);
-                    }}
+                    onClick={(e) => { e.stopPropagation(); setProfileModal(post.authorId); }}
                     className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold text-slate-700 transition hover:bg-slate-200"
                   >
                     <Avatar
@@ -369,16 +500,10 @@ return (
                   </button>
                   <span className="text-[11px] font-medium text-slate-400">{formatBoardCreatedAt(post.createdAt)}</span>
                 </div>
-
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void handleToggleLike(post.id);
-                  }}
+                  onClick={(e) => { e.stopPropagation(); void handleToggleLike(post.id); }}
                   disabled={likeSubmittingPostId === post.id}
-                  className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold transition ${
-                    post.likedByUser ? "text-red-400" : "text-slate-400 hover:bg-slate-100"
-                  } disabled:opacity-50`}
+                  className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold transition ${post.likedByUser ? "text-red-400" : "text-slate-400 hover:bg-slate-100"} disabled:opacity-50`}
                 >
                   <Heart size={13} className={post.likedByUser ? "fill-current" : ""} />
                   좋아요 {post.likes}
@@ -419,11 +544,7 @@ return (
             <button
               key={i}
               onClick={() => setCurrentPage(i)}
-              className={`h-9 w-9 rounded-full text-sm font-bold transition ${
-                currentPage === i
-                  ? "bg-hp-600 text-white"
-                  : "text-slate-500 hover:bg-slate-100"
-              }`}
+              className={`h-9 w-9 rounded-full text-sm font-bold transition ${currentPage === i ? "bg-hp-600 text-white" : "text-slate-500 hover:bg-slate-100"}`}
             >
               {i + 1}
             </button>
