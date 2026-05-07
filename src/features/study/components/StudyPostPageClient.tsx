@@ -803,7 +803,11 @@ return (
               <div className="flex items-center gap-2 rounded-2xl bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-600">
                 <span>🌐</span> 온라인 스터디입니다.
               </div>
-            ) : !post.location || !post.lat || !post.lng ? null : (
+            ) : !post.location || !post.lat || !post.lng ? ( 
+            <div className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-400">
+            <span>📍</span> 스터디 장소가 아직 지정되지 않았습니다.
+            </div>
+            ) : (
               <div className="overflow-hidden rounded-3xl border border-hp-100">              
                   {/* 헤더 */}
                   <div className="flex items-center justify-between border-b border-hp-100 bg-slate-50 px-4 py-3">

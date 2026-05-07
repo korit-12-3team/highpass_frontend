@@ -338,7 +338,11 @@ return (
                     <MapPin size={12} />
                     {getStudyRegionBadge(post)}
                   </span>
-                ) : null}
+                ) : (
+                  <span className="rounded-full bg-slate-50 px-3 py-1 text-[11px] font-bold text-slate-400">
+                    장소 미정
+                  </span>
+                )}
               </div>
 
               <p className="line-clamp-2 whitespace-pre-line text-sm font-medium leading-relaxed text-slate-500">
