@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, MapPin, MessageSquare, User2, Users, X } from "lucide-react";
+import { AlertTriangle, Check, MapPin, MessageSquare, Palette, User2, Users, X } from "lucide-react";
 import type { UserProfile } from "@/entities/common/types";
 import ReportDialog from "@/features/reports/components/ReportDialog";
+import Avatar from "@/shared/components/common/Avatar";
+import { AVATAR_CUSTOM_OPTIONS, DEFAULT_AVATAR_VISUAL_CLASS } from "@/shared/utils/avatar-custom";
 
 interface ProfileModalProps {
   profile: UserProfile;
@@ -14,6 +16,7 @@ interface ProfileModalProps {
   onOpenEdit: () => void;
   onClose: () => void;
   onStartChat: () => void;
+  onAvatarVisualChange?: (className: string) => void;
 }
 
 export default function ProfileModal({
@@ -25,8 +28,11 @@ export default function ProfileModal({
   onOpenEdit,
   onClose,
   onStartChat,
+  onAvatarVisualChange,
 }: ProfileModalProps) {
   const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [avatarEditorOpen, setAvatarEditorOpen] = useState(false);
+  const activeAvatarClass = profile.avatarVisualClassName || DEFAULT_AVATAR_VISUAL_CLASS;
 
   const lastSeenLabel = useMemo(() => {
     if (profile.online) return "접속 중";
@@ -72,9 +78,31 @@ export default function ProfileModal({
         </div>
 
         <div className="relative px-6 pb-6 text-center">
-          <div className="absolute left-1/2 top-0 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-4 border-hp-100 bg-white text-2xl font-bold text-hp-600 shadow-sm">
-            {profile.nickname.substring(0, 1) || "U"}
-          </div>
+          {isCurrentUser ? (
+            <button
+              type="button"
+              onClick={() => setAvatarEditorOpen((open) => !open)}
+              className="absolute left-1/2 top-0 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-hp-100 shadow-sm transition hover:scale-[1.03] focus:outline-none focus:ring-2 focus:ring-hp-300"
+              aria-label="아바타 커스텀"
+            >
+              <Avatar
+                src={profile.profileImage}
+                name={profile.nickname}
+                customVisualClassName={activeAvatarClass}
+                className="h-full w-full rounded-full text-2xl"
+              />
+              <span className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-hp-600 text-white shadow-sm">
+                <Palette size={14} />
+              </span>
+            </button>
+          ) : (
+            <Avatar
+              src={profile.profileImage}
+              name={profile.nickname}
+              customVisualClassName={activeAvatarClass}
+              className="absolute left-1/2 top-0 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-hp-100 text-2xl shadow-sm"
+            />
+          )}
 
           {(loading || error) && (
             <div className="pt-14">
@@ -94,6 +122,32 @@ export default function ProfileModal({
                 </span>
               ) : null}
             </h3>
+
+            {isCurrentUser && avatarEditorOpen ? (
+              <div className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-left">
+                <p className="mb-3 text-xs font-black text-slate-500">아바타 색상</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {AVATAR_CUSTOM_OPTIONS.map((option) => {
+                    const selected = option.className === activeAvatarClass;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => onAvatarVisualChange?.(option.className)}
+                        className={`flex items-center gap-2 rounded-xl border bg-white px-2 py-2 text-xs font-bold transition ${
+                          selected ? "border-hp-400 ring-2 ring-hp-100" : "border-slate-200 hover:border-hp-200"
+                        }`}
+                      >
+                        <span className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] ${option.className}`}>
+                          {selected ? <Check size={13} /> : [...profile.nickname][0]}
+                        </span>
+                        <span className="truncate text-slate-600">{option.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
 
             <div className="mt-4 flex w-full flex-col gap-2 text-left text-sm text-slate-600">
               <p className="flex items-center gap-2">

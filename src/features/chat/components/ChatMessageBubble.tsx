@@ -5,6 +5,7 @@ import { AlertTriangle, LogOut } from "lucide-react";
 import type { ChatMessage } from "@/entities/common/types";
 import ReportDialog from "@/features/reports/components/ReportDialog";
 import { deleteChatMessage } from "@/services/realtime/stomp";
+import Avatar from "@/shared/components/common/Avatar";
 
 type Props = {
   message: ChatMessage;
@@ -98,9 +99,11 @@ export default function ChatMessageBubble({
             onClick={() => onProfileClick(message.senderId)}
             className="mb-1 ml-1 flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 transition hover:text-hp-600"
           >
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-hp-100 text-[10px] font-bold text-hp-600">
-              {(message.senderName || "?").substring(0, 1)}
-            </span>
+            <Avatar
+              name={message.senderName}
+              customVisualClassName={message.senderAvatarVisualClassName ?? undefined}
+              className="h-5 w-5 rounded-full text-[10px]"
+            />
             <span>{message.senderName || "Unknown"}</span>
           </button>
         )}

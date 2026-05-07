@@ -9,7 +9,7 @@ import WritePostModal from "@/features/boards/components/WritePostModal";
 import ScheduleNotificationModal from "@/features/calendar/components/ScheduleNotificationModal";
 import ConfirmModal from "@/shared/components/common/ConfirmModal";
 import { useApp } from "@/shared/context/AppContext";
-import { createUserProfile, getUserProfile } from "@/features/mypage/api/profile";
+import { createUserProfile, getUserProfile, updateUserAvatarVisual } from "@/features/mypage/api/profile";
 import { listCalendarEvents } from "@/features/calendar/api/calendar";
 import { listNotifications } from "@/features/notifications/api/notifications";
 import {
@@ -31,6 +31,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const pathname = usePathname();
   const {
     currentUser,
+    setCurrentUser,
     isAuthenticated,
     authReady,
     logout,
@@ -580,6 +581,25 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           router.push("/mypage");
         }}
         onClose={() => setProfileModal(null)}
+        onAvatarVisualChange={(className) => {
+          void updateUserAvatarVisual(className)
+            .then((updatedUser) => {
+              setCurrentUser((prev) =>
+                prev && prev.id === currentUser.id
+                  ? { ...prev, avatarVisualClassName: updatedUser.avatarVisualClassName }
+                  : prev,
+              );
+              setProfileRemote((prev) =>
+                prev && prev.id === currentUser.id
+                  ? { ...prev, avatarVisualClassName: updatedUser.avatarVisualClassName }
+                  : prev,
+              );
+            })
+            .catch((error) => {
+              console.error("Failed to update avatar visual class:", error);
+              toast.error(error instanceof Error ? error.message : "아바타 저장에 실패했습니다.");
+            });
+        }}
         onStartChat={async () => {
           const existing = chatRooms.find((room) => room.partnerId === profile.id);
 

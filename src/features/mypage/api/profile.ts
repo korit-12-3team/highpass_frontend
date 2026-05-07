@@ -22,6 +22,7 @@ export type UserApiRecord = {
   role?: unknown;
   profileImage?: unknown;
   profileImageUrl?: unknown;
+  avatarVisualClassName?: unknown;
   loginType?: unknown;
   socialProvider?: unknown;
   online?: unknown;
@@ -48,6 +49,10 @@ export function createUserProfile(input: Partial<UserProfile> & Pick<UserProfile
     role: safeString(input.role, "USER"),
     profileImage:
       typeof input.profileImage === "string" || input.profileImage === null ? input.profileImage : null,
+    avatarVisualClassName:
+      typeof input.avatarVisualClassName === "string" || input.avatarVisualClassName === null
+        ? input.avatarVisualClassName
+        : null,
     loginType: safeString(input.loginType, "local"),
     socialProvider: safeString(input.socialProvider),
     online: input.online,
@@ -75,6 +80,10 @@ export function mapApiRecordToUserProfile(record: UserApiRecord): UserProfile {
     location: buildLocation(record.siDo, record.gunGu, record.location),
     role: safeString(record.role, "USER"),
     profileImage,
+    avatarVisualClassName:
+      typeof record.avatarVisualClassName === "string" || record.avatarVisualClassName === null
+        ? record.avatarVisualClassName
+        : null,
     loginType: safeString(record.loginType, "local"),
     socialProvider: safeString(record.socialProvider),
     online: Boolean(record.online),
@@ -107,6 +116,19 @@ export async function updateUserProfile(
 
   if (!payload || typeof payload !== "object") {
     throw new Error("프로필 수정 응답이 비어 있습니다.");
+  }
+
+  return mapApiRecordToUserProfile(payload as UserApiRecord);
+}
+
+export async function updateUserAvatarVisual(
+  avatarVisualClassName: string | null,
+): Promise<UserProfile> {
+  const response = await http.patch("/api/users/me/avatar", { avatarVisualClassName });
+  const payload = unwrapData(response.data);
+
+  if (!payload || typeof payload !== "object") {
+    throw new Error("아바타 수정 응답이 비어 있습니다.");
   }
 
   return mapApiRecordToUserProfile(payload as UserApiRecord);

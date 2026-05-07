@@ -25,6 +25,7 @@ export interface UserProfile {
   location: string;
   role?: string;
   profileImage?: string | null;
+  avatarVisualClassName?: string | null;
   loginType?: string;
   socialProvider?: string;
   online?: boolean;
@@ -37,6 +38,7 @@ export interface PostComment {
   id: number;
   author: string;
   authorId?: string;
+  avatarVisualClassName?: string | null;
   text: string;
   createdAt?: string;
 }
@@ -47,6 +49,7 @@ export interface BoardPost {
   title: string;
   content: string;
   author: string;
+  authorAvatarVisualClassName?: string | null;
   location?: string;
   address?: string;
   lat?: number;
@@ -67,6 +70,7 @@ export interface ChatMessage {
   id?: number;
   senderId: string;
   senderName?: string;
+  senderAvatarVisualClassName?: string | null;
   message: string;
   type : string;
   createdAt: string;
@@ -83,6 +87,7 @@ export interface ChatRoom {
   ownerId?: number; 
   partnerId?: string;
   partnerNickname?: string;
+  partnerAvatarVisualClassName?: string | null;
   messages: ChatMessage[];
   unreadCount?: number;
   name?: string;
@@ -97,6 +102,7 @@ export interface ChatRoom {
 export interface ChatRoomParticipant {
   userId: number;
   nickname: string;
+  avatarVisualClassName?: string | null;
   status: string;
 }
 
@@ -121,7 +127,7 @@ export interface SearchPlace {
   lng: number;
 }
 
-export type NotificationType = "COMMENT" | "LIKE" | "CALENDAR" | "CHAT";
+export type NotificationType = "COMMENT" | "LIKE" | "CALENDAR" | "CHAT" | "REPORT";
 
 export interface NotificationResponse {
   id: number;

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { ChatRoom, NotificationResponse, UserProfile } from "@/entities/common/types";
 import NotificationDropdown from "@/features/notifications/components/NotificationDropdown";
+import Avatar from "@/shared/components/common/Avatar";
 
 interface MainSidebarProps {
   pathname: string;
@@ -138,20 +139,12 @@ export default function MainSidebar({
           className="flex items-center justify-center gap-2.5 rounded-2xl border border-[#dcecf7] bg-white/80 px-3 py-2 text-sm font-black text-[#123b5c] shadow-sm shadow-[#0d3d62]/8 transition hover:border-[#b7d8ec] hover:bg-white hover:text-[#0d3d62] xl:min-w-0 xl:flex-1 xl:justify-start xl:px-4 xl:py-3"
           
         >
-          <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border-2 border-[#b8dff3] bg-[#d5ebf7]">
-            {currentUser.profileImage ? (
-              <Image
-                src={currentUser.profileImage}
-                alt={currentUser.nickname}
-                fill
-                className="object-cover"
-              />
-            ) : (
-              <span className="flex h-full w-full items-center justify-center text-sm font-black text-[#2e668d]">
-                {currentUser.nickname.charAt(0)}
-              </span>
-            )}
-          </div>
+          <Avatar
+            src={currentUser.profileImage}
+            name={currentUser.nickname}
+            customVisualClassName={currentUser.avatarVisualClassName ?? undefined}
+            className="h-8 w-8 rounded-full border-2 border-[#b8dff3] text-sm"
+          />
           <div className="hidden min-w-0 xl:block">
             <p className="truncate text-xs font-black text-[#123b5c]">{currentUser.nickname}</p>
             <p className="truncate text-[10px] text-[#5f8bab]">{currentUser.email ?? "내 프로필"}</p>

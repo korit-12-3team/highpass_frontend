@@ -173,7 +173,7 @@ function kakaoEventToEventType(e: KakaoEventRaw, index: number): EventType {
 
   return {
     id: `kakao_${rawId || index}_${startAt.getTime()}`,
-    title: `카카오 캘린더 : ${rawTitle || "(제목 없음)"}`,
+    title: rawTitle || "카카오 일정",
     content: desc,
     month: startAt.getMonth() + 1,
     startDay: startAt.getDate(),
@@ -200,6 +200,14 @@ function getKakaoSyncMap(): Record<string, string> {
 
 function saveKakaoSyncMap(map: Record<string, string>) {
   localStorage.setItem(KAKAO_SYNC_MAP_KEY, JSON.stringify(map));
+}
+
+const KAKAO_LOADED_ID_MAP_KEY = "hp_kakao_loaded_id_map";
+function getKakaoLoadedIdMap(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(KAKAO_LOADED_ID_MAP_KEY) ?? "{}"); } catch { return {}; }
+}
+function saveKakaoLoadedIdMap(map: Record<string, string>) {
+  localStorage.setItem(KAKAO_LOADED_ID_MAP_KEY, JSON.stringify(map));
 }
 
 async function syncToKakaoCalendar(
@@ -644,10 +652,15 @@ export default function CalendarPageClient() {
         // calendar_id 저장 (삭제 시 필요)
         const rawId = (e.event_id ?? e.id ?? e.eventId ?? "") as string;
         const calId = (e.calendar_id ?? e.calendarId ?? "") as string;
-        if (rawId && calId) {
-          const m = getKakaoCalIdMap();
-          m[rawId] = calId;
-          saveKakaoCalIdMap(m);
+        if (rawId) {
+          if (calId) {
+            const m = getKakaoCalIdMap();
+            m[rawId] = calId;
+            saveKakaoCalIdMap(m);
+          }
+          const loadedMap = getKakaoLoadedIdMap();
+          loadedMap[ev.id] = rawId;
+          saveKakaoLoadedIdMap(loadedMap);
         }
         return ev;
       });
@@ -706,25 +719,43 @@ export default function CalendarPageClient() {
       setCalendarError("");
 
       if (eventId.startsWith("kakao_")) {
-        // 카카오에서 불러온 일정: 앱에서만 제거 (카카오 API가 event_id를 반환하지 않아 카카오 측 삭제 불가)
+        const loadedMap = getKakaoLoadedIdMap();
+        const kakaoEventId = loadedMap[eventId];
+        if (kakaoEventId) {
+          const calIdMap = getKakaoCalIdMap();
+          const calendarId = calIdMap[kakaoEventId];
+          fetch("/api/kakao-cal/event-action/", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "delete", eventId: kakaoEventId, ...(calendarId ? { calendarId } : {}) }),
+          }).then((res) => {
+            if (res.ok) {
+              const m = getKakaoLoadedIdMap();
+              delete m[eventId];
+              saveKakaoLoadedIdMap(m);
+            }
+          }).catch(() => {});
+        }
         setEvents((prev) => prev.filter((e) => e.id !== eventId));
         setSelectedEvent((prev) => (prev?.id === eventId ? null : prev));
       } else {
         await removeCalendarEvent(eventId);
 
-        // TODO: 카카오 캘린더 삭제 연동 (카카오 API event_id 반환 문제로 임시 비활성화)
-        // const map = getKakaoSyncMap();
-        // const kakaoEventId = map[eventId];
-        // if (kakaoEventId) {
-        //   fetch("/api/kakao-cal/event-action/", {
-        //     method: "POST",
-        //     credentials: "include",
-        //     headers: { "Content-Type": "application/json" },
-        //     body: JSON.stringify({ action: "delete", eventId: kakaoEventId }),
-        //   }).then(async (res) => {
-        //     if (res.ok) { delete map[eventId]; saveKakaoSyncMap(map); }
-        //   }).catch(() => {});
-        // }
+        const syncMap = getKakaoSyncMap();
+        const kakaoEventId = syncMap[eventId];
+        if (kakaoEventId) {
+          const calIdMap = getKakaoCalIdMap();
+          const calendarId = calIdMap[kakaoEventId];
+          fetch("/api/kakao-cal/event-action/", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "delete", eventId: kakaoEventId, ...(calendarId ? { calendarId } : {}) }),
+          }).then((res) => {
+            if (res.ok) { delete syncMap[eventId]; saveKakaoSyncMap(syncMap); }
+          }).catch(() => {});
+        }
 
         setEvents((prev) => prev.filter((e) => e.id !== eventId));
         setSelectedEvent((prev) => (prev?.id === eventId ? null : prev));
@@ -811,6 +842,54 @@ export default function CalendarPageClient() {
         kind: eventForm.kind,
       } as const;
 
+      if (eventForm.id?.startsWith("kakao_")) {
+        const formIdSnapshot = eventForm.id;
+        const existing = events.find((e) => e.id === formIdSnapshot);
+        if (existing) {
+          const updatedEvent: EventType = {
+            ...existing,
+            title: payload.title,
+            content: payload.content,
+            startDate: payload.startDate,
+            endDate: payload.endDate,
+            isAllDay: payload.isAllDay,
+            startTime: payload.isAllDay ? undefined : payload.startTime,
+            endTime: payload.isAllDay ? undefined : payload.endTime,
+          };
+          setEvents((prev) => prev.map((e) => (e.id === formIdSnapshot ? updatedEvent : e)));
+          setSelectedEvent((prev) => (prev?.id === formIdSnapshot ? updatedEvent : prev));
+        }
+        closeEventModal();
+        toast.success("일정이 수정되었습니다.");
+
+        const loadedMap = getKakaoLoadedIdMap();
+        const kakaoEventId = loadedMap[formIdSnapshot];
+        if (kakaoEventId) {
+          const updateEvent: Record<string, unknown> = {
+            title: payload.title,
+            time: {
+              start_at: toIso(payload.startDate, payload.isAllDay ? undefined : payload.startTime),
+              end_at: toIso(payload.endDate, payload.isAllDay ? undefined : payload.endTime),
+              all_day: payload.isAllDay,
+              time_zone: "Asia/Seoul",
+            },
+          };
+          if (payload.content) updateEvent.description = payload.content;
+          fetch("/api/kakao-cal/event-action/", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "update", eventId: kakaoEventId, event: updateEvent }),
+          }).then(async (res) => {
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}));
+              toast.warning((data as { message?: string }).message ?? "카카오 측 동기화는 실패했습니다.");
+            }
+          }).catch(() => {});
+        }
+        return;
+      }
+
       const savedEvent = eventForm.id
         ? await updateCalendarEvent({ calendarId: eventForm.id, ...payload })
         : await createCalendarEvent({ userId: currentUser.id, ...payload });
@@ -831,10 +910,26 @@ export default function CalendarPageClient() {
           },
         });
       } else {
-        // TODO: 카카오 캘린더 수정 연동 (카카오 API event_id 반환 문제로 임시 비활성화)
-        // const map = getKakaoSyncMap();
-        // const kakaoEventId = map[eventForm.id];
-        // if (kakaoEventId) { ... }
+        const syncMap = getKakaoSyncMap();
+        const kakaoEventId = syncMap[eventForm.id];
+        if (kakaoEventId) {
+          const updatePayload = {
+            title: payload.title,
+            time: {
+              start_at: toIso(payload.startDate, payload.isAllDay ? undefined : payload.startTime),
+              end_at: toIso(payload.endDate, payload.isAllDay ? undefined : payload.endTime),
+              all_day: payload.isAllDay,
+              time_zone: "Asia/Seoul",
+            },
+            description: payload.content ?? "",
+          };
+          fetch("/api/kakao-cal/event-action/", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "update", eventId: kakaoEventId, event: updatePayload }),
+          }).catch(() => {});
+        }
       }
 
       setEvents((prev) =>

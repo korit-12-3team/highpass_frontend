@@ -17,6 +17,7 @@ import {
   statusClass,
 } from "@/features/admin/components/AdminCommon";
 import { listComments } from "@/features/boards/api/comments";
+import Avatar from "@/shared/components/common/Avatar";
 import ConfirmModal from "@/shared/components/common/ConfirmModal";
 
 export function AdminPostsSection({
@@ -302,9 +303,11 @@ function AdminPostComments({ post }: { post: AdminPost }) {
           <div className="space-y-4">
             {comments.map((comment) => (
               <div key={comment.id} className="flex gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-xs font-black text-white">
-                  {comment.author.slice(0, 1)}
-                </span>
+                <Avatar
+                  name={comment.author}
+                  customVisualClassName={comment.avatarVisualClassName ?? undefined}
+                  className="h-9 w-9 rounded-lg text-xs"
+                />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-black text-slate-900">

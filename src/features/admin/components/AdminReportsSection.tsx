@@ -63,8 +63,8 @@ function reportKindTone(report: AdminReport) {
         icon: "bg-sky-50 text-sky-700",
       }
     : {
-        badge: "bg-amber-50 text-amber-700",
-        icon: "bg-amber-50 text-amber-700",
+        badge: "bg-rose-50 text-rose-700",
+        icon: "bg-rose-50 text-rose-700",
       };
 }
 
@@ -103,8 +103,7 @@ export function AdminReportsSection({
   const reportsByStatus = useMemo(
     () => ({
       pending: reports.filter((report) => report.status === "pending"),
-      resolved: reports.filter((report) => report.status === "resolved"),
-      dismissed: reports.filter((report) => report.status === "dismissed"),
+      processed: reports.filter((report) => report.status === "resolved" || report.status === "dismissed"),
     }),
     [reports],
   );
@@ -118,23 +117,13 @@ export function AdminReportsSection({
           reports={reportsByStatus.pending}
           emptyMessage="대기 중인 신고/문의가 없습니다."
           onSelectReport={setSelectedReport}
-          onUpdateReportStatus={onUpdateReportStatus}
         />
         <ReportStatusSection
           title="처리"
-          description="처리 완료된 신고 및 문의입니다."
-          reports={reportsByStatus.resolved}
-          emptyMessage="처리 완료된 신고/문의가 없습니다."
+          description="승인 또는 반려로 처리된 신고 및 문의입니다."
+          reports={reportsByStatus.processed}
+          emptyMessage="처리된 신고/문의가 없습니다."
           onSelectReport={setSelectedReport}
-          onUpdateReportStatus={onUpdateReportStatus}
-        />
-        <ReportStatusSection
-          title="반려"
-          description="반려된 신고 및 문의입니다."
-          reports={reportsByStatus.dismissed}
-          emptyMessage="반려된 신고/문의가 없습니다."
-          onSelectReport={setSelectedReport}
-          onUpdateReportStatus={onUpdateReportStatus}
         />
       </div>
 
@@ -157,14 +146,12 @@ function ReportStatusSection({
   reports,
   emptyMessage,
   onSelectReport,
-  onUpdateReportStatus,
 }: {
   title: string;
   description: string;
   reports: AdminReport[];
   emptyMessage: string;
   onSelectReport: (report: AdminReport) => void;
-  onUpdateReportStatus: (reportId: string, status: ReportStatus, message?: string) => void;
 }) {
   return (
     <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
@@ -189,7 +176,6 @@ function ReportStatusSection({
                 <th className="px-4 py-3">내용</th>
                 <th className="px-4 py-3">작성자</th>
                 <th className="w-[110px] px-4 py-3">상태</th>
-                <th className="w-[220px] px-4 py-3 text-right">처리</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -245,29 +231,6 @@ function ReportStatusSection({
                         {reportStatusLabel[report.status]}
                       </span>
                     </td>
-                    <td
-                      className="w-[220px] px-4 py-3 align-top"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      <div className="flex flex-wrap justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => onUpdateReportStatus(report.id, "resolved")}
-                          disabled={report.status === "resolved"}
-                          className="min-w-[88px] rounded-lg border border-slate-200 px-3 py-2 text-center text-xs font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                          처리완료
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onUpdateReportStatus(report.id, "dismissed")}
-                          disabled={report.status === "dismissed"}
-                          className="min-w-[88px] rounded-lg bg-slate-100 px-3 py-2 text-center text-xs font-black text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                          반려
-                        </button>
-                      </div>
-                    </td>
                   </tr>
                 );
               })}
@@ -294,9 +257,12 @@ function AdminReportDetailModal({
 }) {
   const [responseDraft, setResponseDraft] = useState(report.adminResponse ?? "");
   const tone = reportKindTone(report);
+  const editable = report.status === "pending";
+  const hasResponse = responseDraft.trim().length > 0;
 
   const handleUpdateStatus = (status: ReportStatus) => {
-    onUpdateReportStatus(report.id, status, responseDraft.trim() || undefined);
+    if (!hasResponse) return;
+    onUpdateReportStatus(report.id, status, responseDraft.trim());
   };
 
   return (
@@ -385,11 +351,12 @@ function AdminReportDetailModal({
             </div>
             <textarea
               value={responseDraft}
-              onChange={(e) => setResponseDraft(e.target.value)}
+              onChange={(event) => setResponseDraft(event.target.value)}
               rows={4}
               maxLength={2000}
-              placeholder="사용자에게 전달할 답변을 입력하세요. 처리완료 또는 반려 버튼을 누를 때 함께 저장됩니다."
-              className="mt-3 w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-800 placeholder:text-slate-400 focus:border-hp-300 focus:bg-white focus:outline-none"
+              readOnly={!editable}
+              placeholder="사용자에게 전달할 답변을 입력하세요."
+              className="mt-3 w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-800 placeholder:text-slate-400 focus:border-hp-300 focus:bg-white focus:outline-none read-only:text-slate-500"
             />
             <p className="mt-1 text-right text-xs font-semibold text-slate-400">
               {responseDraft.length} / 2000
@@ -398,22 +365,26 @@ function AdminReportDetailModal({
         </div>
 
         <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-5 py-4">
-          <button
-            type="button"
-            onClick={() => handleUpdateStatus("resolved")}
-            disabled={report.status === "resolved"}
-            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            처리완료
-          </button>
-          <button
-            type="button"
-            onClick={() => handleUpdateStatus("dismissed")}
-            disabled={report.status === "dismissed"}
-            className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            반려
-          </button>
+          {report.status === "pending" ? (
+            <>
+              <button
+                type="button"
+                onClick={() => handleUpdateStatus("dismissed")}
+                disabled={!hasResponse}
+                className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                반려
+              </button>
+              <button
+                type="button"
+                onClick={() => handleUpdateStatus("resolved")}
+                disabled={!hasResponse}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                승인
+              </button>
+            </>
+          ) : null}
           {report.targetType === "post" ? (
             <button
               type="button"

@@ -10,10 +10,12 @@ import type { AdminSection } from "@/features/admin/types";
 
 export function AdminSidebar({
   activeSection,
+  pendingReportCount,
   onSectionChange,
   onLogout,
 }: {
   activeSection: AdminSection;
+  pendingReportCount: number;
   onSectionChange: (section: AdminSection) => void;
   onLogout: () => void;
 }) {
@@ -71,6 +73,8 @@ export function AdminSidebar({
       <nav className="flex-1 space-y-2 p-4">
         {items.map((item) => {
           const active = activeSection === item.id;
+          const isReports = item.id === "reports";
+          const hasPendingReports = isReports && pendingReportCount > 0;
           return (
             <button
               key={item.id}
@@ -78,18 +82,27 @@ export function AdminSidebar({
               onClick={() => onSectionChange(item.id)}
               className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left transition ${
                 active
-                  ? "bg-[#123b5c] text-white shadow-sm shadow-[#0d3d62]/20"
+                  ? "border border-[#b8dff3] bg-white/80 text-[#123b5c] shadow-sm shadow-[#b8dff3]/30"
                   : "text-slate-700 hover:bg-white/75 hover:text-[#123b5c]"
               }`}
             >
-              <span className={active ? "text-[#8ccaf7]" : "text-[#2e668d]"}>
+              <span className={active ? "text-[#1a8fe0]" : "text-[#2e668d]"}>
                 {item.icon}
               </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-black">{item.label}</span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2 text-sm font-black">
+                  <span className="truncate">{item.label}</span>
+                  {hasPendingReports ? (
+                    <span
+                      className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white shadow-sm shadow-rose-200"
+                    >
+                      {pendingReportCount > 99 ? "99+" : pendingReportCount}
+                    </span>
+                  ) : null}
+                </span>
                 <span
                   className={`mt-0.5 block text-xs font-semibold ${
-                    active ? "text-blue-100/80" : "text-slate-500"
+                    active ? "text-[#2e668d]" : "text-slate-500"
                   }`}
                 >
                   {item.description}

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getKakaoAccessToken, KakaoTokenError, kakaoCalPost } from "@/features/calendar/api/kakao-mcp-client";
+import { getKakaoAccessToken, KakaoTokenError } from "@/features/calendar/api/kakao-mcp-client";
 import { API_BASE_URL } from "@/services/config/config";
 
 type EventActionBody =
   | { action: "delete"; eventId: string; calendarId?: string }
-  | { action: "update"; eventId: string; event: Record<string, unknown> };
+  | { action: "update"; eventId: string; event: Record<string, unknown> }
+  | { action: "delete-task"; taskId: string };
 
 function buildKakaoTokenErrorResponse(error: KakaoTokenError) {
   return NextResponse.json(
@@ -38,8 +39,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
+    if (body.action === "delete-task") {
+      const params = new URLSearchParams({ task_id: body.taskId });
+      const res = await fetch(
+        `https://kapi.kakao.com/v2/api/calendar/tasks?${params}`,
+        { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return NextResponse.json(
+          { message: (data as { msg?: string }).msg ?? "카카오 할 일 삭제 실패" },
+          { status: res.status },
+        );
+      }
+      return NextResponse.json({ success: true });
+    }
+
     if (body.action === "update") {
-      const res = await kakaoCalPost(`/update/event/${body.eventId}`, token, "event", body.event);
+      const formBody = new URLSearchParams();
+      formBody.set("event_id", body.eventId);
+      formBody.set("event", JSON.stringify(body.event));
+      const res = await fetch("https://kapi.kakao.com/v2/api/calendar/update/event/host", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: formBody.toString(),
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         return NextResponse.json(

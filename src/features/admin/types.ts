@@ -12,6 +12,7 @@ export type AdminUser = {
   nickname: string;
   role: "USER" | "ADMIN";
   status: UserStatus;
+  avatarVisualClassName?: string | null;
   createdAt: string;
   lastSeenAt?: string;
   deletedAt?: string;

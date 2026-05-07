@@ -99,8 +99,8 @@ export function AdminCertificatesSection({
   const visibleSchedules = activeTab === "past" ? pastSchedules : upcomingSchedules;
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-6">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+    <>
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
         <button
           type="button"
           onClick={() => setSyncConfirmOpen(true)}
@@ -110,6 +110,14 @@ export function AdminCertificatesSection({
           <RefreshCw size={16} className={syncing ? "animate-spin" : ""} />
           {syncing ? "갱신 중..." : "자격증 일정 갱신"}
         </button>
+
+        {syncing ? (
+          <span className="text-sm font-semibold text-amber-700">자격증 일정 API를 불러오는 중입니다.</span>
+        ) : syncMessage ? (
+          <span className="text-sm font-semibold text-emerald-700">{syncMessage}</span>
+        ) : syncError ? (
+          <span className="text-sm font-semibold text-rose-700">{syncError}</span>
+        ) : null}
       </div>
 
       <ConfirmModal
@@ -124,19 +132,8 @@ export function AdminCertificatesSection({
         onClose={() => setSyncConfirmOpen(false)}
       />
 
-      {syncMessage ? (
-        <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-          {syncMessage}
-        </div>
-      ) : null}
-
-      {syncError ? (
-        <div className="mt-5 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
-          {syncError}
-        </div>
-      ) : null}
-
-      <div className="border-slate-100">
+      <section className="rounded-lg border border-slate-200 bg-white p-6">
+        <div className="border-slate-100">
         <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-200">
           <div className="flex">
             <button
@@ -239,25 +236,36 @@ export function AdminCertificatesSection({
         ) : (
           <AdminDataIndustryScheduleTable items={visibleSchedules} />
         )}
-      </div>
-    </section>
+        </div>
+      </section>
+    </>
   );
 }
 
 function AdminQnetScheduleTable({ items }: { items: MergedCertificateSchedule[] }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200">
-      <table className="w-full min-w-[800px] text-sm">
+    <div className="overflow-x-hidden rounded-xl border border-slate-200">
+      <table className="w-full table-fixed text-xs">
+        <colgroup>
+          <col className="w-[24%]" />
+          <col className="w-[8%]" />
+          <col className="w-[12%]" />
+          <col className="w-[12%]" />
+          <col className="w-[12%]" />
+          <col className="w-[12%]" />
+          <col className="w-[10%]" />
+          <col className="w-[10%]" />
+        </colgroup>
         <thead>
-          <tr className="bg-hp-600 text-white">
-            <th className="px-4 py-3 text-left font-semibold">종목명</th>
-            <th className="whitespace-nowrap px-3 py-3 text-center font-semibold">회차</th>
-            <th className="whitespace-nowrap px-3 py-3 text-center font-semibold">필기 접수</th>
-            <th className="whitespace-nowrap px-3 py-3 text-center font-semibold">필기 시험일</th>
-            <th className="whitespace-nowrap px-3 py-3 text-center font-semibold">필기 발표</th>
-            <th className="whitespace-nowrap px-3 py-3 text-center font-semibold">실기 접수</th>
-            <th className="whitespace-nowrap px-3 py-3 text-center font-semibold">실기 시험일</th>
-            <th className="whitespace-nowrap px-3 py-3 text-center font-semibold">실기 발표</th>
+          <tr className="h-11 bg-hp-600 text-white">
+            <th className="h-11 px-4 py-0 text-left font-semibold">종목명</th>
+            <th className="h-11 whitespace-nowrap px-3 py-0 text-center font-semibold">회차</th>
+            <th className="h-11 whitespace-nowrap px-3 py-0 text-center font-semibold">필기 접수</th>
+            <th className="h-11 whitespace-nowrap px-3 py-0 text-center font-semibold">필기 시험일</th>
+            <th className="h-11 whitespace-nowrap px-3 py-0 text-center font-semibold">필기 발표</th>
+            <th className="h-11 whitespace-nowrap px-3 py-0 text-center font-semibold">실기 접수</th>
+            <th className="h-11 whitespace-nowrap px-3 py-0 text-center font-semibold">실기 시험일</th>
+            <th className="h-11 whitespace-nowrap px-3 py-0 text-center font-semibold">실기 발표</th>
           </tr>
         </thead>
         <tbody>
@@ -266,15 +274,15 @@ function AdminQnetScheduleTable({ items }: { items: MergedCertificateSchedule[] 
             return (
               <tr
                 key={item.id}
-                className={`border-t transition ${
+                className={`h-14 border-t transition ${
                   anyActive
                     ? "border-emerald-100 bg-emerald-50/50"
                     : `border-slate-100 ${index % 2 === 1 ? "bg-slate-50/60" : "bg-white"}`
                 }`}
               >
-                <td className="px-4 py-3">
-                  <span className="font-semibold text-slate-800">{item.certificateName}</span>
-                  <div className="mt-1 flex flex-wrap gap-1">
+                <td className="h-14 px-4 py-0">
+                  <span className="block truncate font-semibold text-slate-800">{item.certificateName}</span>
+                  <div className="mt-1 flex h-4 items-center gap-1 overflow-hidden">
                     {anyActive && (
                       <span className="rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
                         {writtenActive && practicalActive
@@ -291,11 +299,11 @@ function AdminQnetScheduleTable({ items }: { items: MergedCertificateSchedule[] 
                     )}
                   </div>
                 </td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-600">
+                <td className="h-14 whitespace-nowrap px-3 py-0 text-center text-slate-600">
                   {item.round > 0 ? `${item.round}회` : "정기"}
                 </td>
                 <td
-                  className={`whitespace-nowrap px-3 py-3 text-center font-semibold ${writtenActive ? "text-emerald-600" : "text-slate-700"}`}
+                  className={`h-14 whitespace-nowrap px-3 py-0 text-center font-semibold ${writtenActive ? "text-emerald-600" : "text-slate-700"}`}
                 >
                   {item.writtenApplyRanges.length > 0 ? (
                     formatDateRange(item.writtenApplyRanges[0]?.start, item.writtenApplyRanges[0]?.end)
@@ -303,14 +311,14 @@ function AdminQnetScheduleTable({ items }: { items: MergedCertificateSchedule[] 
                     <span className="font-normal text-slate-300">—</span>
                   )}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">
+                <td className="h-14 whitespace-nowrap px-3 py-0 text-center text-slate-700">
                   {item.writtenExamDate || <span className="text-slate-300">—</span>}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">
+                <td className="h-14 whitespace-nowrap px-3 py-0 text-center text-slate-700">
                   {item.writtenResultDate || <span className="text-slate-300">—</span>}
                 </td>
                 <td
-                  className={`whitespace-nowrap px-3 py-3 text-center font-semibold ${practicalActive ? "text-emerald-600" : "text-slate-700"}`}
+                  className={`h-14 whitespace-nowrap px-3 py-0 text-center font-semibold ${practicalActive ? "text-emerald-600" : "text-slate-700"}`}
                 >
                   {item.practicalApplyRanges.length > 0 ? (
                     formatDateRange(
@@ -321,10 +329,10 @@ function AdminQnetScheduleTable({ items }: { items: MergedCertificateSchedule[] 
                     <span className="font-normal text-slate-300">—</span>
                   )}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">
+                <td className="h-14 whitespace-nowrap px-3 py-0 text-center text-slate-700">
                   {item.practicalExamDate || <span className="text-slate-300">—</span>}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">
+                <td className="h-14 whitespace-nowrap px-3 py-0 text-center text-slate-700">
                   {item.practicalResultDate || <span className="text-slate-300">—</span>}
                 </td>
               </tr>
@@ -338,18 +346,28 @@ function AdminQnetScheduleTable({ items }: { items: MergedCertificateSchedule[] 
 
 function AdminDataIndustryScheduleTable({ items }: { items: MergedCertificateSchedule[] }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200">
-      <table className="w-full min-w-[720px] text-sm">
+    <div className="overflow-x-hidden rounded-xl border border-slate-200">
+      <table className="w-full table-fixed text-xs">
+        <colgroup>
+          <col className="w-[24%]" />
+          <col className="w-[8%]" />
+          <col className="w-[10%]" />
+          <col className="w-[12%]" />
+          <col className="w-[10%]" />
+          <col className="w-[10%]" />
+          <col className="w-[12%]" />
+          <col className="w-[14%]" />
+        </colgroup>
         <thead>
-          <tr className="bg-slate-800 text-white">
-            <th className="px-4 py-3 text-left font-semibold">종목명</th>
-            <th className="whitespace-nowrap px-3 py-3 text-center font-semibold">회차</th>
-            <th className="whitespace-nowrap px-3 py-3 text-center font-semibold">구분</th>
-            <th className="whitespace-nowrap px-3 py-3 text-center font-semibold">접수기간</th>
-            <th className="whitespace-nowrap px-3 py-3 text-center font-semibold">시험일</th>
-            <th className="whitespace-nowrap px-3 py-3 text-center font-semibold">시험시간</th>
-            <th className="whitespace-nowrap px-3 py-3 text-center font-semibold">합격발표</th>
-            <th className="whitespace-nowrap px-3 py-3 text-center font-semibold">장소</th>
+          <tr className="h-11 bg-slate-800 text-white">
+            <th className="h-11 px-4 py-0 text-left font-semibold">종목명</th>
+            <th className="h-11 whitespace-nowrap px-3 py-0 text-center font-semibold">회차</th>
+            <th className="h-11 whitespace-nowrap px-3 py-0 text-center font-semibold">구분</th>
+            <th className="h-11 whitespace-nowrap px-3 py-0 text-center font-semibold">접수기간</th>
+            <th className="h-11 whitespace-nowrap px-3 py-0 text-center font-semibold">시험일</th>
+            <th className="h-11 whitespace-nowrap px-3 py-0 text-center font-semibold">시험시간</th>
+            <th className="h-11 whitespace-nowrap px-3 py-0 text-center font-semibold">합격발표</th>
+            <th className="h-11 whitespace-nowrap px-3 py-0 text-center font-semibold">장소</th>
           </tr>
         </thead>
         <tbody>
@@ -358,15 +376,15 @@ function AdminDataIndustryScheduleTable({ items }: { items: MergedCertificateSch
             return (
               <tr
                 key={item.id}
-                className={`border-t transition ${
+                className={`h-14 border-t transition ${
                   anyActive
                     ? "border-emerald-100 bg-emerald-50/50"
                     : `border-slate-100 ${index % 2 === 1 ? "bg-slate-50/60" : "bg-white"}`
                 }`}
               >
-                <td className="px-4 py-3">
-                  <span className="font-semibold text-slate-800">{item.certificateName}</span>
-                  <div className="mt-1 flex flex-wrap gap-1">
+                <td className="h-14 px-4 py-0">
+                  <span className="block truncate font-semibold text-slate-800">{item.certificateName}</span>
+                  <div className="mt-1 flex h-4 items-center gap-1 overflow-hidden">
                     {anyActive && (
                       <span className="rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
                         접수중
@@ -374,10 +392,10 @@ function AdminDataIndustryScheduleTable({ items }: { items: MergedCertificateSch
                     )}
                   </div>
                 </td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-600">
+                <td className="h-14 whitespace-nowrap px-3 py-0 text-center text-slate-600">
                   {item.round > 0 ? `${item.round}회` : "—"}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3 text-center">
+                <td className="h-14 whitespace-nowrap px-3 py-0 text-center">
                   {item.examCategory ? (
                     <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
                       {item.examCategory}
@@ -387,7 +405,7 @@ function AdminDataIndustryScheduleTable({ items }: { items: MergedCertificateSch
                   )}
                 </td>
                 <td
-                  className={`whitespace-nowrap px-3 py-3 text-center font-semibold ${writtenActive ? "text-emerald-600" : "text-slate-700"}`}
+                  className={`h-14 whitespace-nowrap px-3 py-0 text-center font-semibold ${writtenActive ? "text-emerald-600" : "text-slate-700"}`}
                 >
                   {item.writtenApplyRanges.length > 0 ? (
                     formatDateRange(item.writtenApplyRanges[0]?.start, item.writtenApplyRanges[0]?.end)
@@ -395,16 +413,16 @@ function AdminDataIndustryScheduleTable({ items }: { items: MergedCertificateSch
                     <span className="font-normal text-slate-300">—</span>
                   )}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">
+                <td className="h-14 whitespace-nowrap px-3 py-0 text-center text-slate-700">
                   {item.writtenExamDate || <span className="text-slate-300">—</span>}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">
+                <td className="h-14 whitespace-nowrap px-3 py-0 text-center text-slate-700">
                   {item.examStartTime || <span className="text-slate-300">—</span>}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">
+                <td className="h-14 whitespace-nowrap px-3 py-0 text-center text-slate-700">
                   {item.writtenResultDate || <span className="text-slate-300">—</span>}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3 text-center text-slate-700">
+                <td className="h-14 whitespace-nowrap px-3 py-0 text-center text-slate-700">
                   {item.examPlace || <span className="text-slate-300">—</span>}
                 </td>
               </tr>

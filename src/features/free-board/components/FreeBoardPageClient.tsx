@@ -6,8 +6,9 @@ import { Eye, Heart, MessageCircle } from "lucide-react";
 import type { BoardPost } from "@/entities/common/types";
 import { createComment } from "@/features/boards/api/comments";
 import { isPostLiked, saveLikedPost, toggleBoardLike } from "@/features/boards/api/likes";
-import { formatBoardCreatedAt, getBoardCreatedAtTime, getInitial } from "@/features/boards/utils/detail-utils";
+import { formatBoardCreatedAt, getBoardCreatedAtTime } from "@/features/boards/utils/detail-utils";
 import { useApp } from "@/shared/context/AppContext";
+import Avatar from "@/shared/components/common/Avatar";
 
 function sortPosts(posts: BoardPost[]) {
   return Array.from(
@@ -184,9 +185,11 @@ export default function FreeBoardPageClient({ initialPosts }: { initialPosts: Bo
                   className="flex h-10 w-10 items-center justify-center rounded-full bg-hp-100 p-[2px] transition hover:scale-105 hover:bg-hp-200"
                   title="프로필 보기"
                 >
-                  <span className="flex h-full w-full items-center justify-center rounded-full bg-white text-xs font-bold text-hp-700">
-                    {getInitial(post.author)}
-                  </span>
+                  <Avatar
+                    name={post.author}
+                    customVisualClassName={post.authorAvatarVisualClassName ?? undefined}
+                    className="h-full w-full rounded-full text-xs"
+                  />
                 </button>
 
                 <div className="min-w-0 flex-1">
@@ -245,9 +248,11 @@ export default function FreeBoardPageClient({ initialPosts }: { initialPosts: Bo
                   <div className="mt-4 space-y-2 rounded-2xl bg-slate-50 px-4 py-3">
                     {post.comments.slice(-2).map((comment) => (
                       <div key={comment.id} className="flex items-center gap-1 text-xs text-slate-600">
-                        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[9px] font-bold text-slate-600">
-                          {getInitial(comment.author)}
-                        </div>
+                        <Avatar
+                          name={comment.author}
+                          customVisualClassName={comment.avatarVisualClassName ?? undefined}
+                          className="h-5 w-5 rounded-full text-[9px]"
+                        />
                         <span className="font-semibold text-slate-800">{comment.author}</span>
                         <span className="text-slate-300">·</span>
                         <span className="truncate">{comment.text}</span>
@@ -257,9 +262,11 @@ export default function FreeBoardPageClient({ initialPosts }: { initialPosts: Bo
                   </div>
                 )}
                 <div className="mt-4 flex items-center gap-3 rounded-2xl border border-black/10 bg-slate-50 px-4 py-2 transition focus-within:border-hp-300 focus-within:bg-white focus-within:shadow-sm">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[11px] font-bold text-white">
-                    {getInitial(currentUser?.nickname || "U")}
-                  </div>
+                  <Avatar
+                    name={currentUser?.nickname}
+                    customVisualClassName={currentUser?.avatarVisualClassName ?? undefined}
+                    className="h-6 w-6 rounded-full text-[11px]"
+                  />
                   <input
                     value={inlineCommentDrafts[post.id] || ""}
                     onChange={(e) => setInlineCommentDrafts((prev) => ({ ...prev, [post.id]: e.target.value }))}

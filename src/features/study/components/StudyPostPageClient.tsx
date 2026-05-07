@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ConfirmModal from "@/shared/components/common/ConfirmModal";
+import Avatar from "@/shared/components/common/Avatar";
 import { useRouter } from "next/navigation";
 import { Clock, Eye, Heart, Loader2, MapPin, MessageCircle, Search, X, ArrowLeft } from "lucide-react";
 import { useKakaoLoader } from "react-kakao-maps-sdk";
@@ -12,7 +13,7 @@ import { createComment, deleteComment as deleteCommentRequest, listComments, upd
 import { isPostLiked, saveLikedPost, toggleBoardLike } from "@/features/boards/api/likes";
 import { CERT_DATA } from "@/shared/constants";
 import { deleteStudy, updateStudy } from "@/features/study/api/study-api";
-import { formatBoardCreatedAt, getInitial } from "@/features/boards/utils/detail-utils";
+import { formatBoardCreatedAt } from "@/features/boards/utils/detail-utils";
 import { useApp } from "@/shared/context/AppContext";
 import { getMyChatRooms, joinStudyChatRoom } from "@/services/realtime/stomp";
 import { toast } from "sonner";
@@ -456,9 +457,13 @@ return (
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setProfileModal(post.authorId)}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-hp-100"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
                 >
-                  <span className="text-xs font-bold text-hp-700">{getInitial(post.author)}</span>
+                  <Avatar
+                    name={post.author}
+                    customVisualClassName={post.authorAvatarVisualClassName ?? undefined}
+                    className="h-full w-full rounded-full text-xs"
+                  />
                 </button>
                 <button
                   className="text-sm font-medium text-slate-600 hover:text-hp-700 hover:underline"
@@ -890,9 +895,13 @@ return (
                         <div className="flex gap-2 min-w-0">
                           <button
                             onClick={() => comment.authorId && setProfileModal(comment.authorId)}
-                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-hp-100"
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
                           >
-                            <span className="text-xs font-bold text-hp-700">{getInitial(comment.author)}</span>
+                            <Avatar
+                              name={comment.author}
+                              customVisualClassName={comment.avatarVisualClassName ?? undefined}
+                              className="h-full w-full rounded-full text-xs"
+                            />
                           </button>
                           <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                             <div className="flex items-center gap-1.5">

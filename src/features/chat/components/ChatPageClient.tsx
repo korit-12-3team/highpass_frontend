@@ -7,6 +7,7 @@ import { fetchWithAuth } from "@/services/auth/auth";
 import { CHAT_API_BASE_URL } from "@/services/config/config";
 import { getChatRoomReadState } from "@/services/realtime/stomp";
 import ConfirmModal from "@/shared/components/common/ConfirmModal";
+import Avatar from "@/shared/components/common/Avatar";
 import ChatMessageBubble from "@/features/chat/components/ChatMessageBubble";
 import { getRoomDisplayName, minuteKey } from "@/features/chat/utils/chatRoom";
 import { useChatActions } from "@/features/chat/hooks/useChatActions";
@@ -255,11 +256,11 @@ export default function ChatPageClient() {
                           <Users size={18} strokeWidth={2} />
                         </div>
                       ) : (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-100 text-sky-500 shadow-sm">
-                          <span className="text-sm font-bold">
-                            {(room.roomNickname || room.partnerNickname || "?").substring(0, 1)}
-                          </span>
-                        </div>
+                        <Avatar
+                          name={room.roomNickname || room.partnerNickname}
+                          customVisualClassName={room.partnerAvatarVisualClassName ?? undefined}
+                          className="h-10 w-10 rounded-2xl text-sm shadow-sm"
+                        />
                       )}
                       {(room.unreadCount ?? 0) > 0 && (
                         <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full border-2 border-white bg-hp-600 px-1 text-[9px] font-bold text-white shadow-sm">
@@ -295,11 +296,11 @@ export default function ChatPageClient() {
                     <Users size={14} strokeWidth={2} />
                   </div>
                 ) : (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-100 text-sky-500">
-                    <span className="text-xs font-bold">
-                      {(activeRoom.roomNickname || activeRoom.partnerNickname || "?").substring(0, 1)}
-                    </span>
-                  </div>
+                  <Avatar
+                    name={activeRoom.roomNickname || activeRoom.partnerNickname}
+                    customVisualClassName={activeRoom.partnerAvatarVisualClassName ?? undefined}
+                    className="h-8 w-8 rounded-lg text-xs"
+                  />
                 )}
                 <p className="flex-1 font-bold text-slate-800">{getRoomDisplayName(activeRoom)}</p>
 
@@ -387,9 +388,11 @@ export default function ChatPageClient() {
                               onClick={() => openProfileModal(participant.userId)}
                             >
                               <div className="flex items-center gap-2" >
-                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-hp-100 text-[10px] font-bold text-hp-600" >
-                                  {participant.nickname.substring(0, 1)}
-                                </div>
+                                <Avatar
+                                  name={participant.nickname}
+                                  customVisualClassName={participant.avatarVisualClassName ?? undefined}
+                                  className="h-6 w-6 rounded-full text-[10px]"
+                                />
                                 <button
                                   type="button"
                                   

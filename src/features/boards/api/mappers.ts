@@ -10,6 +10,7 @@ export type BoardApiRecord = {
   content?: unknown;
   author?: unknown;
   nickname?: unknown;
+  avatarVisualClassName?: unknown;
   authorId?: unknown;
   userId?: unknown;
   createdAt?: unknown;
@@ -34,6 +35,7 @@ export type StudyApiRecord = {
   content?: unknown;
   userId?: unknown;
   nickname?: unknown;
+  avatarVisualClassName?: unknown;
   locationName?: unknown;
   cert?: unknown;
   address?: unknown;
@@ -51,6 +53,7 @@ export type CommentApiRecord = {
   content?: unknown;
   nickname?: unknown;
   userId?: unknown;
+  avatarVisualClassName?: unknown;
   createdAt?: unknown;
 };
 
@@ -72,6 +75,9 @@ function safeComments(value: unknown): PostComment[] {
       return {
         id: safeNumber(anyItem.id, Date.now()),
         author: safeString(anyItem.nickname ?? anyItem.author, "Unknown"),
+        authorId: safeString(anyItem.userId ?? anyItem.authorId),
+        avatarVisualClassName:
+          typeof anyItem.avatarVisualClassName === "string" ? anyItem.avatarVisualClassName : null,
         text: safeString(anyItem.content ?? anyItem.text, ""),
         createdAt: typeof anyItem.createdAt === "string" ? anyItem.createdAt : undefined,
       } satisfies PostComment;
@@ -90,6 +96,8 @@ export function mapApiRecordToBoardPost(record: BoardApiRecord): BoardPost {
     content: safeString(record.content),
     author: safeString(record.nickname ?? record.author, "Unknown"),
     authorId: safeString(record.userId ?? record.authorId),
+    authorAvatarVisualClassName:
+      typeof record.avatarVisualClassName === "string" ? record.avatarVisualClassName : null,
     createdAt,
     views: safeNumber(record.viewCount ?? record.views),
     likes: safeNumber(record.likeCount ?? record.likes),
@@ -113,6 +121,8 @@ export function mapStudyRecordToBoardPost(record: StudyApiRecord): BoardPost {
     content: safeString(record.content),
     author: safeString(record.nickname, "Unknown"),
     authorId: safeString(record.userId),
+    authorAvatarVisualClassName:
+      typeof record.avatarVisualClassName === "string" ? record.avatarVisualClassName : null,
     createdAt: safeString(record.createdAt, new Date().toISOString()),
     views: safeNumber(record.viewCount),
     likes: safeNumber(record.likeCount),
@@ -133,6 +143,8 @@ export function mapApiRecordToComment(record: CommentApiRecord): PostComment {
     id: safeNumber(record.id, Date.now()),
     author: safeString(record.nickname, "Unknown"),
     authorId: safeString(record.userId),
+    avatarVisualClassName:
+      typeof record.avatarVisualClassName === "string" ? record.avatarVisualClassName : null,
     text: safeString(record.content),
     createdAt: typeof record.createdAt === "string" ? record.createdAt : undefined,
   };

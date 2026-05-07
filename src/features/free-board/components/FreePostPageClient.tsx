@@ -12,10 +12,11 @@ import {
   updateComment as updateCommentRequest,
 } from "@/features/boards/api/comments";
 import { isPostLiked, saveLikedPost, toggleBoardLike } from "@/features/boards/api/likes";
-import { formatBoardCreatedAt, getInitial } from "@/features/boards/utils/detail-utils";
+import { formatBoardCreatedAt } from "@/features/boards/utils/detail-utils";
 import { deleteBoard } from "@/features/free-board/api/boards";
 import ReportDialog from "@/features/reports/components/ReportDialog";
 import ConfirmModal from "@/shared/components/common/ConfirmModal";
+import Avatar from "@/shared/components/common/Avatar";
 import { useApp } from "@/shared/context/AppContext";
 import { updateBoard } from "@/features/free-board/api/boards";
 const TAGS = {
@@ -339,9 +340,11 @@ return (
             onClick={() => setProfileModal(post.authorId)}
             className="flex items-center gap-2 rounded-full transition hover:opacity-80"
           >
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-[10px] font-black text-white">
-              {getInitial(post.author)}
-            </div>
+            <Avatar
+              name={post.author}
+              customVisualClassName={post.authorAvatarVisualClassName ?? undefined}
+              className="h-7 w-7 rounded-full text-[10px]"
+            />
             <div className="text-left">
               <p className="text-xs font-bold text-slate-800">{post.author}</p>
               <p className="text-[10px] text-slate-400">{formatBoardCreatedAt(post.createdAt)}</p>
@@ -515,9 +518,11 @@ return (
               onSubmit={(e) => { e.preventDefault(); void addComment(); }}
               className="mb-5 flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 transition focus-within:bg-slate-100"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[10px] font-black text-white">
-                {getInitial(currentUser?.nickname || "U")}
-              </div>
+              <Avatar
+                name={currentUser?.nickname}
+                customVisualClassName={currentUser?.avatarVisualClassName ?? undefined}
+                className="h-8 w-8 rounded-full text-[10px]"
+              />
               <input
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
@@ -543,9 +548,11 @@ return (
               <div className="space-y-3">
                 {(post.comments || []).map((comment) => (
                   <div key={comment.id} className="flex gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-600">
-                      {getInitial(comment.author)}
-                    </div>
+                    <Avatar
+                      name={comment.author}
+                      customVisualClassName={comment.avatarVisualClassName ?? undefined}
+                      className="h-8 w-8 rounded-full text-[10px]"
+                    />
                     <div className="min-w-0 flex-1">
                       <div className="rounded-2xl rounded-tl-sm bg-slate-100 px-3 py-2">
                         <div className="mb-1.5 flex items-center gap-2">

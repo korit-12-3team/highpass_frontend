@@ -1,6 +1,7 @@
 import React from "react";
 import { FileText, Heart, MessageSquare, MessageSquareWarning, Settings, User } from "lucide-react";
 import type { UserProfile } from "@/entities/common/types";
+import Avatar from "@/shared/components/common/Avatar";
 
 type MyPageTab = "profile" | "posts" | "comments" | "likes" | "settings" | "reports";
 
@@ -48,9 +49,12 @@ export function MyPageHeader({
     <section className="rounded-[30px] border border-slate-200 bg-white px-6 py-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] md:px-8">
       <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-18 w-18 shrink-0 items-center justify-center rounded-[24px] bg-slate-900 px-6 py-5 text-3xl font-black text-white">
-            {user.nickname.substring(0, 1)}
-          </div>
+          <Avatar
+            src={user.profileImage}
+            name={user.nickname}
+            customVisualClassName={user.avatarVisualClassName ?? undefined}
+            className="h-18 w-18 rounded-[24px] px-6 py-5 text-3xl"
+          />
           <div className="min-w-0">
             <h2 className="mt-2 truncate text-3xl font-black text-slate-950">{user.nickname}</h2>
             <p className="mt-2 text-sm text-slate-500">{user.email}</p>

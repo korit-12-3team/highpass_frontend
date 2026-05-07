@@ -33,6 +33,7 @@ import { AdminPostsSection } from "@/features/admin/components/AdminPostsSection
 import { AdminReportsSection } from "@/features/admin/components/AdminReportsSection";
 import { AdminSidebar } from "@/features/admin/components/AdminSidebar";
 import { AdminUsersSection } from "@/features/admin/components/AdminUsersSection";
+import Avatar from "@/shared/components/common/Avatar";
 import { listComments } from "@/features/boards/api/comments";
 import { getLastSyncedAt, listCertificateSchedules, syncCertificateSchedules, type CertificateSchedule } from "@/features/search/api/certificates";
 import type { PostComment } from "@/entities/common/types";
@@ -353,7 +354,7 @@ export default function AdminPageClient() {
     return [
       { id: "reports-total", icon: <MessageSquareWarning size={18} />, label: "전체 신고/문의", value: reports.length },
       { id: "reports-pending", icon: <Clock3 size={18} />, label: "대기", value: reportCount },
-      { id: "reports-resolved", icon: <CheckCircle2 size={18} />, label: "처리", value: resolvedReportCount },
+      { id: "reports-resolved", icon: <CheckCircle2 size={18} />, label: "승인", value: resolvedReportCount },
       { id: "reports-dismissed", icon: <XCircle size={18} />, label: "반려", value: dismissedReportCount },
     ];
   }, [
@@ -518,6 +519,7 @@ export default function AdminPageClient() {
     <div className="flex h-screen flex-col overflow-hidden bg-slate-100 text-slate-800 md:flex-row">
       <AdminSidebar
         activeSection={activeSection}
+        pendingReportCount={reportCount}
         onSectionChange={(section) => {
           setActiveSection(section);
           resetDetailViews();
@@ -525,7 +527,7 @@ export default function AdminPageClient() {
         onLogout={() => void handleAdminLogout()}
       />
 
-      <main className="min-w-0 flex-1 overflow-y-auto p-4 md:p-8">
+      <main className="min-w-0 flex-1 overflow-y-auto p-4 [scrollbar-gutter:stable] md:p-8">
         <header className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h2 className="mt-2 mb-5 text-3xl font-black text-slate-950">
@@ -545,14 +547,14 @@ export default function AdminPageClient() {
         </header>
 
         {!selectedUser && !selectedPost && activeSection !== "certificates" ? (
-          <div className="mb-4 flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex w-full max-w-xl items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 focus-within:border-hp-300 focus-within:bg-white">
+          <div className="mb-2 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex w-full max-w-xl items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 focus-within:border-hp-300 focus-within:bg-white">
               <Search size={18} className="text-slate-400" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder={searchPlaceholder}
-                className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-400"
+                className="min-w-0 flex-1 bg-white text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-400"
               />
             </div>
 
@@ -616,7 +618,9 @@ export default function AdminPageClient() {
           </div>
         ) : null}
 
-        <ApiNotice status={apiStatus[activeSection]} label={sectionTitle} />
+        {activeSection !== "certificates" ? (
+          <ApiNotice status={apiStatus[activeSection]} label={sectionTitle} />
+        ) : null}
 
         {activeSection === "users" ? (
           <AdminUsersSection
@@ -780,9 +784,11 @@ function AdminPostPreviewModal({
                 <div className="space-y-4">
                   {comments.map((comment) => (
                     <div key={comment.id} className="flex gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-xs font-black text-white">
-                        {comment.author.slice(0, 1)}
-                      </span>
+                      <Avatar
+                        name={comment.author}
+                        customVisualClassName={comment.avatarVisualClassName ?? undefined}
+                        className="h-9 w-9 rounded-lg text-xs"
+                      />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-sm font-black text-slate-900">

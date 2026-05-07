@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(grep -n \"event\\\\.title\\\\|\\\\\\\\.title}\" src/features/calendar/components/CalendarPageClient.tsx)"
+    ]
+  }
+}

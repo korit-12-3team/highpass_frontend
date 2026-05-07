@@ -28,8 +28,8 @@ export async function GET(req: NextRequest) {
     const params = new URLSearchParams();
     const from = searchParams.get("from");
     const to = searchParams.get("to");
-    if (from) params.set("from", from + "T00:00:00+09:00");
-    if (to) params.set("to", to + "T23:59:59+09:00");
+    if (from) params.set("from", from.includes("T") ? from : from + "T00:00:00+09:00");
+    if (to) params.set("to", to.includes("T") ? to : to + "T23:59:59+09:00");
 
     const res = await kakaoCalGet(`/events?${params}`, token);
     const data = await res.json();

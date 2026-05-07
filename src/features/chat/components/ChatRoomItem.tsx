@@ -2,6 +2,7 @@
 
 import { Users } from "lucide-react";
 import type { ChatRoom } from "@/entities/common/types";
+import Avatar from "@/shared/components/common/Avatar";
 
 type Props = {
   room: ChatRoom;
@@ -34,11 +35,11 @@ export default function ChatRoomItem({ room, isActive, onClick }: Props) {
             <Users size={18} strokeWidth={2} />
           </div>
         ) : (
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-100 text-sky-500 shadow-sm">
-            <span className="text-sm font-bold">
-              {(room.roomNickname || room.partnerNickname || "?").substring(0, 1)}
-            </span>
-          </div>
+          <Avatar
+            name={room.roomNickname || room.partnerNickname}
+            customVisualClassName={room.partnerAvatarVisualClassName ?? undefined}
+            className="h-10 w-10 rounded-2xl text-sm shadow-sm"
+          />
         )}
         {(room.unreadCount ?? 0) > 0 && (
           <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[9px] font-bold text-white shadow-sm">

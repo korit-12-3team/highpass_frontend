@@ -6,9 +6,10 @@ import { Eye, Heart, MapPin, MessageCircle, Zap } from "lucide-react";
 import type { BoardPost } from "@/entities/common/types";
 import { listComments } from "@/features/boards/api/comments";
 import { isPostLiked, saveLikedPost, toggleBoardLike } from "@/features/boards/api/likes";
-import { formatBoardCreatedAt, getBoardCreatedAtTime, getInitial } from "@/features/boards/utils/detail-utils";
+import { formatBoardCreatedAt, getBoardCreatedAtTime } from "@/features/boards/utils/detail-utils";
 import { CERT_DATA, REGION_DATA } from "@/shared/constants";
 import { useApp } from "@/shared/context/AppContext";
+import Avatar from "@/shared/components/common/Avatar";
 import { getStudyRegionBadge } from "@/features/study/utils/region";
 
 const CUSTOM_CERT_FILTER = "기타";
@@ -359,9 +360,11 @@ return (
                     }}
                     className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold text-slate-700 transition hover:bg-slate-200"
                   >
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-hp-100 text-[10px] font-bold text-hp-700">
-                      {getInitial(post.author)}
-                    </div>
+                    <Avatar
+                      name={post.author}
+                      customVisualClassName={post.authorAvatarVisualClassName ?? undefined}
+                      className="h-5 w-5 rounded-full text-[10px]"
+                    />
                     {post.author}
                   </button>
                   <span className="text-[11px] font-medium text-slate-400">{formatBoardCreatedAt(post.createdAt)}</span>

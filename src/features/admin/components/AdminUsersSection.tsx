@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ArrowLeft, FileText } from "lucide-react";
 import type { AdminPost, AdminUser, UserStatus } from "@/features/admin/types";
 import ConfirmModal from "@/shared/components/common/ConfirmModal";
+import Avatar from "@/shared/components/common/Avatar";
 import {
   formatDateOnly,
   getLastSeenLabel,
@@ -143,9 +144,11 @@ export function AdminUsersSection({
               <tr key={user.id} onClick={() => onOpenUser(user.id)} className="cursor-pointer bg-white transition hover:bg-hp-50/80">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3 text-left">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900 text-sm font-black text-white">
-                      {user.nickname.slice(0, 1)}
-                    </span>
+                    <Avatar
+                      name={user.nickname}
+                      customVisualClassName={user.avatarVisualClassName ?? undefined}
+                      className="h-10 w-10 rounded-lg text-sm"
+                    />
                     <span>
                       <span className="block font-black text-slate-950">{user.nickname}</span>
                       <span className="block text-xs font-semibold text-slate-500">{user.email}</span>

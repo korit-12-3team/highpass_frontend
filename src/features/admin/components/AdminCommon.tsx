@@ -21,7 +21,7 @@ export const postStatusLabel: Record<PostStatus, string> = {
 
 export const reportStatusLabel: Record<ReportStatus, string> = {
   pending: "대기",
-  resolved: "처리",
+  resolved: "승인",
   dismissed: "반려",
 };
 

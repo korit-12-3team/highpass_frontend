@@ -9,6 +9,7 @@ import {
   Gift,
   Plus,
   Search,
+  Trash2,
 } from "lucide-react";
 import type {
   CreateEventInput,
@@ -172,6 +173,54 @@ export default function KakaoCalendarPanel() {
     }
   }
 
+  // ── DeleteEvent ─────────────────────────────────────────────────────────────
+  async function handleDeleteEvent(eventId: string) {
+    if (!confirm("이 일정을 삭제하시겠습니까?")) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/kakao-cal/event-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", eventId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success("일정이 삭제되었습니다.");
+        setState((s) => ({ ...s, events: s.events.filter((ev) => ev.eventId !== eventId) }));
+      } else {
+        toast.error(data.message ?? "일정 삭제에 실패했습니다.");
+      }
+    } catch {
+      toast.error("일정 삭제에 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── DeleteTask ──────────────────────────────────────────────────────────────
+  async function handleDeleteTask(taskId: string) {
+    if (!confirm("이 할 일을 삭제하시겠습니까?")) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/kakao-cal/event-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete-task", taskId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success("할 일이 삭제되었습니다.");
+        setState((s) => ({ ...s, tasks: s.tasks.filter((t) => t.taskId !== taskId) }));
+      } else {
+        toast.error(data.message ?? "할 일 삭제에 실패했습니다.");
+      }
+    } catch {
+      toast.error("할 일 삭제에 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   // ── GetFriendsBirthdays ─────────────────────────────────────────────────────
   async function handleGetBirthdays() {
     setLoading(true);
@@ -306,9 +355,22 @@ export default function KakaoCalendarPanel() {
               <ul className="mt-1 flex flex-col gap-1">
                 {state.events.map((ev, i) => (
                   <li key={ev.eventId ?? i} className="rounded-lg border border-yellow-100 bg-yellow-50 px-3 py-2 text-sm">
-                    <p className="font-medium text-yellow-900">{ev.title}</p>
-                    <p className="text-xs text-yellow-600">{ev.startAt} ~ {ev.endAt}</p>
-                    {ev.location && <p className="text-xs text-yellow-500">📍 {ev.location}</p>}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <p className="font-medium text-yellow-900">{ev.title}</p>
+                        <p className="text-xs text-yellow-600">{ev.startAt} ~ {ev.endAt}</p>
+                        {ev.location && <p className="text-xs text-yellow-500">📍 {ev.location}</p>}
+                      </div>
+                      {ev.eventId && (
+                        <button
+                          onClick={() => handleDeleteEvent(ev.eventId!)}
+                          disabled={state.loading}
+                          className="mt-0.5 rounded-md p-1 text-yellow-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-40"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -376,8 +438,17 @@ export default function KakaoCalendarPanel() {
               <ul className="mt-1 flex flex-col gap-1">
                 {state.tasks.map((task, i) => (
                   <li key={task.taskId ?? i} className="flex items-center gap-2 rounded-lg border border-yellow-100 bg-yellow-50 px-3 py-2 text-sm">
-                    <span className={task.isDone ? "text-yellow-400 line-through" : "text-yellow-900"}>{task.title}</span>
-                    {task.dueDate && <span className="ml-auto text-xs text-yellow-500">{task.dueDate}</span>}
+                    <span className={task.isDone ? "flex-1 text-yellow-400 line-through" : "flex-1 text-yellow-900"}>{task.title}</span>
+                    {task.dueDate && <span className="text-xs text-yellow-500">{task.dueDate}</span>}
+                    {task.taskId && (
+                      <button
+                        onClick={() => handleDeleteTask(task.taskId!)}
+                        disabled={state.loading}
+                        className="rounded-md p-1 text-yellow-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-40"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>

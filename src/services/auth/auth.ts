@@ -36,6 +36,10 @@ function mapCurrentUserPayload(payload: Record<string, unknown>): UserProfile | 
         : typeof payload.profileImageUrl === "string"
           ? payload.profileImageUrl
           : null,
+    avatarVisualClassName:
+      typeof payload.avatarVisualClassName === "string" || payload.avatarVisualClassName === null
+        ? payload.avatarVisualClassName
+        : null,
     loginType: typeof payload.loginType === "string" ? payload.loginType : "local",
   };
 }
