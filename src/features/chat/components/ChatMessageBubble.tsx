@@ -18,6 +18,7 @@ type Props = {
   roomType?: string;
   onProfileClick: (userId: string | number) => void;
   onDeleted: (messageId: number) => void;
+  currentUserId?: number;
 };
 
 function formatMessageTime(value?: string) {
@@ -46,6 +47,7 @@ export default function ChatMessageBubble({
   roomType,
   onProfileClick,
   onDeleted,
+  currentUserId, 
 }: Props) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
@@ -102,7 +104,11 @@ export default function ChatMessageBubble({
           >
             <Avatar
               name={message.senderName}
-              customVisualClassName={message.senderAvatarVisualClassName ?? undefined}
+              customVisualClassName={
+                Number(message.senderId) === currentUserId
+                  ? undefined
+                  : message.senderAvatarVisualClassName ?? undefined
+              }
               className="h-5 w-5 rounded-full text-[10px]"
             />
             <span>{message.senderName || "Unknown"}</span>

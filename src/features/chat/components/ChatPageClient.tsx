@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, MessageCircle, Clock, LogOut, Users, PanelLeft, Menu } from "lucide-react";
+import { ArrowRight, MessageCircle, Clock, LogOut, Users, Menu, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { useApp } from "@/shared/context/AppContext";
 import { fetchWithAuth } from "@/services/auth/auth";
 import { CHAT_API_BASE_URL } from "@/services/config/config";
@@ -202,20 +202,14 @@ export default function ChatPageClient() {
           </button>
         </div>
       )}
-      <div className="mb-6 flex items-center gap-3">
+      <div className="mb-4 flex items-center gap-3">
         <button
           type="button"
           onClick={() => setShowRooms((prev) => !prev)}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
         >
-          <PanelLeft
-            size={16}
-            style={{
-              transform: showRooms ? "rotate(0deg)" : "rotate(180deg)",
-              transition: "transform 0.3s ease",
-            }}
-          />
-          {showRooms ? "채팅창 목록 닫기" : "채팅창 목록 보기"}
+          {showRooms ? <ChevronsLeft size={15} /> : <ChevronsRight size={15} />}
+          {showRooms ? "목록 닫기" : "목록 보기"}
         </button>
       </div>
 
@@ -237,11 +231,13 @@ export default function ChatPageClient() {
               pointerEvents: showRooms ? "auto" : "none",
             }}
           >
-            <div className="w-64">
-              <div className="border-b border-slate-100 p-4">
-                <p className="font-bold text-slate-800">채팅방 목록</p>
-              </div>
-              <div className="flex-1 divide-y divide-slate-50 overflow-y-auto">
+            <div className="w-64 flex flex-col h-full">
+                <div className="border-b border-slate-100 p-4 shrink-0">
+                  <p className="font-bold text-slate-800">채팅방 목록</p>
+                </div>
+                <div className="flex-1 divide-y divide-slate-50 overflow-y-auto"
+                    style={{ scrollbarWidth: "thin", scrollbarColor: "#e2e8f0 transparent" }}
+                >
                 {sortedChatRooms.map((room) => (
                   <button
                     key={room.id}
@@ -252,10 +248,63 @@ export default function ChatPageClient() {
                   >
                     <div className="relative flex h-10 w-10 shrink-0">
                       {room.type === "GROUP" ? (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-100 text-violet-500 shadow-sm">
-                          <Users size={18} strokeWidth={2} />
-                        </div>
-                      ) : (
+                      <div className="relative h-10 w-10 shrink-0">
+                        {(() => {
+                          const joined = (room.participants?.filter((p) => p.status === "JOINED") ?? []).slice(0, 4);
+                          const count = joined.length;
+                          if (count <= 1) {
+                            return (
+                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 text-[11px] font-bold shadow-sm">
+                              {(room.name ?? "?").substring(0, 3)}
+                            </div>
+                          );
+                          }
+                          // 3명 이하: 겹치기
+                          if (count <= 3) {
+                            return joined.map((p, i) => (
+                              <div
+                                key={p.userId}
+                                className="absolute"
+                                style={{
+                                  top: i === 0 ? 0 : i === 1 ? "auto" : 0,
+                                  bottom: i === 1 ? 0 : "auto",
+                                  left: i === 0 ? 0 : i === 2 ? "auto" : "auto",
+                                  right: i === 1 ? 0 : i === 2 ? 0 : "auto",
+                                  zIndex: 3 - i,
+                                }}
+                              >
+                                <Avatar
+                                  name={p.nickname}
+                                  customVisualClassName={p.avatarVisualClassName ?? undefined}
+                                  className="h-6 w-6 rounded-full text-[9px] ring-2 ring-white"
+                                />
+                              </div>
+                            ));
+                          }
+
+                          // 4명: 2x2 그리드
+                          return joined.map((p, i) => (
+                            <div
+                              key={p.userId}
+                              className="absolute"
+                              style={{
+                                top: i < 2 ? 0 : "auto",
+                                bottom: i >= 2 ? 0 : "auto",
+                                left: i % 2 === 0 ? 0 : "auto",
+                                right: i % 2 === 1 ? 0 : "auto",
+                                zIndex: 4 - i,
+                              }}
+                            >
+                              <Avatar
+                                name={p.nickname}
+                                customVisualClassName={p.avatarVisualClassName ?? undefined}
+                                className="h-5 w-5 rounded-full text-[8px] ring-2 ring-white"
+                              />
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    ) : (
                         <Avatar
                           name={room.roomNickname || room.partnerNickname}
                           customVisualClassName={room.partnerAvatarVisualClassName ?? undefined}
@@ -274,7 +323,15 @@ export default function ChatPageClient() {
                         )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold text-slate-800">{getRoomDisplayName(room)}</p>
+                      <div className="flex items-center gap-1">
+                        <p className="truncate text-sm font-bold text-slate-800">{getRoomDisplayName(room)}</p>
+                        {room.type === "GROUP" && (
+                          <span className="flex items-center gap-0.5 shrink-0 -mt-0.5 text-[10px] font-medium text-slate-400">
+                            <Users size={10} />
+                            {room.participants?.filter((p) => p.status === "JOINED").length ?? 0}
+                          </span>
+                        )}
+                      </div>
                       <p className="mt-0.5 truncate text-xs text-slate-400">
                         {room.lastMessage || "Start a conversation"}
                       </p>
@@ -292,8 +349,30 @@ export default function ChatPageClient() {
               {/* 헤더 */}
               <div className="relative flex items-center gap-3 border-b border-slate-100 p-4">
                 {activeRoom.type === "GROUP" ? (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-500">
-                    <Users size={14} strokeWidth={2} />
+                  <div className="relative h-8 w-8 shrink-0">
+                    {(() => {
+                      const joined = (activeRoom.participants?.filter((p) => p.status === "JOINED") ?? []).slice(0, 4);
+                      const count = joined.length;
+                      if (count <= 1) {
+                        return (
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg text-[10px] font-bold bg-amber-100 text-amber-600">
+                            {(activeRoom.name ?? "?").substring(0, 2)}
+                          </div>
+                        );
+                      }
+                      if (count <= 3) {
+                        return joined.map((p, i) => (
+                          <div key={p.userId} className="absolute" style={{ top: i === 0 ? 0 : i === 1 ? "auto" : 0, bottom: i === 1 ? 0 : "auto", left: i === 0 ? 0 : i === 2 ? "auto" : "auto", right: i === 1 ? 0 : i === 2 ? 0 : "auto", zIndex: 3 - i }}>
+                            <Avatar name={p.nickname} customVisualClassName={p.avatarVisualClassName ?? undefined} className="h-5 w-5 rounded-full text-[8px] ring-2 ring-white" />
+                          </div>
+                        ));
+                      }
+                      return joined.map((p, i) => (
+                        <div key={p.userId} className="absolute" style={{ top: i < 2 ? 0 : "auto", bottom: i >= 2 ? 0 : "auto", left: i % 2 === 0 ? 0 : "auto", right: i % 2 === 1 ? 0 : "auto", zIndex: 4 - i }}>
+                          <Avatar name={p.nickname} customVisualClassName={p.avatarVisualClassName ?? undefined} className="h-4 w-4 rounded-full text-[7px] ring-2 ring-white" />
+                        </div>
+                      ));
+                    })()}
                   </div>
                 ) : (
                   <Avatar
@@ -302,7 +381,18 @@ export default function ChatPageClient() {
                     className="h-8 w-8 rounded-lg text-xs"
                   />
                 )}
-                <p className="flex-1 font-bold text-slate-800">{getRoomDisplayName(activeRoom)}</p>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <p className="truncate text-lg font-bold text-slate-800">{getRoomDisplayName(activeRoom)}</p>
+                    {activeRoom.type === "GROUP" && (
+                      <span className="flex items-center gap-0.5 shrink-0 text-[11px] font-medium text-slate-400">
+                        <Users size={11} />
+                        {activeRoom.participants?.filter((p) => p.status === "JOINED").length ?? 0}
+                      </span>
+                    )}
+                  </div>
+                </div>
 
                 {!isPendingRoom && (
                   <div className="relative">
@@ -493,51 +583,59 @@ export default function ChatPageClient() {
               ) : (
                 <>
                   <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 sm:p-5">
-                    {(activeRoom.messages || [])
-                      .filter((m) => m.type !== "READ" && !!m.message)
-                      .map((message, idx, visible) => {
-                        const isMe = Number(message.senderId) === Number(currentUser?.id);
-                        const prev = visible[idx - 1];
-                        const next = visible[idx + 1];
-                        const isSameSender =
-                          !!prev &&
-                          !["ENTER", "QUIT", "NOTICE"].includes(prev.type) &&
-                          String(prev.senderId) === String(message.senderId);
-                        const isLastInGroup =
-                          !next ||
-                          ["ENTER", "QUIT", "NOTICE"].includes(next.type) ||
-                          String(next.senderId) !== String(message.senderId) ||
-                          minuteKey(next.createdAt) !== minuteKey(message.createdAt);
+                    {(activeRoom.messages || []).filter((m) => m.type !== "READ" && !!m.message).length === 0 ? (
+                      <div className="flex flex-1 items-center justify-center text-xs text-slate-400">
+                        아직 대화 내역이 없어요. 첫 메시지를 보내보세요 💬
+                      </div>
+                    ) : (
+                      (activeRoom.messages || [])
+                        .filter((m) => m.type !== "READ" && !!m.message)
+                        .map((message, idx, visible) => {
+                          const isMe = Number(message.senderId) === Number(currentUser?.id);
+                          const prev = visible[idx - 1];
+                          const next = visible[idx + 1];
+                          const isSameSender =
+                            !!prev &&
+                            !["ENTER", "QUIT", "NOTICE"].includes(prev.type) &&
+                            String(prev.senderId) === String(message.senderId) &&
+                            minuteKey(prev.createdAt) === minuteKey(message.createdAt);
+                          const isLastInGroup =
+                            !next ||
+                            ["ENTER", "QUIT", "NOTICE"].includes(next.type) ||
+                            String(next.senderId) !== String(message.senderId) ||
+                            minuteKey(next.createdAt) !== minuteKey(message.createdAt);
 
-                        return (
-                          <ChatMessageBubble
-                            key={`${message.id ?? idx}-${idx}`}
-                            message={message}
-                            isMe={isMe}
-                            isSameSender={isSameSender}
-                            isLastInGroup={isLastInGroup}
-                            roomId={activeRoom.id}
-                            roomName={getRoomDisplayName(activeRoom)}
-                            roomType={activeRoom.type}
-                            onProfileClick={openProfileModal}
-                            onDeleted={(messageId) => {
-                            setChatRooms((prev) =>
-                              prev.map((room) =>
-                                String(room.id) === String(activeChatRoomId)
-                                  ? {
-                                      ...room,
-                                      messages: room.messages.map((m) => m.id === messageId ? { ...m, deleted: true } : m),
-                                      lastMessage: room.messages.at(-1)?.id === messageId
-                                        ? "삭제된 메시지입니다."
-                                        : room.lastMessage,
-                                    }
-                                  : room,
-                              ),
-                            );
-                          }}
-                          />
-                        );
-                      })}
+                          return (
+                            <ChatMessageBubble
+                              key={`${message.id ?? idx}-${idx}`}
+                              message={message}
+                              isMe={isMe}
+                              isSameSender={isSameSender}
+                              isLastInGroup={isLastInGroup}
+                              roomId={activeRoom.id}
+                              roomName={getRoomDisplayName(activeRoom)}
+                              roomType={activeRoom.type}
+                              currentUserId={Number(currentUser?.id)}
+                              onProfileClick={openProfileModal}
+                              onDeleted={(messageId) => {
+                                setChatRooms((prev) =>
+                                  prev.map((room) =>
+                                    String(room.id) === String(activeChatRoomId)
+                                      ? {
+                                          ...room,
+                                          messages: room.messages.map((m) => m.id === messageId ? { ...m, deleted: true } : m),
+                                          lastMessage: room.messages.at(-1)?.id === messageId
+                                            ? "삭제된 메시지입니다."
+                                            : room.lastMessage,
+                                        }
+                                      : room,
+                                  ),
+                                );
+                              }}
+                            />
+                          );
+                        })
+                    )}
                   </div>
 
                   <div className="flex items-end gap-2 border-t border-slate-100 p-3 sm:p-4">
@@ -557,7 +655,7 @@ export default function ChatPageClient() {
                         }
                       }}
                       placeholder="메시지를 입력하세요..."
-                      className="w-full flex-1 resize-none overflow-hidden rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-hp-500"
+                      className="w-full flex-1 resize-none overflow-hidden rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-hp-500"
                       style={{ maxHeight: "120px", overflowY: "auto" }}
                     />
                     <button

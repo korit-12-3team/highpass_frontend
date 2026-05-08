@@ -28,6 +28,7 @@ import { SupportInquiryModal } from "@/features/support/components/SupportInquir
 import { listStudies } from "@/features/study/api/study-api";
 import { useApp } from "@/shared/context/AppContext";
 import { REGION_DATA } from "@/shared/constants";
+import { updateUserAvatarVisual } from "@/features/mypage/api/profile";
 
 type ProfileEditState = {
   nickname: string;
@@ -507,7 +508,16 @@ export default function MyPageClient({
 
   return (
     <div className="mx-auto max-w-6xl animate-in fade-in space-y-6 duration-500">
-      <MyPageHeader user={displayUser} accountTypeLabel={accountTypeLabel} postCount={myPosts.length} commentCount={myComments.length} />
+      <MyPageHeader 
+        user={displayUser} 
+        accountTypeLabel={accountTypeLabel} 
+        postCount={myPosts.length} 
+        commentCount={myComments.length}
+        onAvatarColorChange={async (hex) => {
+          const updated = await updateUserAvatarVisual(hex);
+          setCurrentUser((prev) => prev ? { ...prev, avatarVisualClassName: updated.avatarVisualClassName } : prev);
+        }}
+        />
 
       <MyPageTabNav
         activeTab={activeTab}

@@ -11,6 +11,7 @@ import ConfirmModal from "@/shared/components/common/ConfirmModal";
 import { useApp } from "@/shared/context/AppContext";
 import { createUserProfile, getUserProfile, updateUserAvatarVisual } from "@/features/mypage/api/profile";
 import { listCalendarEvents } from "@/features/calendar/api/calendar";
+import Avatar from "@/shared/components/common/Avatar";
 import { listNotifications } from "@/features/notifications/api/notifications";
 import {
   createChatClient,
@@ -406,26 +407,26 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             
           }
 
-          if (String(newMessage.roomId) !== String(activeChatRoomId)) {
-            toast(newMessage.senderName ?? "새 메시지", {
-              description: newMessage.message,
-              style: {
-                background: "#fdfdfd",
-                color: "#000000",
-                padding: "12px 16px",
-                boxShadow: "0 8px 30px rgba(0, 2, 3, 0.15)",
-              },
-              actionButtonStyle: {
-                background: "#fafafa",
-                color: "black",
-                borderRadius: "8px",
-                border: "none",
-              },
-              action: {
-                label: "채팅 보기",
-                onClick: () => router.push("/chat"),
-              },
-            });
+          if (String(newMessage.roomId) !== String(activeChatRoomIdRef.current)) {
+            toast.custom((t) => (
+            <div className="flex items-center gap-3 rounded-2xl border border-hp-100 bg-white px-4 py-3 shadow-lg">
+              <Avatar
+                name={newMessage.senderName}
+                customVisualClassName={newMessage.senderAvatarVisualClassName ?? undefined}
+                className="h-9 w-9 shrink-0 rounded-full text-sm"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-slate-800">{newMessage.senderName ?? "새 메시지"}</p>
+                <p className="truncate text-xs text-slate-400">{newMessage.message}</p>
+              </div>
+              <button
+                onClick={() => { toast.dismiss(t); router.push("/chat"); }}
+                className="shrink-0 rounded-full bg-hp-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-hp-700"
+              >
+                보기
+              </button>
+            </div>
+          ), { duration: 4000 });
           }
         }
 
@@ -606,25 +607,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           router.push("/mypage");
         }}
         onClose={() => setProfileModal(null)}
-        onAvatarVisualChange={(className) => {
-          void updateUserAvatarVisual(className)
-            .then((updatedUser) => {
-              setCurrentUser((prev) =>
-                prev && prev.id === currentUser.id
-                  ? { ...prev, avatarVisualClassName: updatedUser.avatarVisualClassName }
-                  : prev,
-              );
-              setProfileRemote((prev) =>
-                prev && prev.id === currentUser.id
-                  ? { ...prev, avatarVisualClassName: updatedUser.avatarVisualClassName }
-                  : prev,
-              );
-            })
-            .catch((error) => {
-              console.error("Failed to update avatar visual class:", error);
-              toast.error(error instanceof Error ? error.message : "아바타 저장에 실패했습니다.");
-            });
-        }}
         onStartChat={async () => {
           const existing = chatRooms.find((room) => room.partnerId === profile.id);
 

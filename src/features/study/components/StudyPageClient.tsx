@@ -258,18 +258,37 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
             {activePanel === "location" ? <ChevronUp size={15} className="ml-2 shrink-0 text-slate-400" /> : <ChevronDown size={15} className="ml-2 shrink-0 text-slate-400" />}
           </button>
 
-          <button
-            onClick={() => togglePanel("search")}
-            className={`flex items-center justify-between px-5 py-3.5 text-left transition hover:bg-slate-50 ${activePanel === "search" ? "bg-slate-50" : ""}`}
-          >
-            <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">검색</p>
-              <p className={`mt-0.5 truncate text-sm font-bold ${isSearchActive ? "text-hp-600" : "text-slate-400"}`}>
-                {searchKeyword || "검색어 입력"}
-              </p>
+           {activePanel === "search" ? (
+            <div className="flex items-center gap-2 px-5 py-3.5">
+              <Search size={15} className="shrink-0 text-slate-400" />
+              <input
+                ref={searchInputRef}
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                placeholder="제목, 내용, 자격증명, 작성자 검색"
+                className="min-w-0 flex-1 bg-transparent text-sm font-bold outline-none placeholder:text-xs placeholder:text-slate-400"
+                autoFocus
+              />
+              {searchKeyword && (
+                <button onClick={() => setSearchKeyword("")} className="shrink-0 text-slate-400 hover:text-slate-600">
+                  <X size={14} />
+                </button>
+              )}
             </div>
-            <Search size={15} className="ml-2 shrink-0 text-slate-400" />
-          </button>
+          ) : (
+            <button
+              onClick={() => togglePanel("search")}
+              className={`flex items-center justify-between px-5 py-3.5 text-left transition hover:bg-slate-50`}
+            >
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">검색</p>
+                <p className={`mt-0.5 truncate text-sm font-bold ${isSearchActive ? "text-hp-600" : "text-slate-400"}`}>
+                  {searchKeyword || "검색어 입력"}
+                </p>
+              </div>
+              <Search size={15} className="ml-2 shrink-0 text-slate-400" />
+            </button>
+          )}
         </div>
 
         {/* 자격증 패널 */}
@@ -388,27 +407,6 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
                 </button>
               </div>
             )}
-          </div>
-        )}
-
-        {/* 검색 패널 */}
-        {activePanel === "search" && (
-          <div className="border-t border-slate-200 p-5">
-            <div className="relative">
-              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                ref={searchInputRef}
-                value={searchKeyword}
-                onChange={(e) => setSearchKeyword(e.target.value)}
-                placeholder="제목, 내용, 자격증명, 작성자 검색"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-9 text-sm outline-none focus:border-hp-500"
-              />
-              {searchKeyword && (
-                <button onClick={() => setSearchKeyword("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                  <X size={14} />
-                </button>
-              )}
-            </div>
           </div>
         )}
       </div>

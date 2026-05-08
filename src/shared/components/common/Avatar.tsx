@@ -32,19 +32,35 @@ export default function Avatar({
   className = "",
   customVisualClassName,
 }: AvatarProps) {
+  const isCustomColor = customVisualClassName?.includes("|") || customVisualClassName?.startsWith("#");
+
+  let visualClass = DEFAULT_AVATAR_VISUAL_CLASS;
+  let visualStyle: React.CSSProperties = {};
+
+  if (customVisualClassName?.includes("|")) {
+    const [bg, text] = customVisualClassName.split("|");
+    visualClass = "";
+    visualStyle = { backgroundColor: bg, color: text };
+  } else if (customVisualClassName?.startsWith("#")) {
+    visualClass = "";
+    visualStyle = { backgroundColor: customVisualClassName, color: "#fff" };
+  } else {
+    visualClass = customVisualClassName ?? DEFAULT_AVATAR_VISUAL_CLASS;
+  }
+  
   const hasCustomClass = className.trim().length > 0;
   const hasPositionClass = /\b(?:static|fixed|absolute|relative|sticky)\b/.test(className);
   const positionClass = hasPositionClass ? "" : "relative";
   const baseClass = `${positionClass} inline-flex shrink-0 items-center justify-center overflow-hidden`;
   const defaultClass = `rounded-full ${sizeClass[size]}`;
-  const visualClass = customVisualClassName ?? DEFAULT_AVATAR_VISUAL_CLASS;
+
   const wrapperClass = [baseClass, visualClass, hasCustomClass ? className : defaultClass]
     .filter(Boolean)
     .join(" ");
 
   if (src) {
     return (
-      <span className={wrapperClass}>
+      <span className={wrapperClass} style={visualStyle}>
         <Image
           src={src}
           alt={alt || name || "profile image"}
@@ -57,7 +73,7 @@ export default function Avatar({
   }
 
   return (
-    <span className={wrapperClass} aria-label={alt || name || "user avatar"}>
+    <span className={wrapperClass} style={visualStyle} aria-label={alt || name || "user avatar"}>
       {getInitial(name)}
     </span>
   );
