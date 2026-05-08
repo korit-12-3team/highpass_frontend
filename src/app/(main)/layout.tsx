@@ -67,6 +67,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     searchResults,
     setSearchResults,
     chatRoomsRefreshKey,
+    isEditing, 
+    setIsEditing 
   } = useApp();
 
   const [profileRemote, setProfileRemote] = useState<UserProfile | null>(null);
@@ -81,7 +83,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
-
+  const [navConfirmOpen, setNavConfirmOpen] = useState(false);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  
   const activeChatRoomIdRef = useRef(activeChatRoomId);
   const pathnameRef = useRef(pathname);
   const chatRoomsRef = useRef(chatRooms);
@@ -325,7 +329,22 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           }
           return;
         }
-
+        if (newMessage.type === "DELETE") {
+        setChatRooms((prev) =>
+          prev.map((room) =>
+            Number(room.id) !== Number(newMessage.roomId) ? room : {
+              ...room,
+              messages: room.messages.map((m) =>
+                Number(m.id) === Number(newMessage.id) ? { ...m, deleted: true } : m
+              ),
+              lastMessage: room.messages.at(-1)?.id === newMessage.id
+                ? "메시지가 삭제되었습니다."
+                : room.lastMessage,
+            }
+          )
+        );
+        return;
+      }
         if (newMessage.type === "JOIN_REQUEST") {
           setChatRooms((prev) =>
             prev.map((room) => {
@@ -558,7 +577,13 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           showNotifications={showNotifications}
           setShowNotifications={setShowNotifications}
           onRefreshNotifications={refreshNotifications}
-          onNavigate={(href) => router.push(href)}
+          onNavigate={(href) => {
+            if (isEditing) {
+                setPendingHref(href);
+                setNavConfirmOpen(true);
+                return;
+              }
+            router.push(href)}}
           onOpenProfile={() => setProfileModal(currentUser.id)}
           onLogout={() => setLogoutConfirmOpen(true)}
         />
@@ -683,6 +708,24 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         confirmLabel="로그아웃"
         onConfirm={() => { setLogoutConfirmOpen(false); logout(); }}
         onClose={() => setLogoutConfirmOpen(false)}
+      />
+
+      <ConfirmModal
+        isOpen={navConfirmOpen}
+        title="페이지를 이동하시겠습니까?"
+        description="변경사항이 저장되지 않습니다."
+        confirmLabel="이동"
+        variant="danger"
+        onConfirm={() => {
+          setNavConfirmOpen(false);
+          setIsEditing(false);
+          if (pendingHref) router.push(pendingHref);
+          setPendingHref(null);
+        }}
+        onClose={() => {
+          setNavConfirmOpen(false);
+          setPendingHref(null);
+        }}
       />
     </div>
   );

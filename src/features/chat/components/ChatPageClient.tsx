@@ -521,14 +521,20 @@ export default function ChatPageClient() {
                             roomType={activeRoom.type}
                             onProfileClick={openProfileModal}
                             onDeleted={(messageId) => {
-                              setChatRooms((prev) =>
-                                prev.map((room) =>
-                                  String(room.id) === String(activeChatRoomId)
-                                    ? { ...room, messages: room.messages.map((m) => m.id === messageId ? { ...m, deleted: true } : m) }
-                                    : room,
-                                ),
-                              );
-                            }}
+                            setChatRooms((prev) =>
+                              prev.map((room) =>
+                                String(room.id) === String(activeChatRoomId)
+                                  ? {
+                                      ...room,
+                                      messages: room.messages.map((m) => m.id === messageId ? { ...m, deleted: true } : m),
+                                      lastMessage: room.messages.at(-1)?.id === messageId
+                                        ? "삭제된 메시지입니다."
+                                        : room.lastMessage,
+                                    }
+                                  : room,
+                              ),
+                            );
+                          }}
                           />
                         );
                       })}

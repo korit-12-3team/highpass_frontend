@@ -38,7 +38,7 @@ export default function FreePostPageClient({
   returnTo: string | null;
 }) {
   const router = useRouter();
-  const { currentUser, setProfileModal } = useApp();
+  const { currentUser, setProfileModal, setIsEditing } = useApp();
   const [post, setPost] = useState<BoardPost | null>(() => (initialPost ? { ...initialPost, comments: initialComments } : null));
   const [commentText, setCommentText] = useState("");
   const [postError, setPostError] = useState("");
@@ -172,6 +172,7 @@ export default function FreePostPageClient({
   const cancelEditingComment = () => {
     setEditingCommentId(null);
     setEditingCommentText("");
+    setIsEditing(false); 
   };
 
   const saveComment = async (commentId: number) => {
@@ -254,6 +255,7 @@ const saveBoardPost = async () => {
 
     setPost({ ...updated, comments: post.comments || [] });
     setIsEditingPost(false);
+    setIsEditing(false); 
     toast.success("게시글이 수정되었습니다.");
   } catch (error: any) {
     toast.error(error.response?.data?.message || "수정에 실패했습니다.");
@@ -287,6 +289,7 @@ const handleConfirmCancel = (): void => {
   setPostEditContent(post?.content ?? "");
   setPostEditTags(post?.tags ?? []);
   setPostEditError("");
+  setIsEditing(false); 
 };
 
 const handleTagClick = (tag: string) => {
@@ -359,6 +362,7 @@ return (
                   setPostEditContent(post.content);
                   setPostEditTags(post.tags || []);
                   setIsEditingPost(true);
+                  setIsEditing(true); 
                 }}
                 className="transition hover:text-slate-700"
               >
@@ -474,7 +478,7 @@ return (
             </div>
             {post.tags && post.tags.length > 0 && (
               <div className="mt-5 flex flex-wrap gap-1.5">
-                {post.tags.map((tag) => (
+                {post.tags.filter(Boolean).map((tag) => (
                 <button
                   key={tag}
                   type="button"
@@ -585,6 +589,7 @@ return (
                                     setEditingCommentId(comment.id);
                                     setEditingCommentText(comment.text);
                                     setCommentError("");
+                                    setIsEditing(true); 
                                   }}
                                   className="rounded-full p-1 text-slate-400 transition hover:bg-slate-200"
                                 >

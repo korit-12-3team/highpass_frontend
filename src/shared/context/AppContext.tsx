@@ -57,6 +57,8 @@ interface AppContextType {
   setSearchResults: React.Dispatch<React.SetStateAction<SearchPlace[]>>;
   isOnlineStudy: boolean;
   setIsOnlineStudy: React.Dispatch<React.SetStateAction<boolean>>;
+  isEditing: boolean;
+  setIsEditing: React.Dispatch<React.SetStateAction<boolean>>;
   submitPost: () => Promise<boolean>;
   chatRoomsRefreshKey: number;
 }
@@ -86,6 +88,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [searchResults, setSearchResults] = useState<SearchPlace[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     if (activeChatRoomId != null) {
@@ -241,6 +244,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setCreateChatRoom,
         isOnlineStudy,
         setIsOnlineStudy,
+        isEditing,
+        setIsEditing,
         submitPost,
         chatRoomsRefreshKey,
       }}

@@ -6,6 +6,7 @@ import type { ChatMessage } from "@/entities/common/types";
 import ReportDialog from "@/features/reports/components/ReportDialog";
 import { deleteChatMessage } from "@/services/realtime/stomp";
 import Avatar from "@/shared/components/common/Avatar";
+import { toast } from "sonner";
 
 type Props = {
   message: ChatMessage;
@@ -129,7 +130,7 @@ export default function ChatMessageBubble({
             }}
           >
             {message.deleted
-              ? <p className="italic opacity-50">메시지가 삭제되었습니다.</p>
+              ? <p className="italic opacity-50">삭제된 메시지입니다.</p>
               : <p className="whitespace-pre-wrap">{(message.message ?? (message as any).text) ?? "No content"}</p>
             }
           </div>
@@ -163,10 +164,18 @@ export default function ChatMessageBubble({
               </button>
             ) : (
               <button
-                type="button"
-                className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-rose-500 transition hover:bg-rose-50"
-                onClick={() => { setReportOpen(true); setContextMenu(null); }}
-              >
+                  type="button"
+                  className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-rose-500 transition hover:bg-rose-50"
+                  onClick={() => {
+                    if (message.deleted) {
+                      toast.error("이미 삭제된 메시지는 신고할 수 없습니다.");
+                      setContextMenu(null);
+                      return;
+                    }
+                    setReportOpen(true);
+                    setContextMenu(null);
+                  }}
+                >
                 <AlertTriangle size={14} />
                 신고
               </button>

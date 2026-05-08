@@ -34,7 +34,7 @@ export default function StudyPostPageClient({
   returnTo: string | null;
 }) {
   const router = useRouter();
-  const { currentUser, chatRooms, setProfileModal, setChatRooms, setActiveChatRoomId } = useApp();
+  const { currentUser, chatRooms, setProfileModal, setChatRooms, setActiveChatRoomId, setIsEditing } = useApp();
   const [post, setPost] = useState<BoardPost | null>(() =>
     initialPost ? { ...initialPost, comments: initialComments } : null,
   );
@@ -204,6 +204,7 @@ export default function StudyPostPageClient({
   const cancelEditingComment = () => {
     setEditingCommentId(null);
     setEditingCommentText("");
+    setIsEditing(false);
   };
 
   const saveComment = async (commentId: number) => {
@@ -266,6 +267,7 @@ export default function StudyPostPageClient({
   const handleConfirmCancel = (): void => {
   if (!post) return;
   setEditingPost(false);
+  setIsEditing(false); 
   setPostEditTitle(post.title || "");
   setPostEditContent(post.content || "");
   const matchedCategory =
@@ -364,6 +366,7 @@ export default function StudyPostPageClient({
       const hydrated = { ...updated, comments: post.comments };
       setPost(hydrated);
       setEditingPost(false);
+      setIsEditing(false); 
       toast.success("게시글이 수정되었습니다.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "게시글 수정에 실패했습니다.");
@@ -477,7 +480,7 @@ return (
                     <span className="text-xs text-slate-300"> </span>
                     <button
                       type="button"
-                      onClick={() => { setEditingPost(true); setPostEditError(""); }}
+                      onClick={() => { setEditingPost(true); setPostEditError(""); setIsEditing(true)}}
                       className="text-xs text-slate-400 hover:text-slate-600"
                     >
                       수정
@@ -920,7 +923,7 @@ return (
                               {currentUser?.id === comment.authorId && (
                                 <div className="shrink-0 flex items-center gap-0.5 pb-0.5">
                                   <button
-                                    onClick={() => { setEditingCommentId(comment.id); setEditingCommentText(comment.text); }}
+                                    onClick={() => { setEditingCommentId(comment.id); setEditingCommentText(comment.text);  setIsEditing(true);}}
                                     className="rounded-full px-2 py-0.5 text-[11px] font-semibold text-slate-400 hover:bg-slate-100 hover:text-slate-600"
                                   >
                                     수정
