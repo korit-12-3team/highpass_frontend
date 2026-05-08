@@ -263,6 +263,7 @@ function AdminReportDetailModal({
   const handleUpdateStatus = (status: ReportStatus) => {
     if (!hasResponse) return;
     onUpdateReportStatus(report.id, status, responseDraft.trim());
+    onClose(); 
   };
 
   return (
