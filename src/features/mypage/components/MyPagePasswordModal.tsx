@@ -3,7 +3,6 @@ import React from "react";
 export function MyPagePasswordModal({
   open,
   password,
-  error,
   checking,
   onChangePassword,
   onClose,
@@ -11,7 +10,6 @@ export function MyPagePasswordModal({
 }: {
   open: boolean;
   password: string;
-  error: string;
   checking: boolean;
   onChangePassword: (value: string) => void;
   onClose: () => void;
@@ -46,8 +44,6 @@ export function MyPagePasswordModal({
             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-hp-500"
           />
         </div>
-
-        {error ? <p className="mt-3 text-sm font-semibold text-red-500">{error}</p> : null}
 
         <div className="mt-6 flex justify-end gap-2">
           <button

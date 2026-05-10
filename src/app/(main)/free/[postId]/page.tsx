@@ -1,4 +1,4 @@
-import { listCommentsServer } from "@/features/boards/api/comments-server";
+import { listCommentsServer } from "@/shared/boards/api/comments-server";
 import FreePostPageClient from "@/features/free-board/components/FreePostPageClient";
 import { getBoardServer } from "@/features/free-board/api/boards-server";
 

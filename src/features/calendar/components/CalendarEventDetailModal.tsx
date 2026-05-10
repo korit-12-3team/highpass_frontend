@@ -1,11 +1,11 @@
 import { Calendar as CalendarIcon, Clock, Pencil, Trash2, X } from "lucide-react";
 import { EventType } from "@/shared/context/AppContext";
 import { formatEventRange } from "@/features/calendar/utils/calendarLayout";
+import { getDisplayEventColor } from "@/features/calendar/utils/eventForm";
 
 type CalendarEventDetailModalProps = {
   event: EventType | null;
   currentYear: number;
-  getDisplayEventColor: (event: EventType) => string;
   onClose: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -14,7 +14,6 @@ type CalendarEventDetailModalProps = {
 export function CalendarEventDetailModal({
   event,
   currentYear,
-  getDisplayEventColor,
   onClose,
   onEdit,
   onDelete,

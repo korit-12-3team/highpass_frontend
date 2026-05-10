@@ -27,7 +27,6 @@ export function MyPageProfileSection({
   editState,
   showPasswordLengthError,
   showPasswordMismatchError,
-  saveError,
   saveSuccess,
   saving,
   isSocialAccount,
@@ -51,7 +50,6 @@ export function MyPageProfileSection({
   editState: ProfileEditState;
   showPasswordLengthError: boolean;
   showPasswordMismatchError: boolean;
-  saveError: string;
   saveSuccess: string;
   saving: boolean;
   isSocialAccount: boolean;
@@ -244,13 +242,10 @@ export function MyPageProfileSection({
 
           {showPasswordLengthError ? <p className="mt-3 text-sm font-semibold text-red-500">새 비밀번호는 8자 이상이어야 합니다.</p> : null}
           {showPasswordMismatchError ? <p className="mt-3 text-sm font-semibold text-red-500">새 비밀번호가 일치하지 않습니다.</p> : null}
-          {!showPasswordLengthError && !showPasswordMismatchError && saveError ? <p className="mt-3 text-sm font-semibold text-red-500">{saveError}</p> : null}
           {saveSuccess ? <p className="mt-3 text-sm font-semibold text-emerald-600">{saveSuccess}</p> : null}
         </div>
       ) : saveSuccess ? (
         <p className="mt-6 text-sm font-semibold text-emerald-600">{saveSuccess}</p>
-      ) : saveError ? (
-        <p className="mt-6 text-sm font-semibold text-red-500">{saveError}</p>
       ) : null}
     </SectionCard>
   );

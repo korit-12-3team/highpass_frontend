@@ -1,6 +1,13 @@
 import { EventType } from "@/entities/common/types";
 import { fetchWithAuth } from "@/services/auth/auth";
 import { API_BASE_URL } from "@/services/config/config";
+import { ApiError } from "@/shared/errors";
+
+async function extractApiError(response: Response, fallback: string): Promise<never> {
+  const data = await response.json().catch(() => null);
+  const message = (data as { message?: string } | null)?.message;
+  throw new ApiError(message || fallback);
+}
 
 type CalendarApiRecord = {
   id?: string | number;
@@ -112,7 +119,7 @@ export async function listCalendarEvents(_userId?: string): Promise<EventType[]>
   });
 
   if (!response.ok) {
-    throw new Error("Failed to load calendar events.");
+    await extractApiError(response, "일정을 불러오지 못했습니다.");
   }
 
   const text = await response.text();
@@ -139,7 +146,7 @@ export async function listHolidays(year: number): Promise<EventType[]> {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to load holidays.");
+    await extractApiError(response, "공휴일을 불러오지 못했습니다.");
   }
 
   const data = (await response.json()) as HolidayDto[];
@@ -179,7 +186,7 @@ export async function createCalendarEvent(input: CreateCalendarEventInput): Prom
   });
 
   if (!response.ok) {
-    throw new Error("Failed to create the calendar event.");
+    await extractApiError(response, "일정을 저장하지 못했습니다.");
   }
 
   const data = await parseCalendarResponse(response);
@@ -231,7 +238,7 @@ export async function updateCalendarEvent(input: UpdateCalendarEventInput): Prom
   });
 
   if (!response.ok) {
-    throw new Error("Failed to update the calendar event.");
+    await extractApiError(response, "일정을 저장하지 못했습니다.");
   }
 
   const data = await parseCalendarResponse(response);
@@ -273,6 +280,6 @@ export async function removeCalendarEvent(calendarId: string) {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to delete the calendar event.");
+    await extractApiError(response, "일정 삭제에 실패했습니다.");
   }
 }

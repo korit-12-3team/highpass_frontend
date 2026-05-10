@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Headset, X } from "lucide-react";
 import { toast } from "sonner";
+import { toUserMessage } from "@/shared/errors";
 import { createReport, createSupportInquiry } from "@/features/reports/api/reports";
 
 const CATEGORY_OPTIONS = [
@@ -87,9 +88,7 @@ export function SupportInquiryModal({
       toast.success("문의가 관리자에게 전달되었습니다.");
       onClose();
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "문의 접수에 실패했습니다.",
-      );
+      toast.error(toUserMessage(error, "문의 접수에 실패했습니다."));
       onSubmittingChange(false);
     }
   };

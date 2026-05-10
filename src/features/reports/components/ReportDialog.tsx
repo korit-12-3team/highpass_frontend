@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, X } from "lucide-react";
 import { toast } from "sonner";
+import { toUserMessage } from "@/shared/errors";
 import { createReport, type CreateReportInput } from "@/features/reports/api/reports";
 
 type ReportReasonOption = {
@@ -111,9 +112,7 @@ export default function ReportDialog({
       onSubmitted?.();
       onClose();
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "신고 접수에 실패했습니다.",
-      );
+      toast.error(toUserMessage(error, "신고 접수에 실패했습니다."));
       setSubmitting(false);
     }
   };

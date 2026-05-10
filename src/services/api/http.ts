@@ -3,6 +3,7 @@
 import axios from "axios";
 import { API_BASE_URL } from "@/services/config/config";
 import { notifyAuthExpired, refreshAccessToken } from "@/services/auth/auth";
+import { ApiError } from "@/shared/errors";
 
 export const http = axios.create({
   baseURL: API_BASE_URL,
@@ -27,7 +28,7 @@ http.interceptors.response.use(
 
     if (status !== 401 || !originalRequest || originalRequest._retry || shouldSkipRefresh) {
       if (status === 401 && shouldSkipRefresh) notifyAuthExpired();
-      return Promise.reject(error);
+      return Promise.reject(toApiError(error));
     }
 
     originalRequest._retry = true;
@@ -35,9 +36,17 @@ http.interceptors.response.use(
 
     if (!refreshed) {
       notifyAuthExpired();
-      return Promise.reject(error);
+      return Promise.reject(toApiError(error));
     }
 
     return http(originalRequest);
   },
 );
+
+function toApiError(error: unknown): ApiError {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as { message?: string } | null;
+    return new ApiError(data?.message || "요청에 실패했습니다.");
+  }
+  return new ApiError("요청에 실패했습니다.");
+}

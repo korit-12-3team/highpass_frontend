@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Calendar as CalendarIcon, Search } from "lucide-react";
 import { toast } from "sonner";
+import { toUserMessage } from "@/shared/errors";
 import { useApp } from "@/shared/context/AppContext";
 import { listCertificateSchedules, type CertificateSchedule } from "@/features/search/api/certificates";
 import { CertificateScheduleModal } from "@/features/search/components/CertificateScheduleModal";
@@ -78,7 +79,6 @@ export default function SearchPageClient() {
   const [certModalOpen, setCertModalOpen] = useState<MergedCertificateSchedule | null>(null);
   const [certScheduleType, setCertScheduleType] = useState<CertScheduleType>("written");
   const [calendarSaving, setCalendarSaving] = useState(false);
-  const [calendarError, setCalendarError] = useState("");
   const [calendarSelection, setCalendarSelection] = useState<CalendarSelectionState>({
     apply: true,
     exam: true,
@@ -96,7 +96,7 @@ export default function SearchPageClient() {
       const data = await listCertificateSchedules();
       setSchedules(data);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "자격증 일정을 불러오지 못했습니다.");
+      toast.error(toUserMessage(error, "자격증 일정을 불러오지 못했습니다."));
     } finally {
       setLoading(false);
     }
@@ -357,7 +357,6 @@ export default function SearchPageClient() {
               <QnetScheduleTable
                 items={filteredSchedules}
                 onOpen={(item) => {
-                  setCalendarError("");
                   setCertModalOpen(item);
                 }}
               />
@@ -365,7 +364,6 @@ export default function SearchPageClient() {
               <DataIndustryScheduleTable
                 items={filteredSchedules}
                 onOpen={(item) => {
-                  setCalendarError("");
                   setCertModalOpen(item);
                 }}
               />
@@ -381,19 +379,14 @@ export default function SearchPageClient() {
           scheduleType={certScheduleType}
           calendarSelection={calendarSelection}
           calendarSaving={calendarSaving}
-          calendarError={calendarError}
           selectedScheduleDate={selectedScheduleDate}
           selectedResultDate={selectedResultDate}
           selectedApplyRanges={selectedApplyRanges}
           selectedCalendarItemCount={selectedCalendarItemCount}
           onChangeScheduleType={setCertScheduleType}
           onToggleSelection={toggleCalendarSelection}
-          onClose={() => {
-            setCertModalOpen(null);
-            setCalendarError("");
-          }}
+          onClose={() => setCertModalOpen(null)}
           onSetSaving={setCalendarSaving}
-          onSetError={setCalendarError}
           onEventsCreated={(createdEvents) => setEvents((prev) => [...prev, ...createdEvents])}
           onAdded={() => {
             setCertModalOpen(null);

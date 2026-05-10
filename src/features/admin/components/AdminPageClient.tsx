@@ -17,6 +17,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   loadAdminSection,
   updateAdminPostStatus,
@@ -34,9 +35,10 @@ import { AdminReportsSection } from "@/features/admin/components/AdminReportsSec
 import { AdminSidebar } from "@/features/admin/components/AdminSidebar";
 import { AdminUsersSection } from "@/features/admin/components/AdminUsersSection";
 import Avatar from "@/shared/components/common/Avatar";
-import { listComments } from "@/features/boards/api/comments";
+import { listComments } from "@/shared/boards/api/comments";
 import { getLastSyncedAt, listCertificateSchedules, syncCertificateSchedules, type CertificateSchedule } from "@/features/search/api/certificates";
 import type { PostComment } from "@/entities/common/types";
+import { toUserMessage } from "@/shared/errors";
 import type {
   AdminPost,
   AdminReport,
@@ -102,7 +104,6 @@ export default function AdminPageClient() {
   const [certificateSchedules, setCertificateSchedules] = useState<CertificateSchedule[]>([]);
   const [certificateSyncing, setCertificateSyncing] = useState(false);
   const [certificateSyncMessage, setCertificateSyncMessage] = useState("");
-  const [certificateSyncError, setCertificateSyncError] = useState("");
   const [certificateLastSyncedAt, setCertificateLastSyncedAt] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState(() =>
     getStoredText(ADMIN_SELECTED_USER_STORAGE_KEY),
@@ -430,7 +431,6 @@ export default function AdminPageClient() {
     try {
       setCertificateSyncing(true);
       setCertificateSyncMessage("");
-      setCertificateSyncError("");
       setApiStatus((prev) => ({ ...prev, certificates: "loading" }));
 
       const result = await syncCertificateSchedules();
@@ -450,9 +450,7 @@ export default function AdminPageClient() {
       if (statusCode === 401 || statusCode === 403) {
         setAuthStatus("unauthorized");
       }
-      setCertificateSyncError(
-        error instanceof Error ? error.message : "자격증 일정 갱신에 실패했습니다.",
-      );
+      toast.error(toUserMessage(error, "자격증 일정 갱신에 실패했습니다."));
       setApiStatus((prev) => ({ ...prev, certificates: "unavailable" }));
     } finally {
       setCertificateSyncing(false);
@@ -672,7 +670,6 @@ export default function AdminPageClient() {
             lastSyncedAt={certificateLastSyncedAt}
             syncing={certificateSyncing}
             syncMessage={certificateSyncMessage}
-            syncError={certificateSyncError}
             onSync={() => void handleCertificateSync()}
           />
         ) : null}

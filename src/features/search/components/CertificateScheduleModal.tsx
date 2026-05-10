@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { toUserMessage } from "@/shared/errors";
 import { X } from "lucide-react";
 import { createCalendarEvent } from "@/features/calendar/api/calendar";
 import { EventType } from "@/shared/context/AppContext";
@@ -17,7 +18,6 @@ type CertificateScheduleModalProps = {
   scheduleType: CertScheduleType;
   calendarSelection: CalendarSelectionState;
   calendarSaving: boolean;
-  calendarError: string;
   selectedScheduleDate?: string;
   selectedResultDate?: string;
   selectedApplyRanges: MergedCertificateSchedule["writtenApplyRanges"];
@@ -26,7 +26,6 @@ type CertificateScheduleModalProps = {
   onToggleSelection: (key: keyof CalendarSelectionState) => void;
   onClose: () => void;
   onSetSaving: (saving: boolean) => void;
-  onSetError: (message: string) => void;
   onEventsCreated: (events: EventType[]) => void;
   onAdded: () => void;
 };
@@ -37,7 +36,6 @@ export function CertificateScheduleModal({
   scheduleType,
   calendarSelection,
   calendarSaving,
-  calendarError,
   selectedScheduleDate,
   selectedResultDate,
   selectedApplyRanges,
@@ -46,7 +44,6 @@ export function CertificateScheduleModal({
   onToggleSelection,
   onClose,
   onSetSaving,
-  onSetError,
   onEventsCreated,
   onAdded,
 }: CertificateScheduleModalProps) {
@@ -64,7 +61,6 @@ export function CertificateScheduleModal({
 
     try {
       onSetSaving(true);
-      onSetError("");
 
       const primarySchedule = schedule.sourceSchedules.find((item) => item.sourceType !== "data-industry");
       const primaryScheduleId = primarySchedule?.id;
@@ -129,9 +125,7 @@ export function CertificateScheduleModal({
       toast.success("캘린더에 일정이 추가되었습니다.");
       onAdded();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "캘린더에 추가하지 못했습니다.";
-      onSetError(message);
-      toast.error(message);
+      toast.error(toUserMessage(error, "캘린더에 추가하지 못했습니다."));
     } finally {
       onSetSaving(false);
     }
@@ -148,8 +142,6 @@ export function CertificateScheduleModal({
         </div>
 
         <div className="space-y-3 p-4">
-          {calendarError && <p className="text-sm text-red-500">{calendarError}</p>}
-
           <label className="block text-sm font-bold text-hp-700">일정 제목</label>
           <div className="rounded-lg border bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
             {schedule.certificateName}

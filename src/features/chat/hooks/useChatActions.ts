@@ -12,7 +12,8 @@ import {
 } from "@/services/realtime/stomp";
 import { fetchWithAuth } from "@/services/auth/auth";
 import { CHAT_API_BASE_URL } from "@/services/config/config";
-import type { ChatMessage } from "@/entities/common/types";
+import type { ChatMessage, ChatRoomParticipant } from "@/entities/common/types";
+import { ApiError, toUserMessage } from "@/shared/errors";
 
 export function useChatActions() {
   const {
@@ -82,7 +83,10 @@ export function useChatActions() {
         `${CHAT_API_BASE_URL}/chat/rooms/${activeChatRoomId}/approve/${targetUserId}`,
         { method: "POST" },
       );
-      if (!response.ok) throw new Error("참여 요청 승인에 실패했습니다.");
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new ApiError((data as { message?: string } | null)?.message || "참여 요청 승인에 실패했습니다.");
+      }
 
       setChatRooms((prev) =>
         prev.map((room) =>
@@ -98,7 +102,7 @@ export function useChatActions() {
       );
     } catch (error) {
       console.error(error);
-      toast.error("참여 승인에 실패했습니다.");
+      toast.error(toUserMessage(error, "참여 승인에 실패했습니다."));
     }
   };
 
@@ -110,7 +114,10 @@ export function useChatActions() {
         `${CHAT_API_BASE_URL}/chat/rooms/${activeChatRoomId}/reject/${targetUserId}`,
         { method: "DELETE" },
       );
-      if (!response.ok) throw new Error("참여 요청 거절에 실패했습니다.");
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new ApiError((data as { message?: string } | null)?.message || "참여 요청 거절에 실패했습니다.");
+      }
 
       setChatRooms((prev) =>
         prev.map((room) =>
@@ -124,7 +131,7 @@ export function useChatActions() {
       );
     } catch (error) {
       console.error(error);
-      toast.error("참여 거절에 실패했습니다.");
+      toast.error(toUserMessage(error, "참여 거절에 실패했습니다."));
     }
   };
 
@@ -157,19 +164,43 @@ export function useChatActions() {
 
     try {
       const latestRoom = await getChatRoom(Number(roomId));
+
+      const freshProfiles = new Map<number, ChatRoomParticipant>(
+        (latestRoom.participants ?? []).map((p: ChatRoomParticipant) => [p.userId, p]),
+      );
+
       setChatRooms((prevRooms) =>
         prevRooms.map((room) => {
-          if (String(room.id) !== String(roomId)) return room;
-          const existingById = new Map(
-            (room.messages ?? []).filter((m) => m.id != null).map((m) => [String(m.id), m]),
-          );
+          if (String(room.id) === String(roomId)) {
+            const existingById = new Map(
+              (room.messages ?? []).filter((m) => m.id != null).map((m) => [String(m.id), m]),
+            );
+            return {
+              ...room,
+              ...latestRoom,
+              messages: (latestRoom.messages ?? []).map((msg: ChatMessage) => ({
+                ...msg,
+                readBy: existingById.get(String(msg.id))?.readBy,
+              })),
+            };
+          }
+
+          if (freshProfiles.size === 0) return room;
+
+          const partnerIdNum = room.partnerId ? Number(room.partnerId) : null;
+          const hasPartnerUpdate = partnerIdNum !== null && freshProfiles.has(partnerIdNum);
+          const hasParticipantUpdate = room.participants?.some((p) => freshProfiles.has(p.userId));
+
+          if (!hasPartnerUpdate && !hasParticipantUpdate) return room;
+
           return {
             ...room,
-            ...latestRoom,
-            messages: (latestRoom.messages ?? []).map((msg: ChatMessage) => ({
-              ...msg,
-              readBy: existingById.get(String(msg.id))?.readBy,
-            })),
+            ...(hasPartnerUpdate && {
+              partnerAvatarVisualClassName: freshProfiles.get(partnerIdNum!)?.avatarVisualClassName,
+            }),
+            participants: room.participants?.map((p) =>
+              freshProfiles.has(p.userId) ? { ...p, ...freshProfiles.get(p.userId) } : p,
+            ),
           };
         }),
       );
@@ -199,7 +230,10 @@ export function useChatActions() {
         `${CHAT_API_BASE_URL}/chat/rooms/${activeChatRoomId}/owner/${targetUserId}`,
         { method: "PATCH" },
       );
-      if (!response.ok) throw new Error("방장 위임에 실패했습니다.");
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new ApiError((data as { message?: string } | null)?.message || "방장 위임에 실패했습니다.");
+      }
 
       setChatRooms((prev) =>
         prev.map((room) =>
@@ -211,7 +245,7 @@ export function useChatActions() {
       toast.success("방장이 위임되었습니다.");
     } catch (error) {
       console.error(error);
-      toast.error("방장 위임에 실패했습니다.");
+      toast.error(toUserMessage(error, "방장 위임에 실패했습니다."));
     }
   };
 
@@ -223,7 +257,10 @@ export function useChatActions() {
         `${CHAT_API_BASE_URL}/chat/rooms/${activeChatRoomId}/nickname?newNickname=${encodeURIComponent(newRoomName.trim())}`,
         { method: "PATCH" },
       );
-      if (!response.ok) throw new Error("채팅방 이름 변경에 실패했습니다.");
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new ApiError((data as { message?: string } | null)?.message || "채팅방 이름 변경에 실패했습니다.");
+      }
 
       setChatRooms((prev) =>
         prev.map((room) =>
@@ -237,7 +274,7 @@ export function useChatActions() {
       toast.success("채팅방 이름이 변경되었습니다.");
     } catch (error) {
       console.error(error);
-      toast.error("채팅방 이름 변경에 실패했습니다.");
+      toast.error(toUserMessage(error, "채팅방 이름 변경에 실패했습니다."));
     }
   };
 

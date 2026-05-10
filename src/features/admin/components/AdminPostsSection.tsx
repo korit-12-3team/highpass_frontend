@@ -16,7 +16,7 @@ import {
   postStatusLabel,
   statusClass,
 } from "@/features/admin/components/AdminCommon";
-import { listComments } from "@/features/boards/api/comments";
+import { listComments } from "@/shared/boards/api/comments";
 import Avatar from "@/shared/components/common/Avatar";
 import ConfirmModal from "@/shared/components/common/ConfirmModal";
 

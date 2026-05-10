@@ -51,7 +51,7 @@ export default function Avatar({
   const hasCustomClass = className.trim().length > 0;
   const hasPositionClass = /\b(?:static|fixed|absolute|relative|sticky)\b/.test(className);
   const positionClass = hasPositionClass ? "" : "relative";
-  const baseClass = `${positionClass} inline-flex shrink-0 items-center justify-center overflow-hidden`;
+  const baseClass = `${positionClass} inline-flex shrink-0 items-center justify-center overflow-hidden [container-type:inline-size]`;
   const defaultClass = `rounded-full ${sizeClass[size]}`;
 
   const wrapperClass = [baseClass, visualClass, hasCustomClass ? className : defaultClass]
@@ -74,7 +74,9 @@ export default function Avatar({
 
   return (
     <span className={wrapperClass} style={visualStyle} aria-label={alt || name || "user avatar"}>
-      {getInitial(name)}
+      <span style={{ fontSize: "55cqi", lineHeight: 1, fontFamily: "var(--font-avatar)" }}>
+        {getInitial(name)}
+      </span>
     </span>
   );
 }

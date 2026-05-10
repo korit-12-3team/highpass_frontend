@@ -1,5 +1,5 @@
 import type { PostComment } from "@/entities/common/types";
-import { mapApiRecordToComment, unwrapData, type CommentApiRecord } from "@/features/boards/api/mappers";
+import { mapApiRecordToComment, unwrapData, type CommentApiRecord } from "@/shared/boards/api/mappers";
 import { API_BASE_URL } from "@/services/config/config";
 
 export async function listCommentsServer(targetType: "FREE" | "STUDY", targetId: string): Promise<PostComment[]> {

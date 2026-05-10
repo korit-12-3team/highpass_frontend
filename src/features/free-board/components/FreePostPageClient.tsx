@@ -10,9 +10,9 @@ import {
   deleteComment as deleteCommentRequest,
   listComments,
   updateComment as updateCommentRequest,
-} from "@/features/boards/api/comments";
-import { isPostLiked, saveLikedPost, toggleBoardLike } from "@/features/boards/api/likes";
-import { formatBoardCreatedAt } from "@/features/boards/utils/detail-utils";
+} from "@/shared/boards/api/comments";
+import { isPostLiked, saveLikedPost, toggleBoardLike } from "@/shared/boards/api/likes";
+import { formatBoardCreatedAt } from "@/shared/boards/utils/detail-utils";
 import { deleteBoard } from "@/features/free-board/api/boards";
 import ReportDialog from "@/features/reports/components/ReportDialog";
 import ConfirmModal from "@/shared/components/common/ConfirmModal";

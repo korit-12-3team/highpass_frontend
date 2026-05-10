@@ -1,4 +1,4 @@
-import { listCommentsServer } from "@/features/boards/api/comments-server";
+import { listCommentsServer } from "@/shared/boards/api/comments-server";
 import { listBoardsServer } from "@/features/free-board/api/boards-server";
 import MyPageClient from "@/features/mypage/components/MyPageClient";
 import { getCurrentUserProfileServer } from "@/features/mypage/api/profile-server";

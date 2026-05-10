@@ -3,7 +3,6 @@ const CONFIRM_TEXT = "회원탈퇴";
 export function MyPageWithdrawModal({
   open,
   value,
-  error,
   submitting,
   onChange,
   onClose,
@@ -11,7 +10,6 @@ export function MyPageWithdrawModal({
 }: {
   open: boolean;
   value: string;
-  error: string;
   submitting: boolean;
   onChange: (value: string) => void;
   onClose: () => void;
@@ -45,7 +43,6 @@ export function MyPageWithdrawModal({
           placeholder={CONFIRM_TEXT}
           className="mt-3 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-rose-400"
         />
-        {error ? <p className="mt-3 text-sm font-semibold text-rose-500">{error}</p> : null}
         <div className="mt-5 flex justify-end gap-2">
           <button
             type="button"

@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Client } from "@stomp/stompjs";
 import MainSidebar from "@/shared/components/layout/MainSidebar";
 import ProfileModal from "@/shared/components/profile/ProfileModal";
-import WritePostModal from "@/features/boards/components/WritePostModal";
+import WritePostModal from "@/shared/boards/components/WritePostModal";
 import ScheduleNotificationModal from "@/features/calendar/components/ScheduleNotificationModal";
 import ConfirmModal from "@/shared/components/common/ConfirmModal";
 import { useApp } from "@/shared/context/AppContext";
@@ -26,6 +26,7 @@ import type {
   UserProfile,
 } from "@/entities/common/types";
 import { toast } from "sonner";
+import { toUserMessage } from "@/shared/errors";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -36,7 +37,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     isAuthenticated,
     authReady,
     logout,
-    setEvents,
     chatRooms,
     setChatRooms,
     activeChatRoomId,
@@ -74,7 +74,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   const [profileRemote, setProfileRemote] = useState<UserProfile | null>(null);
   const [profileRemoteLoading, setProfileRemoteLoading] = useState(false);
-  const [profileRemoteError, setProfileRemoteError] = useState("");
   const chatClientRef = useRef<Client | null>(null);
   const chatRoomIdsKey = chatRooms.map((room) => room.id).join(",");
 
@@ -205,7 +204,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         if (hideUntil === todayStrLocal) return;
 
         const allEvents = await listCalendarEvents(String(currentUser.id));
-        setEvents(allEvents);
 
         const starting = allEvents.filter((event) => {
           if (!event.startDate) return false;
@@ -228,19 +226,17 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     };
 
     void checkSchedules();
-  }, [authReady, currentUser?.id, setEvents]);
+  }, [authReady, currentUser?.id]);
 
   useEffect(() => {
     if (!profileModal) {
       setProfileRemote(null);
-      setProfileRemoteError("");
       setProfileRemoteLoading(false);
       return;
     }
 
     let cancelled = false;
     setProfileRemoteLoading(true);
-    setProfileRemoteError("");
 
     void (async () => {
       try {
@@ -251,9 +247,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       } catch (error) {
         if (!cancelled) {
           setProfileRemote(null);
-          setProfileRemoteError(
-            error instanceof Error ? error.message : "프로필을 불러오지 못했습니다.",
-          );
+          toast.error(toUserMessage(error, "프로필을 불러오지 못했습니다."));
         }
       } finally {
         if (!cancelled) {
@@ -591,7 +585,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       )}
 
       <main
-        className={`app-scroll-container relative flex-1 transition-opacity ${isAdminPath ? "p-0" : "p-4 md:p-8"} ${showNotifications ? "opacity-30 pointer-events-none" : "opacity-100"}`}
+        className={`app-scroll-container relative flex-1 ${isAdminPath ? "p-0" : "p-4 md:p-8"}`}
       >
         {children}
       </main>
@@ -599,7 +593,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <ProfileModal
         profile={profile}
         loading={profileRemoteLoading}
-        error={profileRemoteError}
         isOpen={!!profileModal}
         isCurrentUser={profile.id === currentUser.id}
         onOpenEdit={() => {
@@ -641,7 +634,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             }
           } catch (error) {
             console.error("Failed to start chat:", error);
-            toast.error(error instanceof Error ? error.message : "채팅방 생성에 실패했습니다.");
+            toast.error(toUserMessage(error, "채팅방 생성에 실패했습니다."));
           }
         }}
       />

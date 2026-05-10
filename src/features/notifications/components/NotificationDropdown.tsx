@@ -18,6 +18,7 @@ interface NotificationDropdownProps {
   notifications: NotificationResponse[];
   onRefresh: () => void;
   onClose: () => void;
+  triggerRef?: React.RefObject<HTMLButtonElement | null>;
 }
 
 export default function NotificationDropdown({
@@ -25,19 +26,30 @@ export default function NotificationDropdown({
   notifications,
   onRefresh,
   onClose,
+  triggerRef,
 }: NotificationDropdownProps) {
   const router = useRouter();
   const { setActiveChatRoomId } = useApp();
   const modalRef = useRef<HTMLDivElement>(null);
   const [confirmDeleteAllOpen, setConfirmDeleteAllOpen] = useState(false);
 
-  // Esc 키를 누르면 닫기
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        modalRef.current &&
+        !modalRef.current.contains(e.target as Node) &&
+        !triggerRef?.current?.contains(e.target as Node)
+      ) onClose();
+    };
     window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      window.removeEventListener("keydown", handleEsc);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, [onClose]);
 
   const handleDelete = async (e: React.MouseEvent, id: number) => {
@@ -84,15 +96,10 @@ export default function NotificationDropdown({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
-      <div 
-        className="absolute inset-0 pointer-events-auto" 
-        onClick={onClose}
-      />
-      
+    <>
       <div
         ref={modalRef}
-        className="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] animate-in fade-in zoom-in duration-200 pointer-events-auto"
+        className="absolute left-full bottom-0 z-[100] ml-2 w-[380px] overflow-hidden rounded-3xl bg-white shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] animate-in fade-in slide-in-from-left-4 duration-200 ease-out"
       >
         <div className="flex items-center justify-between border-b border-slate-100 bg-white p-5">
           <div className="flex items-center gap-3">
@@ -184,6 +191,6 @@ export default function NotificationDropdown({
         onConfirm={() => { setConfirmDeleteAllOpen(false); void handleDeleteAll(); }}
         onClose={() => setConfirmDeleteAllOpen(false)}
       />
-    </div>
+    </>
   );
 }

@@ -10,7 +10,6 @@ import { DEFAULT_AVATAR_VISUAL_CLASS } from "@/shared/utils/avatar-custom";
 interface ProfileModalProps {
   profile: UserProfile;
   loading?: boolean;
-  error?: string;
   isOpen: boolean;
   isCurrentUser: boolean;
   onOpenEdit: () => void;
@@ -21,7 +20,6 @@ interface ProfileModalProps {
 export default function ProfileModal({
   profile,
   loading,
-  error,
   isOpen,
   isCurrentUser,
   onOpenEdit,
@@ -79,15 +77,12 @@ export default function ProfileModal({
             src={profile.profileImage}
             name={profile.nickname}
             customVisualClassName={activeAvatarClass}
-            className="absolute left-1/2 top-0 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-hp-100 text-2xl shadow-sm"
+            className="absolute left-1/2 top-0 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white text-2xl shadow-sm"
           />
 
-          {(loading || error) && (
+          {loading && (
             <div className="pt-14">
-              {loading ? (
-                <p className="text-xs text-slate-400">프로필 정보를 불러오는 중입니다.</p>
-              ) : null}
-              {error ? <p className="mt-1 text-xs text-red-500">{error}</p> : null}
+              <p className="text-xs text-slate-400">프로필 정보를 불러오는 중입니다.</p>
             </div>
           )}
 

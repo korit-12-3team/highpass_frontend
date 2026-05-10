@@ -9,14 +9,15 @@ import { useKakaoLoader } from "react-kakao-maps-sdk";
 import KakaoMap from "@/shared/components/map/KakaoMap";
 import { KAKAO_MAP_APPKEY } from "@/services/config/config";
 import type { BoardPost, PostComment, SearchPlace } from "@/entities/common/types";
-import { createComment, deleteComment as deleteCommentRequest, listComments, updateComment as updateCommentRequest } from "@/features/boards/api/comments";
-import { isPostLiked, saveLikedPost, toggleBoardLike } from "@/features/boards/api/likes";
+import { createComment, deleteComment as deleteCommentRequest, listComments, updateComment as updateCommentRequest } from "@/shared/boards/api/comments";
+import { isPostLiked, saveLikedPost, toggleBoardLike } from "@/shared/boards/api/likes";
 import { CERT_DATA } from "@/shared/constants";
 import { deleteStudy, updateStudy } from "@/features/study/api/study-api";
-import { formatBoardCreatedAt } from "@/features/boards/utils/detail-utils";
+import { formatBoardCreatedAt } from "@/shared/boards/utils/detail-utils";
 import { useApp } from "@/shared/context/AppContext";
 import { getMyChatRooms, joinStudyChatRoom } from "@/services/realtime/stomp";
 import { toast } from "sonner";
+import { toUserMessage } from "@/shared/errors";
 import { getStudyRegionBadge } from "@/features/study/utils/region";
 
 
@@ -369,7 +370,7 @@ export default function StudyPostPageClient({
       setIsEditing(false); 
       toast.success("게시글이 수정되었습니다.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "게시글 수정에 실패했습니다.");
+      toast.error(toUserMessage(error, "게시글 수정에 실패했습니다."));
     } finally {
       setPostSaving(false);
     }
@@ -383,7 +384,7 @@ export default function StudyPostPageClient({
       await deleteStudy(post.id);
       router.push(returnTo ? decodeURIComponent(returnTo) : "/study");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "게시글 삭제에 실패했습니다.");
+      toast.error(toUserMessage(error, "게시글 삭제에 실패했습니다."));
     } finally {
       setPostDeleting(false);
     }

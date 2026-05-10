@@ -2,6 +2,7 @@ import { fetchWithAuth } from "@/services/auth/auth";
 import { API_BASE_URL } from "@/services/config/config";
 import { http } from "@/services/api/http";
 import { optionalDate, optionalString, safeNumber, safeString, unwrapData } from "@/shared/utils/api-mappers";
+import { ApiError } from "@/shared/errors";
 
 export type CertificateSchedule = {
   id: string;
@@ -137,22 +138,22 @@ export async function listCertificateSchedules(): Promise<CertificateSchedule[]>
   ]);
 
   if (typeof qnetResponse.data === "string" && qnetResponse.data.trim().startsWith("<")) {
-    throw new Error("자격증 일정 API가 JSON 대신 HTML을 반환했습니다. 백엔드 인증 또는 보안 설정을 확인해 주세요.");
+    throw new ApiError("자격증 일정 API가 JSON 대신 HTML을 반환했습니다. 백엔드 인증 또는 보안 설정을 확인해 주세요.");
   }
 
   if (typeof dataIndustryResponse.data === "string" && dataIndustryResponse.data.trim().startsWith("<")) {
-    throw new Error("데이터 자격검정 일정 API가 JSON 대신 HTML을 반환했습니다.");
+    throw new ApiError("데이터 자격검정 일정 API가 JSON 대신 HTML을 반환했습니다.");
   }
 
   const qnetPayload = unwrapData(qnetResponse.data);
   const dataIndustryPayload = unwrapData(dataIndustryResponse.data);
 
   if (!Array.isArray(qnetPayload)) {
-    throw new Error("자격증 일정 API 응답 형식이 올바르지 않습니다.");
+    throw new ApiError("자격증 일정 API 응답 형식이 올바르지 않습니다.");
   }
 
   if (!Array.isArray(dataIndustryPayload)) {
-    throw new Error("데이터 자격검정 일정 API 응답 형식이 올바르지 않습니다.");
+    throw new ApiError("데이터 자격검정 일정 API 응답 형식이 올바르지 않습니다.");
   }
 
   return [
@@ -174,10 +175,10 @@ export async function syncCertificateSchedules(): Promise<CertificateSyncResult>
   ]);
 
   if (typeof qnetResponse.data === "string" && qnetResponse.data.trim().startsWith("<")) {
-    throw new Error("자격증 동기화 API가 JSON 대신 HTML을 반환했습니다. 백엔드 인증 또는 보안 설정을 확인해 주세요.");
+    throw new ApiError("자격증 동기화 API가 JSON 대신 HTML을 반환했습니다. 백엔드 인증 또는 보안 설정을 확인해 주세요.");
   }
   if (typeof dataResponse.data === "string" && dataResponse.data.trim().startsWith("<")) {
-    throw new Error("데이터 자격검정 동기화 API가 JSON 대신 HTML을 반환했습니다.");
+    throw new ApiError("데이터 자격검정 동기화 API가 JSON 대신 HTML을 반환했습니다.");
   }
 
   const qnet = unwrapData(qnetResponse.data) as Partial<CertificateSyncResult> | undefined;
@@ -204,13 +205,13 @@ export async function saveUserCertificate(_userId: string, certificateScheduleId
 
   const text = await response.text();
   if (!response.ok) {
-    throw new Error(text || "자격증을 저장하지 못했습니다.");
+    throw new ApiError(text || "자격증을 저장하지 못했습니다.");
   }
   if (!text.trim()) {
-    throw new Error("자격증 저장 응답이 비어 있습니다.");
+    throw new ApiError("자격증 저장 응답이 비어 있습니다.");
   }
   if (text.trim().startsWith("<")) {
-    throw new Error("서버가 JSON 대신 HTML을 반환했습니다. 인증 또는 보안 설정을 확인해 주세요.");
+    throw new ApiError("서버가 JSON 대신 HTML을 반환했습니다. 인증 또는 보안 설정을 확인해 주세요.");
   }
 
   return mapUserCertificate(JSON.parse(text) as CertificateApiRecord);

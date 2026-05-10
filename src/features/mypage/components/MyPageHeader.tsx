@@ -99,7 +99,7 @@ export function MyPageHeader({
                 src={user.profileImage}
                 name={user.nickname}
                 customVisualClassName={pickerOpen ? previewClass : (user.avatarVisualClassName ?? undefined)}
-                className="h-18 w-18 rounded-[24px] px-6 py-5 text-3xl"
+                className="h-18 w-18 rounded-[24px]"
               />
               {onAvatarColorChange && (
                 <span className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-hp-600 text-white shadow-sm">

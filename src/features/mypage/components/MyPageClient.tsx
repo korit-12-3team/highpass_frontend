@@ -3,10 +3,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import { toUserMessage } from "@/shared/errors";
 import { Bell, MessageCircle, ThumbsUp } from "lucide-react";
 import type { BoardPost, PostComment, UserProfile } from "@/entities/common/types";
-import { listComments } from "@/features/boards/api/comments";
-import { isPostLiked } from "@/features/boards/api/likes";
+import { listComments } from "@/shared/boards/api/comments";
+import { isPostLiked } from "@/shared/boards/api/likes";
 import { listBoards } from "@/features/free-board/api/boards";
 import {
   getUserProfile,
@@ -145,8 +146,6 @@ export default function MyPageClient({
   const [profilePasswordModalOpen, setProfilePasswordModalOpen] = useState(false);
   const [profilePasswordDraft, setProfilePasswordDraft] = useState("");
   const [profilePasswordChecking, setProfilePasswordChecking] = useState(false);
-  const [profilePasswordError, setProfilePasswordError] = useState("");
-  const [profileSaveError, setProfileSaveError] = useState("");
   const [profileSaveSuccess, setProfileSaveSuccess] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
   const [newPasswordBlurred, setNewPasswordBlurred] = useState(false);
@@ -154,7 +153,6 @@ export default function MyPageClient({
   const [newPasswordConfirmFocused, setNewPasswordConfirmFocused] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [withdrawDraft, setWithdrawDraft] = useState("");
-  const [withdrawError, setWithdrawError] = useState("");
   const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
   const [inquiryOpen, setInquiryOpen] = useState(false);
   const [inquirySubmitting, setInquirySubmitting] = useState(false);
@@ -332,8 +330,6 @@ export default function MyPageClient({
     });
     setCurrentPassword("");
     setProfilePasswordDraft("");
-    setProfilePasswordError("");
-    setProfileSaveError("");
     setProfileSaveSuccess("");
     setNewPasswordBlurred(false);
     setNewPasswordConfirmBlurred(false);
@@ -359,25 +355,24 @@ export default function MyPageClient({
     setNewPasswordConfirmBlurred(true);
 
     if (!isSocialAccount && !password) {
-      setProfileSaveError("현재 비밀번호를 입력해 주세요.");
+      toast.error("현재 비밀번호를 입력해 주세요.");
       return;
     }
     if (!nickname || !ageRange || !gender || !siDo || !gunGu) {
-      setProfileSaveError("닉네임, 연령대, 성별, 지역 정보를 모두 입력해 주세요.");
+      toast.error("닉네임, 연령대, 성별, 지역 정보를 모두 입력해 주세요.");
       return;
     }
     if (!isSocialAccount && (nextPassword || confirmPassword) && nextPassword !== confirmPassword) {
-      setProfileSaveError("새 비밀번호가 일치하지 않습니다.");
+      toast.error("새 비밀번호가 일치하지 않습니다.");
       return;
     }
     if (!isSocialAccount && nextPassword && nextPassword.length < MIN_PASSWORD_LENGTH) {
-      setProfileSaveError(`새 비밀번호는 ${MIN_PASSWORD_LENGTH}자 이상이어야 합니다.`);
+      toast.error(`새 비밀번호는 ${MIN_PASSWORD_LENGTH}자 이상이어야 합니다.`);
       return;
     }
 
     try {
       setProfileSaving(true);
-      setProfileSaveError("");
       setProfileSaveSuccess("");
 
       const updated = await updateUserProfile(currentUser.id, {
@@ -403,9 +398,7 @@ export default function MyPageClient({
       setEditState((prev) => ({ ...prev, nickname, newPassword: "", newPasswordConfirm: "" }));
       toast.success("회원정보가 수정되었습니다.");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "회원정보 수정에 실패했습니다.";
-      setProfileSaveError(message);
-      toast.error(message);
+      toast.error(toUserMessage(error, "회원정보 수정에 실패했습니다."));
     } finally {
       setProfileSaving(false);
     }
@@ -414,20 +407,19 @@ export default function MyPageClient({
   const confirmProfileEdit = async () => {
     const password = profilePasswordDraft.trim();
     if (!password) {
-      setProfilePasswordError("비밀번호를 입력해 주세요.");
+      toast.error("비밀번호를 입력해 주세요.");
       return;
     }
 
     try {
       setProfilePasswordChecking(true);
-      setProfilePasswordError("");
       await verifyUserPassword(currentUser.id, { currentPassword: password });
       setCurrentPassword(password);
       setProfilePasswordDraft("");
       setProfilePasswordModalOpen(false);
       setProfileEditOpen(true);
     } catch (error) {
-      setProfilePasswordError(error instanceof Error ? error.message : "비밀번호 확인에 실패했습니다.");
+      toast.error(toUserMessage(error, "비밀번호 확인에 실패했습니다."));
     } finally {
       setProfilePasswordChecking(false);
     }
@@ -435,21 +427,18 @@ export default function MyPageClient({
 
   const confirmWithdraw = async () => {
     if (withdrawDraft !== "회원탈퇴") {
-      setWithdrawError("회원탈퇴를 정확히 입력해 주세요.");
+      toast.error("회원탈퇴를 정확히 입력해 주세요.");
       return;
     }
 
     try {
       setWithdrawSubmitting(true);
-      setWithdrawError("");
       await withdrawUser(currentUser.id);
       setCurrentUser(null);
       toast.success("회원 탈퇴가 처리되었습니다.");
       router.replace("/login");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "회원 탈퇴 처리에 실패했습니다.";
-      setWithdrawError(message);
-      toast.error(message);
+      toast.error(toUserMessage(error, "회원 탈퇴 처리에 실패했습니다."));
     } finally {
       setWithdrawSubmitting(false);
     }
@@ -535,7 +524,6 @@ export default function MyPageClient({
           editState={editState}
           showPasswordLengthError={showNewPasswordLengthError}
           showPasswordMismatchError={showNewPasswordMismatchError}
-          saveError={profileSaveError}
           saveSuccess={profileSaveSuccess}
           saving={profileSaving}
           isSocialAccount={isSocialAccount}
@@ -552,7 +540,6 @@ export default function MyPageClient({
           onSave={() => void saveProfile()}
           onStartWithdraw={() => {
             setWithdrawDraft("");
-            setWithdrawError("");
             setWithdrawOpen(true);
           }}
           onOpenInquiry={() => {
@@ -561,7 +548,6 @@ export default function MyPageClient({
           }}
           onChange={(next) => {
             setEditState((prev) => ({ ...prev, ...next }));
-            setProfileSaveError("");
           }}
           onBlurNewPassword={() => setNewPasswordBlurred(true)}
           onBlurNewPasswordConfirm={() => setNewPasswordConfirmBlurred(true)}
@@ -634,13 +620,11 @@ export default function MyPageClient({
       <MyPagePasswordModal
         open={profilePasswordModalOpen}
         password={profilePasswordDraft}
-        error={profilePasswordError}
         checking={profilePasswordChecking}
         onChangePassword={setProfilePasswordDraft}
         onClose={() => {
           setProfilePasswordModalOpen(false);
           setProfilePasswordDraft("");
-          setProfilePasswordError("");
         }}
         onConfirm={() => void confirmProfileEdit()}
       />
@@ -648,14 +632,12 @@ export default function MyPageClient({
       <MyPageWithdrawModal
         open={withdrawOpen}
         value={withdrawDraft}
-        error={withdrawError}
         submitting={withdrawSubmitting}
         onChange={setWithdrawDraft}
         onClose={() => {
           if (withdrawSubmitting) return;
           setWithdrawOpen(false);
           setWithdrawDraft("");
-          setWithdrawError("");
         }}
         onConfirm={() => void confirmWithdraw()}
       />

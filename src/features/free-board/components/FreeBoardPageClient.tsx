@@ -4,9 +4,9 @@ import { useEffect, useState, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Eye, Heart, MessageCircle, ExternalLink } from "lucide-react";
 import type { BoardPost } from "@/entities/common/types";
-import { createComment } from "@/features/boards/api/comments";
-import { isPostLiked, saveLikedPost, toggleBoardLike } from "@/features/boards/api/likes";
-import { formatBoardCreatedAt, getBoardCreatedAtTime } from "@/features/boards/utils/detail-utils";
+import { createComment } from "@/shared/boards/api/comments";
+import { isPostLiked, saveLikedPost, toggleBoardLike } from "@/shared/boards/api/likes";
+import { formatBoardCreatedAt, getBoardCreatedAtTime } from "@/shared/boards/utils/detail-utils";
 import { useApp } from "@/shared/context/AppContext";
 import Avatar from "@/shared/components/common/Avatar";
 

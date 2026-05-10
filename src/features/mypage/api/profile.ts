@@ -1,7 +1,7 @@
-import axios from "axios";
 import { http } from "@/services/api/http";
 import type { UserProfile } from "@/entities/common/types";
 import { safeString, unwrapData } from "@/shared/utils/api-mappers";
+import { ApiError } from "@/shared/errors";
 
 export { unwrapData };
 
@@ -115,7 +115,7 @@ export async function updateUserProfile(
   const payload = unwrapData(response.data);
 
   if (!payload || typeof payload !== "object") {
-    throw new Error("프로필 수정 응답이 비어 있습니다.");
+    throw new ApiError("프로필 수정 응답이 비어 있습니다.");
   }
 
   return mapApiRecordToUserProfile(payload as UserApiRecord);
@@ -128,11 +128,12 @@ export async function updateUserAvatarVisual(
   const payload = unwrapData(response.data);
 
   if (!payload || typeof payload !== "object") {
-    throw new Error("아바타 수정 응답이 비어 있습니다.");
+    throw new ApiError("아바타 수정 응답이 비어 있습니다.");
   }
 
   return mapApiRecordToUserProfile(payload as UserApiRecord);
 }
+
 export async function updateUserPassword(
   _userId: string,
   input: {
@@ -149,14 +150,7 @@ export async function verifyUserPassword(
     currentPassword: string;
   },
 ): Promise<void> {
-  try {
-    await http.post("/api/users/me/password/verify", input);
-  } catch (error) {
-    if (axios.isAxiosError(error) && error.response?.status === 400) {
-      throw new Error("비밀번호가 틀렸습니다.");
-    }
-    throw error;
-  }
+  await http.post("/api/users/me/password/verify", input);
 }
 
 export async function withdrawUser(_userId: string): Promise<void> {
@@ -164,13 +158,13 @@ export async function withdrawUser(_userId: string): Promise<void> {
 }
 
 export interface NotificationSettingPayload {
-  type: "COMMENT" | "LIKE"; 
+  type: "COMMENT" | "LIKE";
   isOn: boolean;
 }
 
 export async function updateNotificationSettings(
   _userId: string,
-  payload: {type: "COMMENT" | "LIKE"; isOn: boolean},
+  payload: { type: "COMMENT" | "LIKE"; isOn: boolean },
 ): Promise<void> {
   await http.patch("/api/notifications/settings", payload);
 }

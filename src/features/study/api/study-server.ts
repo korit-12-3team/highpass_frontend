@@ -1,5 +1,5 @@
 import type { BoardPost } from "@/entities/common/types";
-import { mapStudyRecordToBoardPost, unwrapData, type StudyApiRecord } from "@/features/boards/api/mappers";
+import { mapStudyRecordToBoardPost, unwrapData, type StudyApiRecord } from "@/shared/boards/api/mappers";
 import { API_BASE_URL } from "@/services/config/config";
 
 async function fetchJson(path: string, searchParams?: URLSearchParams) {

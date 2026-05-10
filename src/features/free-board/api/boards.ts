@@ -1,7 +1,7 @@
 import type { BoardPost } from "@/entities/common/types";
-import { mapApiRecordToBoardPost, unwrapData, type BoardApiRecord } from "@/features/boards/api/mappers";
+import { mapApiRecordToBoardPost, unwrapData, type BoardApiRecord } from "@/shared/boards/api/mappers";
 import { http } from "@/services/api/http";
-import axios from "axios";
+import { ApiError } from "@/shared/errors";
 
 export async function listBoards(userId?: string): Promise<BoardPost[]> {
   const response = await http.get("/api/boards", {
@@ -51,24 +51,9 @@ export async function createBoard(input: {
     console.debug("createBoard payload", { url: "/api/boards", payload });
   }
 
-  let responseData: unknown;
-  try {
-    const response = await http.post("/api/boards", payload);
-    responseData = response.data;
-  } catch (e) {
-    // axios error shape
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const err = e as any;
-    const status = err?.response?.status;
-    const data = err?.response?.data;
-    const message =
-      status != null
-        ? `Request failed (HTTP ${status}): ${typeof data === "string" ? data : JSON.stringify(data)}`
-        : err?.message || "Request failed.";
-    throw new Error(message);
-  }
+  const response = await http.post("/api/boards", payload);
 
-  const payloadJson = unwrapData(responseData);
+  const payloadJson = unwrapData(response.data);
   if (!payloadJson || typeof payloadJson !== "object") {
     return {
       id: String(Date.now()),
@@ -109,7 +94,7 @@ export async function updateBoard(
   input: {
     title: string;
     content: string;
-    tags: string[]; 
+    tags: string[];
   },
 ): Promise<BoardPost> {
   const payload = {
@@ -119,12 +104,10 @@ export async function updateBoard(
   };
 
   const response = await http.patch(`/api/boards/${encodeURIComponent(String(freeBoardId))}`, payload);
-  
   const responsePayload = unwrapData(response.data);
   if (!responsePayload || typeof responsePayload !== "object") {
-    throw new Error("게시글 수정 응답이 비어 있습니다.");
+    throw new ApiError("게시글 수정 응답이 비어 있습니다.");
   }
 
-  return mapApiRecordToBoardPost(responsePayload); 
+  return mapApiRecordToBoardPost(responsePayload);
 }
-

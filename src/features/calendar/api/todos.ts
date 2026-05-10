@@ -1,6 +1,7 @@
 import { TodoItem } from "@/entities/common/types";
 import { fetchWithAuth } from "@/services/auth/auth";
 import { API_BASE_URL } from "@/services/config/config";
+import { ApiError } from "@/shared/errors";
 
 type TodoApiRecord = {
   id?: number | string;
@@ -36,7 +37,7 @@ export async function listTodosByDate(_userId: string, date: string): Promise<To
   });
 
   if (!response.ok) {
-    throw new Error(await getErrorMessage(response, "할 일 목록을 불러오지 못했습니다."));
+    throw new ApiError(await getErrorMessage(response,"할 일 목록을 불러오지 못했습니다."));
   }
 
   const data = (await response.json()) as TodoApiRecord[];
@@ -50,7 +51,7 @@ export async function listTodos(_userId: string): Promise<TodoItem[]> {
   });
 
   if (!response.ok) {
-    throw new Error(await getErrorMessage(response, "할 일 목록을 불러오지 못했습니다."));
+    throw new ApiError(await getErrorMessage(response,"할 일 목록을 불러오지 못했습니다."));
   }
 
   const data = (await response.json()) as TodoApiRecord[];
@@ -70,7 +71,7 @@ export async function createTodo(_userId: string, content: string, date: string)
   });
 
   if (!response.ok) {
-    throw new Error(await getErrorMessage(response, "할 일을 추가하지 못했습니다."));
+    throw new ApiError(await getErrorMessage(response,"할 일을 추가하지 못했습니다."));
   }
 
   const data = (await response.json()) as TodoApiRecord;
@@ -83,7 +84,7 @@ export async function toggleTodoStatus(todoId: number): Promise<TodoItem> {
   });
 
   if (!response.ok) {
-    throw new Error(await getErrorMessage(response, "할 일 상태를 변경하지 못했습니다."));
+    throw new ApiError(await getErrorMessage(response,"할 일 상태를 변경하지 못했습니다."));
   }
 
   const data = (await response.json()) as TodoApiRecord;
@@ -98,7 +99,7 @@ export async function updateTodoContent(todoId: number, content: string): Promis
   });
 
   if (!response.ok) {
-    throw new Error(await getErrorMessage(response, "할 일을 수정하지 못했습니다."));
+    throw new ApiError(await getErrorMessage(response,"할 일을 수정하지 못했습니다."));
   }
 
   const data = (await response.json()) as TodoApiRecord;
@@ -111,6 +112,6 @@ export async function deleteTodo(todoId: number) {
   });
 
   if (!response.ok) {
-    throw new Error(await getErrorMessage(response, "할 일을 삭제하지 못했습니다."));
+    throw new ApiError(await getErrorMessage(response,"할 일을 삭제하지 못했습니다."));
   }
 }

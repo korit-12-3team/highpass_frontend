@@ -1,4 +1,4 @@
-import { listCommentsServer } from "@/features/boards/api/comments-server";
+import { listCommentsServer } from "@/shared/boards/api/comments-server";
 import StudyPageClient from "@/features/study/components/StudyPageClient";
 import { listStudiesServer } from "@/features/study/api/study-server";
 

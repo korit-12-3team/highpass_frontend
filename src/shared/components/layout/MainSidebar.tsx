@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition } from "react";
+import { startTransition, useRef } from "react";
 import Image from "next/image";
 import {
   Bell,
@@ -56,6 +56,7 @@ export default function MainSidebar({
 }: MainSidebarProps) {
   const unreadChatCount = chatRooms.reduce((sum, room) => sum + (room.unreadCount ?? 0), 0);
   const unreadNotiCount = notifications?.filter((notification) => !notification.isRead).length ?? 0;
+  const bellButtonRef = useRef<HTMLButtonElement>(null);
 
   return (
     <aside className="relative z-10 flex w-20 flex-col border-r border-[#b8dff3] bg-[linear-gradient(180deg,#f8fcff_0%,#e8f6ff_48%,#d5ebf7_100%)] shadow-xl transition-all duration-300 ease-in-out xl:w-64 group">
@@ -137,13 +138,12 @@ export default function MainSidebar({
           type="button"
           onClick={onOpenProfile}
           className="flex items-center justify-center gap-2.5 rounded-2xl border border-[#dcecf7] bg-white/80 px-3 py-2 text-sm font-black text-[#123b5c] shadow-sm shadow-[#0d3d62]/8 transition hover:border-[#b7d8ec] hover:bg-white hover:text-[#0d3d62] xl:min-w-0 xl:flex-1 xl:justify-start xl:px-4 xl:py-3"
-          
         >
           <Avatar
             src={currentUser.profileImage}
             name={currentUser.nickname}
             customVisualClassName={currentUser.avatarVisualClassName ?? undefined}
-            className="h-8 w-8 rounded-full border-2 border-[#b8dff3] text-sm"
+            className="h-8 w-8 rounded-full border-2 border-white text-sm"
           />
           <div className="hidden min-w-0 xl:block">
             <p className="truncate text-xs font-black text-[#123b5c]">{currentUser.nickname}</p>
@@ -153,6 +153,7 @@ export default function MainSidebar({
 
         <div className="relative shrink-0">
           <button
+            ref={bellButtonRef}
             onClick={() => setShowNotifications(!showNotifications)}
             className={`relative rounded-2xl px-4 py-3 xl:py-4 transition border shadow-sm shadow-[#0d3d62]/8 ${
               showNotifications
@@ -175,6 +176,7 @@ export default function MainSidebar({
               notifications={notifications}
               onRefresh={onRefreshNotifications}
               onClose={() => setShowNotifications(false)}
+              triggerRef={bellButtonRef}
             />
           )}
         </div>

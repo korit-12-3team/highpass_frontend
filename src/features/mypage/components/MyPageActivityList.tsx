@@ -1,7 +1,7 @@
 import React from "react";
 import { Clock3, FileText, MapPin, MessageSquare } from "lucide-react";
 import type { BoardPost, PostComment } from "@/entities/common/types";
-import { formatBoardDate } from "@/features/boards/utils/detail-utils";
+import { formatBoardDate } from "@/shared/boards/utils/detail-utils";
 import { EmptyState } from "@/features/mypage/components/MyPageCommon";
 import { getStudyRegionBadge } from "@/features/study/utils/region";
 

@@ -1,6 +1,7 @@
 import type { BoardPost } from "@/entities/common/types";
-import { mapStudyRecordToBoardPost, unwrapData, type StudyApiRecord } from "@/features/boards/api/mappers";
+import { mapStudyRecordToBoardPost, unwrapData, type StudyApiRecord } from "@/shared/boards/api/mappers";
 import { http } from "@/services/api/http";
+import { ApiError } from "@/shared/errors";
 
 export async function listStudies(userId?: string): Promise<BoardPost[]> {
   const response = await http.get("/api/study", {
@@ -31,7 +32,7 @@ export async function createStudy(input: {
   latitude?: number;
   longitude?: number;
   placeId?: string;
-  createChatRoom?:boolean;
+  createChatRoom?: boolean;
 }): Promise<BoardPost> {
   const payload = {
     title: input.title,
@@ -100,7 +101,7 @@ export async function updateStudy(
   const response = await http.patch(`/api/study/${encodeURIComponent(studyId)}`, payload);
   const responsePayload = unwrapData(response.data);
   if (!responsePayload || typeof responsePayload !== "object") {
-    throw new Error("스터디 게시글 수정 응답이 비어 있습니다.");
+    throw new ApiError("스터디 게시글 수정 응답이 비어 있습니다.");
   }
 
   return mapStudyRecordToBoardPost(responsePayload as StudyApiRecord);

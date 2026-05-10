@@ -42,7 +42,6 @@ export function AdminCertificatesSection({
   schedules,
   syncing,
   syncMessage,
-  syncError,
   onSync,
 }: {
   schedules: CertificateSchedule[];
@@ -52,7 +51,6 @@ export function AdminCertificatesSection({
   lastSyncedAt: string | null;
   syncing: boolean;
   syncMessage: string;
-  syncError: string;
   onSync: () => void;
 }) {
   const [activeSourceTab, setActiveSourceTab] = useState<ScheduleSourceTab>("qnet");
@@ -115,8 +113,6 @@ export function AdminCertificatesSection({
           <span className="text-sm font-semibold text-amber-700">자격증 일정 API를 불러오는 중입니다.</span>
         ) : syncMessage ? (
           <span className="text-sm font-semibold text-emerald-700">{syncMessage}</span>
-        ) : syncError ? (
-          <span className="text-sm font-semibold text-rose-700">{syncError}</span>
         ) : null}
       </div>
 
