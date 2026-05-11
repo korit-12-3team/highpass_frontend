@@ -30,7 +30,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className={`${geistSans.variable} ${geistMono.variable} ${stylish.variable} h-full antialiased`}>
+    <html lang="ko" className={`${geistSans.variable} ${geistMono.variable} ${stylish.variable} min-h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <AppProvider>
           {children}

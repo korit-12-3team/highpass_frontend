@@ -9,22 +9,31 @@ interface AuthShellProps {
 
 export default function AuthShell({ title, subtitle, children }: AuthShellProps) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[linear-gradient(135deg,#f7fbff_0%,#d8eefb_42%,#7bb8dd_100%)] p-4">
-      <div className="w-full max-w-md overflow-hidden rounded-2xl border border-white/80 bg-white shadow-2xl shadow-[#0d3d62]/20">
-        <div className="bg-[linear-gradient(135deg,#ffffff_0%,#eef8ff_58%,#d5ecfa_100%)] px-8 pb-6 pt-8">
-          <h1 className="text-center text-3xl font-black text-[#123b5c]">
-            <span className="inline-flex items-center gap-3">
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-[#b9dff5]">
-                <Image src="/images/Highpass_icon.png" alt="HighPass" width={46} height={46} className="h-[46px] w-[46px] object-contain" priority />
+    <div className="flex min-h-screen flex-col items-center bg-[linear-gradient(135deg,#f7fbff_0%,#d8eefb_42%,#7bb8dd_100%)] bg-fixed px-3 py-8 sm:p-6">
+      <div className="my-auto w-full max-w-md shrink-0 overflow-hidden rounded-2xl border border-white/80 bg-white shadow-2xl shadow-[#0d3d62]/20">
+        <div className="bg-[linear-gradient(135deg,#ffffff_0%,#eef8ff_58%,#d5ecfa_100%)] px-5 pb-2 pt-5 sm:px-8 sm:pt-6">
+          <h1 className="text-center text-2xl font-black text-[#123b5c] sm:text-4xl">
+            <span className="inline-flex items-center gap-2 sm:gap-3">
+              <span className="flex h-9 w-9 items-center justify-center sm:h-12 sm:w-12">
+                <Image
+                  src="/images/Highpass_icon.png"
+                  alt="HighPass"
+                  width={55}
+                  height={55}
+                  className="h-[38px] w-[38px] object-contain sm:h-[55px] sm:w-[55px]"
+                  priority
+                />
               </span>
-              <span>HighPass</span>
+              <span>HIGHPASS</span>
             </span>
           </h1>
-          <p className="mt-3 text-center text-sm font-semibold text-slate-500">{subtitle}</p>
+          {subtitle ? (
+            <p className="mt-2 text-center text-xs font-semibold text-slate-500 sm:text-sm">{subtitle}</p>
+          ) : null}
         </div>
-        <div className="p-8 pt-6">
-        <h2 className="sr-only">{title}</h2>
-        {children}
+        <div className="px-5 py-5 sm:p-8 sm:pt-5">
+          <h2 className="sr-only">{title}</h2>
+          {children}
         </div>
       </div>
     </div>

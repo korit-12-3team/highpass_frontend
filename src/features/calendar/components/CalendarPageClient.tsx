@@ -238,7 +238,7 @@ export default function CalendarPageClient() {
           onNextMonth={() => moveToMonth(new Date(currentYear, currentMonth + 1, 1))}
           onToday={() => { const now = new Date(); moveToMonth(now, now.getDate()); }}
           onLoadKakao={loadKakaoEvents}
-          onCreateEvent={openCreateModal}
+          onCreateEvent={() => openCreateModal(selectedDateKey)}
           onSelectDate={(year, month, date) => {
             setCurrentDate(new Date(year, month, 1));
             setSelectedDate(date);
