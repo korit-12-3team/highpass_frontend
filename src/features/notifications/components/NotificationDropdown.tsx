@@ -38,6 +38,12 @@ export default function NotificationDropdown({
       if (e.key === "Escape") onClose();
     };
     const handleClickOutside = (e: MouseEvent) => {
+      // 클릭된 요소가 ConfirmModal 내부인지 확인 (포탈이나 고정 위치에 있을 수 있으므로)
+      const target = e.target as HTMLElement;
+      const isInsideModal = target.closest('[role="dialog"]') || target.closest('.fixed.inset-0.z-\\[1000\\]');
+      
+      if (confirmDeleteAllOpen || isInsideModal) return;
+      
       if (
         modalRef.current &&
         !modalRef.current.contains(e.target as Node) &&
@@ -50,7 +56,7 @@ export default function NotificationDropdown({
       window.removeEventListener("keydown", handleEsc);
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [onClose]);
+  }, [onClose, confirmDeleteAllOpen, triggerRef]);
 
   const handleDelete = async (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
