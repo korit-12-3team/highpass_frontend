@@ -31,6 +31,8 @@ export function useChatActions() {
   const [cancelJoinRequestConfirmOpen, setCancelJoinRequestConfirmOpen] = useState(false);
   const [kickConfirmOpen, setKickConfirmOpen] = useState(false);
   const [kickTargetUserId, setKickTargetUserId] = useState<number | null>(null);
+  const [rejectConfirmOpen, setRejectConfirmOpen] = useState(false);
+  const [rejectTargetUserId, setRejectTargetUserId] = useState<number | null>(null);
 
   const handleSendMessage = async () => {
     if (!chatClient?.connected) return;
@@ -106,12 +108,17 @@ export function useChatActions() {
     }
   };
 
-  const handleReject = async (targetUserId: number) => {
-    if (!confirm("정말 이 참여 요청을 거절하시겠습니까?")) return;
+  const handleReject = (targetUserId: number) => {
+    setRejectTargetUserId(targetUserId);
+    setRejectConfirmOpen(true);
+  };
+
+  const handleConfirmReject = async () => {
+    if (!rejectTargetUserId) return;
 
     try {
       const response = await fetchWithAuth(
-        `${CHAT_API_BASE_URL}/chat/rooms/${activeChatRoomId}/reject/${targetUserId}`,
+        `${CHAT_API_BASE_URL}/chat/rooms/${activeChatRoomId}/reject/${rejectTargetUserId}`,
         { method: "DELETE" },
       );
       if (!response.ok) {
@@ -124,7 +131,7 @@ export function useChatActions() {
           String(room.id) === String(activeChatRoomId)
             ? {
                 ...room,
-                participants: room.participants?.filter((p) => p.userId !== targetUserId),
+                participants: room.participants?.filter((p) => p.userId !== rejectTargetUserId),
               }
             : room,
         ),
@@ -132,6 +139,9 @@ export function useChatActions() {
     } catch (error) {
       console.error(error);
       toast.error(toUserMessage(error, "참여 거절에 실패했습니다."));
+    } finally {
+      setRejectConfirmOpen(false);
+      setRejectTargetUserId(null);
     }
   };
 
@@ -298,6 +308,11 @@ export function useChatActions() {
     handleCancelJoinRequest,
     handleApprove,
     handleReject,
+    handleConfirmReject,
+    rejectConfirmOpen,
+    setRejectConfirmOpen,
+    rejectTargetUserId,
+    setRejectTargetUserId,
     handleKickParticipant,
     handleRoomClick,
     handleTransferOwner,

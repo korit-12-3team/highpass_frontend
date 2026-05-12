@@ -36,6 +36,9 @@ export default function ChatPageClient() {
     setKickConfirmOpen,
     kickTargetUserId,
     setKickTargetUserId,
+    rejectConfirmOpen,
+    setRejectConfirmOpen,
+    handleConfirmReject,
     handleSendMessage,
     handleLeaveRoom,
     handleCancelJoinRequest,
@@ -675,6 +678,16 @@ export default function ChatPageClient() {
           )}
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={rejectConfirmOpen}
+        title="참여 요청을 거절하시겠습니까?"
+        description="거절하면 해당 사용자의 참여 요청이 삭제됩니다."
+        confirmLabel="거절"
+        variant="danger"
+        onConfirm={() => void handleConfirmReject()}
+        onClose={() => setRejectConfirmOpen(false)}
+      />
 
       <ConfirmModal
         isOpen={kickConfirmOpen}

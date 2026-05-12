@@ -386,23 +386,6 @@ function AdminReportDetailModal({
               </button>
             </>
           ) : null}
-          {report.targetType === "post" ? (
-            <button
-              type="button"
-              onClick={() => onUpdatePostStatus(report.targetId, "hidden")}
-              className="rounded-lg bg-amber-50 px-4 py-2 text-sm font-black text-amber-700 transition hover:bg-amber-100"
-            >
-              게시글 숨김
-            </button>
-          ) : report.targetType === "user" ? (
-            <button
-              type="button"
-              onClick={() => onUpdateUserStatus(report.targetId, "suspended")}
-              className="rounded-lg bg-amber-50 px-4 py-2 text-sm font-black text-amber-700 transition hover:bg-amber-100"
-            >
-              회원 정지
-            </button>
-          ) : null}
           <button
             type="button"
             onClick={onClose}

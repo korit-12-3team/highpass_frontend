@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FileText, Heart, MessageSquare, MessageSquareWarning, Palette, Settings, User } from "lucide-react";
 import { HexColorPicker } from "react-colorful";
 import type { UserProfile } from "@/entities/common/types";
@@ -63,6 +63,12 @@ export function MyPageHeader({
   const [bgColor, setBgColor] = useState(parsed.bg);
   const [textColor, setTextColor] = useState(parsed.text);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const p = parseAvatarColor(user.avatarVisualClassName);
+    setBgColor(p.bg);
+    setTextColor(p.text);
+  }, [user.avatarVisualClassName]);
 
   const handleSave = async () => {
     if (!onAvatarColorChange) return;
