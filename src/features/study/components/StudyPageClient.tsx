@@ -61,6 +61,7 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
   const [selectedCertCategory, setSelectedCertCategory] = useState("");
   const [selectedSiDos, setSelectedSiDos] = useState<string[]>([]);
   const [selectedGunGus, setSelectedGunGus] = useState<string[]>([]);
+  const [selectedOnline, setSelectedOnline] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [likeSubmittingPostId, setLikeSubmittingPostId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
@@ -69,7 +70,7 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const isCertActive = selectedCerts.length > 0 || !!selectedCertCategory;
-  const isLocationActive = selectedSiDos.length > 0;
+  const isLocationActive = selectedSiDos.length > 0 || selectedOnline;
   const isSearchActive = !!searchKeyword;
 
   const certificateCategories = useMemo(
@@ -103,7 +104,7 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
 
   useEffect(() => {
     setCurrentPage(0);
-  }, [selectedCerts, selectedSiDos, selectedGunGus, searchKeyword]);
+  }, [selectedCerts, selectedSiDos, selectedGunGus, selectedOnline, searchKeyword]);
 
   useEffect(() => {
     if (activePanel === "search") {
@@ -127,21 +128,27 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
         if (!post.cert || !selectedCerts.includes(post.cert)) return false;
       }
 
-      // 지역 필터 (OR)
-      if (selectedSiDos.length > 0) {
-        if (post.location === "online") return false;
-        const regionText = getPostRegionText(post);
-        if (!regionText) return false;
+      // 지역 필터 (OR) - 온라인 포함
+      if (selectedSiDos.length > 0 || selectedOnline) {
+        const isOnline = post.location === "online";
 
-        const matchesSiDoAny = selectedSiDos.some((siDo) => matchesSiDo(regionText, siDo));
-        if (!matchesSiDoAny) return false;
+        if (isOnline) {
+          if (!selectedOnline) return false;
+        } else {
+          if (selectedSiDos.length === 0) return false;
+          const regionText = getPostRegionText(post);
+          if (!regionText) return false;
 
-        if (selectedGunGus.length > 0) {
-          const normalizedRegion = normalizeRegionText(regionText);
-          const matchesGunGuAny = selectedGunGus.some((gunGu) =>
-            normalizedRegion.includes(normalizeRegionText(gunGu))
-          );
-          if (!matchesGunGuAny) return false;
+          const matchesSiDoAny = selectedSiDos.some((siDo) => matchesSiDo(regionText, siDo));
+          if (!matchesSiDoAny) return false;
+
+          if (selectedGunGus.length > 0) {
+            const normalizedRegion = normalizeRegionText(regionText);
+            const matchesGunGuAny = selectedGunGus.some((gunGu) =>
+              normalizedRegion.includes(normalizeRegionText(gunGu))
+            );
+            if (!matchesGunGuAny) return false;
+          }
         }
       }
 
@@ -158,7 +165,7 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
 
       return true;
     });
-  }, [selectedCerts, selectedSiDos, selectedGunGus, searchKeyword, posts]);
+  }, [selectedCerts, selectedSiDos, selectedGunGus, selectedOnline, searchKeyword, posts]);
 
   const updatePostLocally = (postId: string, updater: (post: BoardPost) => BoardPost) => {
     setPosts((prev) => sortPosts(prev.map((post) => (post.id === postId ? updater(post) : post))));
@@ -210,6 +217,7 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
     setSelectedCertCategory("");
     setSelectedSiDos([]);
     setSelectedGunGus([]);
+    setSelectedOnline(false);
     setSearchKeyword("");
   };
 
@@ -227,6 +235,31 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
           모집글 작성
         </button>
       </div>
+
+      {/* 온라인 토글 */}
+      <div className="mb-3 flex items-center gap-3 gap-3">
+      <span
+        onClick={() => setSelectedOnline((prev) => !prev)}
+        className={`cursor-pointer select-none text-xs font-bold transition-colors ${
+          selectedOnline ? "text-blue-500" : "text-slate-400"
+        }`}
+      >
+        🌐 온라인 스터디
+      </span>
+      <button
+        role="switch"
+        aria-checked={selectedOnline}
+        onClick={() => setSelectedOnline((prev) => !prev)}
+        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+          selectedOnline ? "bg-blue-500" : "bg-slate-200"
+        }`}
+      >
+        <span
+          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${selectedOnline ? "translate-x-4" : "translate-x-0"
+          }`}
+        />
+      </button>
+    </div>
 
       {/* 필터 바 */}
       <div className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -258,7 +291,7 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
             {activePanel === "location" ? <ChevronUp size={15} className="ml-2 shrink-0 text-slate-400" /> : <ChevronDown size={15} className="ml-2 shrink-0 text-slate-400" />}
           </button>
 
-           {activePanel === "search" ? (
+          {activePanel === "search" ? (
             <div className="flex items-center gap-2 px-5 py-3.5">
               <Search size={15} className="shrink-0 text-slate-400" />
               <input
@@ -294,7 +327,6 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
         {/* 자격증 패널 */}
         {activePanel === "cert" && (
           <div className="border-t border-slate-200 p-5">
-            {/* 카테고리 탭 */}
             <div className="mb-4 flex flex-wrap gap-2">
               {certificateCategories.map((cat) => (
                 <button
@@ -309,7 +341,6 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
               ))}
             </div>
 
-            {/* 자격증 목록 */}
             {selectedCertCategory && selectedCertCategory !== CUSTOM_CERT_FILTER && certOptions.length > 0 && (
               <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
                 {certOptions.map((cert) => (
@@ -357,7 +388,6 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
         {/* 지역 패널 */}
         {activePanel === "location" && (
           <div className="border-t border-slate-200 p-5">
-            {/* 시/도 */}
             <div className="flex flex-wrap gap-2">
               {Object.keys(REGION_DATA).map((siDo) => (
                 <button
@@ -372,7 +402,6 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
               ))}
             </div>
 
-            {/* 군/구 - 선택된 시/도들의 군/구 전부 표시 */}
             {selectedSiDos.length > 0 && (
               <div className="mt-4 border-t border-slate-100 pt-4">
                 {selectedSiDos.map((siDo) => (
@@ -402,7 +431,7 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
 
             {isLocationActive && (
               <div className="mt-4 flex justify-end border-t border-slate-100 pt-3">
-                <button onClick={() => { setSelectedSiDos([]); setSelectedGunGus([]); }} className="text-xs font-bold text-slate-400 hover:text-slate-600">
+                <button onClick={() => { setSelectedSiDos([]); setSelectedGunGus([]); setSelectedOnline(false); }} className="text-xs font-bold text-slate-400 hover:text-slate-600">
                   초기화
                 </button>
               </div>
@@ -414,6 +443,12 @@ export default function StudyPageClient({ initialPosts }: { initialPosts: BoardP
       {/* 활성 필터 태그 */}
       {(isCertActive || isLocationActive || isSearchActive) && (
         <div className="mb-4 flex flex-wrap items-center gap-2">
+          {selectedOnline && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600">
+              온라인
+              <button onClick={() => setSelectedOnline(false)}><X size={11} /></button>
+            </span>
+          )}
           {selectedCerts.map((cert) => (
             <span key={cert} className="inline-flex items-center gap-1.5 rounded-full bg-hp-50 px-3 py-1 text-xs font-bold text-hp-700">
               {cert}
