@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Headset, Loader2 } from "lucide-react";
+import { Headset, Loader2, ShieldAlert, UserX } from "lucide-react";
 import AuthShell from "@/features/auth/components/AuthShell";
 import { useApp } from "@/shared/context/AppContext";
 import { fetchCurrentUserProfile } from "@/services/auth/auth";
@@ -23,6 +23,7 @@ type LoginApiResponse = {
   role?: string;
   redirectUrl?: string;
   message?: string;
+  code?: string;
 };
 
 function mapLoginResponseToUser(payload: LoginApiResponse) {
@@ -60,6 +61,10 @@ export default function LoginForm() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [inquiryOpen, setInquiryOpen] = useState(false);
   const [inquirySubmitting, setInquirySubmitting] = useState(false);
+  const [accountBlockModal, setAccountBlockModal] = useState<{
+    open: boolean;
+    type: "suspended" | "deleted";
+  }>({ open: false, type: "suspended" });
 
   useEffect(() => {
     if (!authReady || !isAuthenticated) return;
@@ -92,6 +97,14 @@ export default function LoginForm() {
       }
 
       if (!response.ok) {
+        if (payload?.code === "ACCOUNT_SUSPENDED") {
+          setAccountBlockModal({ open: true, type: "suspended" });
+          return;
+        }
+        if (payload?.code === "ACCOUNT_DELETED") {
+          setAccountBlockModal({ open: true, type: "deleted" });
+          return;
+        }
         setError(payload?.message || "로그인에 실패했습니다.");
         return;
       }
@@ -107,13 +120,8 @@ export default function LoginForm() {
   };
 
   return (
-    <AuthShell title="로그인" subtitle="계정으로 로그인해 주세요">
+    <AuthShell title="로그인" subtitle="">
       <form onSubmit={handleLocalLogin} className="space-y-4">
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-900">
-          <p className="font-black">임시 관리자 계정</p>
-          <p className="mt-1">아이디: admin@highpass.local</p>
-          <p>비밀번호: Admin1234!</p>
-        </div>
         <input
           type="email"
           value={email}
@@ -206,28 +214,60 @@ export default function LoginForm() {
           회원가입
         </Link>
       </div>
-      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-        <p className="text-sm font-black text-slate-900">정지 또는 탈퇴 계정 문의</p>
-        <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
-          로그인할 수 없는 계정이라면 가입한 이메일로 관리자에게 직접 문의할 수 있습니다.
-        </p>
-        <button
-          type="button"
-          onClick={() => {
-            setInquirySubmitting(false);
-            setInquiryOpen(true);
-          }}
-          className="mt-3 inline-flex items-center gap-2 rounded-full border border-hp-200 bg-white px-4 py-2 text-sm font-bold text-hp-700 transition hover:bg-hp-50"
-        >
-          <Headset size={15} />
-          계정 문의하기
-        </button>
-      </div>
+      {accountBlockModal.open ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-4">
+          <div className="w-full max-w-sm rounded-[28px] border border-slate-200 bg-white p-7 shadow-[0_24px_80px_rgba(15,23,42,0.24)]">
+            <div className="flex flex-col items-center text-center">
+              {accountBlockModal.type === "suspended" ? (
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-100">
+                  <ShieldAlert size={28} className="text-amber-500" />
+                </div>
+              ) : (
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
+                  <UserX size={28} className="text-red-500" />
+                </div>
+              )}
+              <h3 className="mt-4 text-lg font-black text-slate-950">
+                {accountBlockModal.type === "suspended" ? "이용이 정지된 계정입니다" : "탈퇴 처리된 계정입니다"}
+              </h3>
+              <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                {accountBlockModal.type === "suspended"
+                  ? "계정이 관리자에 의해 정지되었습니다.\n정지 해제를 원하시면 관리자에게 문의해 주세요."
+                  : "이미 탈퇴 처리된 계정입니다.\n계정 복구를 원하시면 관리자에게 문의해 주세요."}
+              </p>
+            </div>
+            <div className="mt-6 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setAccountBlockModal({ ...accountBlockModal, open: false });
+                  setInquirySubmitting(false);
+                  setInquiryOpen(true);
+                }}
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-hp-600 py-3 text-sm font-bold text-white transition hover:bg-hp-700"
+              >
+                <Headset size={15} />
+                관리자에게 문의하기
+              </button>
+              <button
+                type="button"
+                onClick={() => setAccountBlockModal({ ...accountBlockModal, open: false })}
+                className="w-full rounded-full border border-slate-300 bg-white py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-100"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <SupportInquiryModal
         open={inquiryOpen}
         submitting={inquirySubmitting}
         requireEmail
         initialEmail={email}
+        initialCategory="account"
+        hideCategory
         onSubmittingChange={setInquirySubmitting}
         onClose={() => {
           if (inquirySubmitting) return;

@@ -18,6 +18,9 @@ type SupportInquiryModalProps = {
   submitting: boolean;
   requireEmail?: boolean;
   initialEmail?: string;
+  initialTitle?: string;
+  initialCategory?: string;
+  hideCategory?: boolean;
   onSubmittingChange: (value: boolean) => void;
   onClose: () => void;
 };
@@ -27,21 +30,24 @@ export function SupportInquiryModal({
   submitting,
   requireEmail = false,
   initialEmail = "",
+  initialTitle = "",
+  initialCategory,
+  hideCategory = false,
   onSubmittingChange,
   onClose,
 }: SupportInquiryModalProps) {
-  const [category, setCategory] = useState(CATEGORY_OPTIONS[0].value);
+  const [category, setCategory] = useState(initialCategory ?? CATEGORY_OPTIONS[0].value);
   const [email, setEmail] = useState(initialEmail);
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(initialTitle);
   const [content, setContent] = useState("");
 
   useEffect(() => {
     if (!open) return;
-    setCategory(CATEGORY_OPTIONS[0].value);
+    setCategory(initialCategory ?? CATEGORY_OPTIONS[0].value);
     setEmail(initialEmail);
-    setTitle("");
+    setTitle(initialTitle);
     setContent("");
-  }, [initialEmail, open]);
+  }, [initialCategory, initialEmail, initialTitle, open]);
 
   if (!open) return null;
 
@@ -140,22 +146,24 @@ export function SupportInquiryModal({
             </div>
           ) : null}
 
-          <div>
-            <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-slate-400">
-              문의 분류
-            </label>
-            <select
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-hp-300"
-            >
-              {CATEGORY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          {!hideCategory ? (
+            <div>
+              <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-slate-400">
+                문의 분류
+              </label>
+              <select
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-hp-300"
+              >
+                {CATEGORY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
             
           <div>
             <label className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-slate-400">

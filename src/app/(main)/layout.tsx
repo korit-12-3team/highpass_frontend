@@ -562,7 +562,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   };
 
   return (
-    <div className="flex h-screen bg-hp-50 font-sans text-slate-800">
+    <div className="flex h-screen overflow-hidden bg-hp-50 font-sans text-slate-800">
       {!isAdminPath && (
         <MainSidebar
           pathname={pathname}

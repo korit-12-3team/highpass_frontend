@@ -217,7 +217,7 @@ export default function SignupForm({ isSocialSignup, socialSignupData }: SignupF
           </div>
         ) : (
           <div>
-            <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(140px,180px)] gap-2">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(110px,160px)] gap-1.5 sm:grid-cols-[minmax(0,1fr)_auto_minmax(140px,180px)] sm:gap-2">
               <input
                 type="text"
                 value={emailLocalPart}
@@ -350,7 +350,7 @@ export default function SignupForm({ isSocialSignup, socialSignupData }: SignupF
 
         <div>
           <p className="mb-2 text-xs text-slate-600">연령대</p>
-          <div className="grid grid-cols-5 gap-1.5">
+          <div className="grid grid-cols-5 gap-1 sm:gap-1.5">
             {AGE_RANGE_OPTIONS.map((item) => (
               <button
                 type="button"
@@ -359,7 +359,7 @@ export default function SignupForm({ isSocialSignup, socialSignupData }: SignupF
                   setAgeRange(item);
                   setError("");
                 }}
-                className={`rounded-lg py-2 text-sm font-medium transition-colors ${
+                className={`rounded-lg py-2 text-xs font-medium transition-colors sm:text-sm ${
                   ageRange === item ? "bg-hp-600 text-white" : "border border-hp-200 bg-white text-slate-600 hover:border-hp-400"
                 }`}
               >
