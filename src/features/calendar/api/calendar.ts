@@ -274,6 +274,21 @@ export async function updateCalendarEvent(input: UpdateCalendarEventInput): Prom
   };
 }
 
+export async function listCalendarAlarms(): Promise<EventType[]> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/api/calendar/alarms`, { method: "GET" });
+  if (!response.ok) return [];
+  const text = await response.text();
+  if (!text) return [];
+  const parsed = JSON.parse(text) as CalendarListApiRecord;
+  const payload = Array.isArray(parsed) ? parsed : parsed.data;
+  if (!Array.isArray(payload)) return [];
+  return payload.map(mapApiRecordToEvent);
+}
+
+export async function markCalendarAlarmChecked(): Promise<void> {
+  await fetchWithAuth(`${API_BASE_URL}/api/calendar/alarms/check`, { method: "POST" });
+}
+
 export async function removeCalendarEvent(calendarId: string) {
   const response = await fetchWithAuth(`${API_BASE_URL}/api/calendar/${calendarId}`, {
     method: "DELETE",

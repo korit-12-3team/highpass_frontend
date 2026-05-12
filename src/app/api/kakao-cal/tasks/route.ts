@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getKakaoAccessToken, KakaoTokenError, kakaoCalGet, kakaoCalPost } from "@/features/calendar/api/kakao-mcp-client";
+import {
+  buildKakaoApiErrorResponse,
+  buildKakaoTokenErrorResponse,
+  getKakaoAccessToken,
+  isKakaoTokenError,
+  kakaoCalGet,
+  kakaoCalPost,
+} from "@/features/calendar/api/kakao-mcp-client";
 import { type CreateTaskInput } from "@/features/calendar/api/kakao-playmcp";
-import { API_BASE_URL } from "@/services/config/config";
-
-function buildKakaoTokenErrorResponse(error: KakaoTokenError) {
-  return NextResponse.json(
-    { message: error.message, connectUrl: `${API_BASE_URL}/oauth2/authorization/kakao-calendar` },
-    { status: error.status },
-  );
-}
 
 export async function GET(req: NextRequest) {
   try {
@@ -23,15 +22,15 @@ export async function GET(req: NextRequest) {
     if (to) params.set("to", to + "T23:59:59+09:00");
 
     const res = await kakaoCalGet(`/tasks?${params}`, token);
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      return NextResponse.json(data, { status: res.status });
+      return buildKakaoApiErrorResponse(res.status, data, "카카오 할 일을 불러오지 못했습니다.");
     }
 
     return NextResponse.json({ tasks: data.tasks ?? [] });
   } catch (error) {
-    if (error instanceof KakaoTokenError) {
+    if (isKakaoTokenError(error)) {
       return buildKakaoTokenErrorResponse(error);
     }
     return NextResponse.json({ message: (error as Error).message }, { status: 500 });
@@ -53,18 +52,15 @@ export async function POST(req: NextRequest) {
     if (body.memo) task.memo = body.memo;
 
     const res = await kakaoCalPost("/create/task", token, "task", task);
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      return NextResponse.json(
-        { message: data.msg ?? data.message ?? "카카오 API 오류" },
-        { status: res.status },
-      );
+      return buildKakaoApiErrorResponse(res.status, data, "카카오 할 일 생성에 실패했습니다.");
     }
 
     return NextResponse.json({ task: data });
   } catch (error) {
-    if (error instanceof KakaoTokenError) {
+    if (isKakaoTokenError(error)) {
       return buildKakaoTokenErrorResponse(error);
     }
     return NextResponse.json({ message: (error as Error).message }, { status: 500 });

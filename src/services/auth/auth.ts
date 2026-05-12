@@ -41,6 +41,7 @@ function mapCurrentUserPayload(payload: Record<string, unknown>): UserProfile | 
         ? payload.avatarVisualClassName
         : null,
     loginType: typeof payload.loginType === "string" ? payload.loginType : "local",
+    socialProvider: typeof payload.socialProvider === "string" ? payload.socialProvider : undefined,
   };
 }
 

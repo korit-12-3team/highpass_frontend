@@ -505,6 +505,7 @@ export default function MyPageClient({
         onAvatarColorChange={async (hex) => {
           const updated = await updateUserAvatarVisual(hex);
           setCurrentUser((prev) => prev ? { ...prev, avatarVisualClassName: updated.avatarVisualClassName } : prev);
+          setProfileUser((prev) => prev ? { ...prev, avatarVisualClassName: updated.avatarVisualClassName } : prev);
         }}
         />
 

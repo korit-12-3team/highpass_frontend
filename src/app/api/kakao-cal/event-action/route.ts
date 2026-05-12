@@ -1,18 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getKakaoAccessToken, KakaoTokenError } from "@/features/calendar/api/kakao-mcp-client";
-import { API_BASE_URL } from "@/services/config/config";
+import {
+  buildKakaoApiErrorResponse,
+  buildKakaoTokenErrorResponse,
+  getKakaoAccessToken,
+  isKakaoTokenError,
+} from "@/features/calendar/api/kakao-mcp-client";
 
 type EventActionBody =
   | { action: "delete"; eventId: string; calendarId?: string }
   | { action: "update"; eventId: string; event: Record<string, unknown> }
   | { action: "delete-task"; taskId: string };
-
-function buildKakaoTokenErrorResponse(error: KakaoTokenError) {
-  return NextResponse.json(
-    { message: error.message, connectUrl: `${API_BASE_URL}/oauth2/authorization/kakao-calendar` },
-    { status: error.status },
-  );
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -30,10 +27,7 @@ export async function POST(req: NextRequest) {
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        return NextResponse.json(
-          { message: (data as { msg?: string }).msg ?? "카카오 일정 삭제 실패" },
-          { status: res.status },
-        );
+        return buildKakaoApiErrorResponse(res.status, data, "카카오 일정 삭제에 실패했습니다.");
       }
 
       return NextResponse.json({ success: true });
@@ -47,10 +41,7 @@ export async function POST(req: NextRequest) {
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        return NextResponse.json(
-          { message: (data as { msg?: string }).msg ?? "카카오 할 일 삭제 실패" },
-          { status: res.status },
-        );
+        return buildKakaoApiErrorResponse(res.status, data, "카카오 할 일 삭제에 실패했습니다.");
       }
       return NextResponse.json({ success: true });
     }
@@ -69,10 +60,7 @@ export async function POST(req: NextRequest) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        return NextResponse.json(
-          { message: (data as { msg?: string }).msg ?? "카카오 일정 수정 실패" },
-          { status: res.status },
-        );
+        return buildKakaoApiErrorResponse(res.status, data, "카카오 일정 수정에 실패했습니다.");
       }
 
       return NextResponse.json({ success: true });
@@ -80,7 +68,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ message: "지원하지 않는 action입니다." }, { status: 400 });
   } catch (error) {
-    if (error instanceof KakaoTokenError) {
+    if (isKakaoTokenError(error)) {
       return buildKakaoTokenErrorResponse(error);
     }
     return NextResponse.json({ message: (error as Error).message }, { status: 500 });

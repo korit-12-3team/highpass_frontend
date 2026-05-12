@@ -10,7 +10,7 @@ import ScheduleNotificationModal from "@/features/calendar/components/ScheduleNo
 import ConfirmModal from "@/shared/components/common/ConfirmModal";
 import { useApp } from "@/shared/context/AppContext";
 import { createUserProfile, getUserProfile, updateUserAvatarVisual } from "@/features/mypage/api/profile";
-import { listCalendarEvents } from "@/features/calendar/api/calendar";
+import { listCalendarAlarms, markCalendarAlarmChecked } from "@/features/calendar/api/calendar";
 import Avatar from "@/shared/components/common/Avatar";
 import { listNotifications } from "@/features/notifications/api/notifications";
 import {
@@ -203,17 +203,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         const hideUntil = localStorage.getItem(`hp_hide_schedule_notify_${currentUser.id}`);
         if (hideUntil === todayStrLocal) return;
 
-        const allEvents = await listCalendarEvents(String(currentUser.id));
+        const alarmEvents = await listCalendarAlarms();
+        if (alarmEvents.length === 0) return;
 
-        const starting = allEvents.filter((event) => {
-          if (!event.startDate) return false;
-          return event.startDate.split("T")[0] === todayStrLocal;
-        });
-
-        const ending = allEvents.filter((event) => {
-          if (!event.endDate) return false;
-          return event.endDate.split("T")[0] === todayStrLocal;
-        });
+        const starting = alarmEvents.filter((event) => event.startDate?.split("T")[0] === todayStrLocal);
+        const ending = alarmEvents.filter((event) => event.endDate?.split("T")[0] === todayStrLocal);
 
         if (starting.length > 0 || ending.length > 0) {
           setStartingEvents(starting);
@@ -672,6 +666,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           const day = String(now.getDate()).padStart(2, "0");
           const todayStrLocal = `${year}-${month}-${day}`;
           localStorage.setItem(`hp_hide_schedule_notify_${currentUser.id}`, todayStrLocal);
+          markCalendarAlarmChecked().catch(() => {});
           setShowScheduleNotify(false);
         }}
       />

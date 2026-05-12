@@ -13,16 +13,35 @@ import {
   saveKakaoLoadedIdMap,
 } from "@/features/calendar/utils/kakaoSync";
 
+const KAKAO_OAUTH_REDIRECT_KEY = "hp_kakao_oauth_last_redirect_at";
+const KAKAO_OAUTH_REDIRECT_COOLDOWN_MS = 60_000;
+
+function canRedirectToKakaoOAuth(): boolean {
+  try {
+    const last = sessionStorage.getItem(KAKAO_OAUTH_REDIRECT_KEY);
+    if (!last) return true;
+    return Date.now() - Number(last) > KAKAO_OAUTH_REDIRECT_COOLDOWN_MS;
+  } catch {
+    return true;
+  }
+}
+
+function markKakaoOAuthRedirect() {
+  try {
+    sessionStorage.setItem(KAKAO_OAUTH_REDIRECT_KEY, String(Date.now()));
+  } catch {
+    /* sessionStorage unavailable */
+  }
+}
+
 export function useKakaoCalendar({
   currentYear,
   currentMonth,
   setEvents,
-  kakaoCalendarConnectUrl,
 }: {
   currentYear: number;
   currentMonth: number;
   setEvents: React.Dispatch<React.SetStateAction<EventType[]>>;
-  kakaoCalendarConnectUrl: string;
 }) {
   const [kakaoLoading, setKakaoLoading] = useState(false);
 
@@ -37,11 +56,26 @@ export function useKakaoCalendar({
       );
       const data = await res.json() as KakaoCalendarApiResponse;
 
-      if (res.status === 401) {
-        window.location.href = data.connectUrl ?? kakaoCalendarConnectUrl;
+      if ((res.status === 401 || res.status === 403) && data.connectUrl) {
+        if (!canRedirectToKakaoOAuth()) {
+          toast.error(
+            res.status === 403
+              ? "카카오 캘린더 권한이 부족합니다. 카카오 동의 항목에서 '톡캘린더 일정 보기'가 활성화돼 있는지 확인해 주세요."
+              : "카카오 캘린더 인증에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+            { duration: 8000 },
+          );
+          return;
+        }
+        markKakaoOAuthRedirect();
+        toast.info("카카오 캘린더 권한이 만료되어 재연동이 필요합니다.");
+        window.location.href = data.connectUrl;
         return;
       }
-      if (!res.ok) throw new Error(data.message ?? "불러오기 실패");
+      if (!res.ok) {
+        const code = (data as { code?: number }).code;
+        const codeSuffix = typeof code === "number" ? ` (code: ${code})` : "";
+        throw new Error(`${data.message ?? "불러오기 실패"}${codeSuffix}`);
+      }
 
       const kakaoEvents = (data.events ?? []).map((e: KakaoEventRaw, i: number) => {
         const ev = kakaoEventToEventType(e, i);

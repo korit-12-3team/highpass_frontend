@@ -31,6 +31,7 @@ type CalendarMainViewProps = {
   events: EventType[];
   todos: Record<string, TodoItem[]>;
   kakaoLoading: boolean;
+  isKakaoUser: boolean;
   visibleEventKinds: Record<EventKind, boolean>;
   onToggleEventKind: (kind: EventKind, value: boolean) => void;
   onMonthChange: (year: number, month: number) => void;
@@ -54,6 +55,7 @@ export function CalendarMainView({
   events,
   todos,
   kakaoLoading,
+  isKakaoUser,
   visibleEventKinds,
   onToggleEventKind,
   onMonthChange,
@@ -154,14 +156,16 @@ export function CalendarMainView({
           </div>
         </div>
         <div className="flex items-center gap-3 flex-nowrap">
-          <button
-            onClick={onLoadKakao}
-            disabled={kakaoLoading}
-            className="flex h-10 shrink-0 items-center gap-2 rounded-lg bg-[#FEE500] px-4 text-sm font-bold text-[#191919] whitespace-nowrap transition-colors hover:bg-[#FADA00] disabled:opacity-50"
-          >
-            <MessageCircle size={16} fill="currentColor" />
-            {kakaoLoading ? "불러오는 중…" : "카카오 일정"}
-          </button>
+          {isKakaoUser && (
+            <button
+              onClick={onLoadKakao}
+              disabled={kakaoLoading}
+              className="flex h-10 shrink-0 items-center gap-2 rounded-lg bg-[#FEE500] px-4 text-sm font-bold text-[#191919] whitespace-nowrap transition-colors hover:bg-[#FADA00] disabled:opacity-50"
+            >
+              <MessageCircle size={16} fill="currentColor" />
+              {kakaoLoading ? "불러오는 중…" : "카카오 일정"}
+            </button>
+          )}
           <button
             onClick={onCreateEvent}
             className="flex h-10 shrink-0 items-center gap-2 rounded-lg bg-hp-600 px-4 text-sm font-bold text-white whitespace-nowrap transition-colors hover:bg-hp-700"

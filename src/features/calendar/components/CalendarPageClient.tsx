@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
+import { toast } from "sonner";
 import { useApp } from "@/shared/context/AppContext";
 import { CalendarDaySidebar } from "@/features/calendar/components/CalendarDaySidebar";
 import { CalendarEventDetailModal } from "@/features/calendar/components/CalendarEventDetailModal";
@@ -20,7 +21,6 @@ import {
   sortEventsForCalendar,
 } from "@/features/calendar/utils/calendarLayout";
 import { ConfirmDialogState } from "@/features/calendar/types";
-import { API_BASE_URL } from "@/services/config/config";
 import ConfirmModal from "@/shared/components/common/ConfirmModal";
 
 type TodayInfo = { year: number; month: number; date: number };
@@ -61,7 +61,6 @@ export default function CalendarPageClient() {
   const currentMonth = currentDate.getMonth();
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
   const selectedDateKey = formatDateKey(currentYear, currentMonth, selectedDate);
-  const kakaoCalendarConnectUrl = `${API_BASE_URL}/oauth2/authorization/kakao-calendar`;
 
   const {
     calendarLoading,
@@ -87,6 +86,7 @@ export default function CalendarPageClient() {
     toggleEventAllDay,
   } = useCalendarEvents({
     currentUser,
+    isKakaoUser: currentUser?.socialProvider === "KAKAO",
     events,
     setEvents,
     currentYear,
@@ -100,7 +100,6 @@ export default function CalendarPageClient() {
     currentYear,
     currentMonth,
     setEvents,
-    kakaoCalendarConnectUrl,
   });
 
   const {
@@ -193,6 +192,21 @@ export default function CalendarPageClient() {
   }, [mounted, currentUser, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (!mounted) return;
+    const errorCode = searchParams.get("kakao_error");
+    if (!errorCode) return;
+    const description = searchParams.get("kakao_error_description") ?? "";
+    toast.error(`카카오 캘린더 연동 실패: ${errorCode}${description ? ` — ${description}` : ""}`, {
+      duration: 8000,
+    });
+    const params = new URLSearchParams(searchParamsString);
+    params.delete("kakao_error");
+    params.delete("kakao_error_description");
+    const nextUrl = params.toString() ? `${pathname}?${params}` : pathname;
+    router.replace(nextUrl, { scroll: false });
+  }, [mounted, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") inputRef.current?.focus();
       if (e.key === "Escape") inputRef.current?.blur();
@@ -231,6 +245,7 @@ export default function CalendarPageClient() {
           events={events}
           todos={todos}
           kakaoLoading={kakaoLoading}
+          isKakaoUser={currentUser?.socialProvider === "KAKAO"}
           visibleEventKinds={visibleEventKinds}
           onToggleEventKind={(kind, value) => setVisibleEventKinds((prev) => ({ ...prev, [kind]: value }))}
           onMonthChange={(year, month) => moveToMonth(new Date(year, month - 1, 1))}

@@ -26,6 +26,7 @@ import { toUserMessage } from "@/shared/errors";
 
 export function useCalendarEvents({
   currentUser,
+  isKakaoUser,
   events,
   setEvents,
   currentYear,
@@ -35,6 +36,7 @@ export function useCalendarEvents({
   setConfirmDialog,
 }: {
   currentUser: { id: string } | null;
+  isKakaoUser: boolean;
   events: EventType[];
   setEvents: React.Dispatch<React.SetStateAction<EventType[]>>;
   currentYear: number;
@@ -201,17 +203,19 @@ export function useCalendarEvents({
       if (!eventForm.id) {
         const syncPayload = { ...payload };
         const newEventId = savedEvent.id;
-        setConfirmDialog({
-          title: "카카오톡 캘린더",
-          message: "카카오톡 캘린더에도 일정을 등록하시겠습니까?",
-          confirmLabel: "등록",
-          tone: "primary",
-          onConfirm: () => {
-            syncToKakaoCalendar(newEventId, syncPayload).catch(() => {
-              toast.error("카카오톡 캘린더 등록에 실패했습니다.");
-            });
-          },
-        });
+        if (isKakaoUser) {
+          setConfirmDialog({
+            title: "카카오톡 캘린더",
+            message: "카카오톡 캘린더에도 일정을 등록하시겠습니까?",
+            confirmLabel: "등록",
+            tone: "primary",
+            onConfirm: () => {
+              syncToKakaoCalendar(newEventId, syncPayload).catch(() => {
+                toast.error("카카오톡 캘린더 등록에 실패했습니다.");
+              });
+            },
+          });
+        }
       } else {
         const kakaoEventId = getKakaoSyncMap()[eventForm.id];
         if (kakaoEventId) {
