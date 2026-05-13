@@ -83,7 +83,7 @@ export function kakaoEventToEventType(e: KakaoEventRaw, index: number): EventTyp
     isAllDay: allDay,
     startTime: allDay ? undefined : toTime(startAt),
     endTime:   allDay ? undefined : toTime(endAt),
-    kind: "general",
+    kind: "kakao",
   };
 }
 
