@@ -1,12 +1,13 @@
 import { EventType } from "@/shared/context/AppContext";
 import { EventFormState } from "@/features/calendar/types";
 
-export type EventKind = "general" | "certificate" | "holiday";
+export type EventKind = "general" | "certificate" | "holiday" | "kakao";
 
 export const EVENT_KIND_FILTERS: { kind: EventKind; label: string; colorClass: string }[] = [
   { kind: "general", label: "일반 일정", colorClass: "bg-hp-500" },
   { kind: "certificate", label: "자격증 일정", colorClass: "bg-amber-500" },
   { kind: "holiday", label: "공휴일", colorClass: "bg-rose-400" },
+  { kind: "kakao", label: "카카오 일정", colorClass: "bg-yellow-400" },
 ];
 
 export const DEFAULT_EVENT_FORM: EventFormState = {
@@ -53,10 +54,13 @@ export function buildEventForm(dateText: string, event?: EventType): EventFormSt
 }
 
 export function getDisplayEventColor(event: EventType): string {
-  return event.kind === "certificate" ? "bg-amber-500" : event.color;
+  if (event.kind === "certificate") return "bg-amber-500";
+  if (event.kind === "kakao") return "bg-yellow-400";
+  return event.color;
 }
 
 export function getEventKind(event: EventType): EventKind {
   if (event.id.startsWith("holiday-")) return "holiday";
+  if (event.kind === "kakao") return "kakao";
   return event.kind === "certificate" ? "certificate" : "general";
 }

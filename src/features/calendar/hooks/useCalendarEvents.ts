@@ -57,18 +57,25 @@ export function useCalendarEvents({
     let cancelled = false;
 
     void (async () => {
-      try {
-        setCalendarLoading(true);
-        const [loadedEvents, loadedHolidays] = await Promise.all([
-          listCalendarEvents(currentUser.id),
-          listHolidays(currentYear),
-        ]);
-        if (!cancelled) setEvents([...loadedEvents, ...loadedHolidays]);
-      } catch (error) {
-        if (!cancelled) toast.error(toUserMessage(error, "일정을 불러오지 못했습니다."));
-      } finally {
-        if (!cancelled) setCalendarLoading(false);
+      setCalendarLoading(true);
+      const [eventsResult, holidaysResult] = await Promise.allSettled([
+        listCalendarEvents(currentUser.id),
+        listHolidays(currentYear),
+      ]);
+      if (cancelled) return;
+
+      const loadedEvents = eventsResult.status === "fulfilled" ? eventsResult.value : [];
+      const loadedHolidays = holidaysResult.status === "fulfilled" ? holidaysResult.value : [];
+      setEvents([...loadedEvents, ...loadedHolidays]);
+
+      if (eventsResult.status === "rejected") {
+        toast.error(toUserMessage(eventsResult.reason, "일정을 불러오지 못했습니다."));
       }
+      if (holidaysResult.status === "rejected") {
+        toast.error("공휴일 정보를 불러오지 못했습니다.");
+      }
+
+      setCalendarLoading(false);
     })();
 
     return () => { cancelled = true; };
@@ -206,13 +213,56 @@ export function useCalendarEvents({
         if (isKakaoUser) {
           setConfirmDialog({
             title: "카카오톡 캘린더",
-            message: "카카오톡 캘린더에도 일정을 등록하시겠습니까?",
+            message: "카카오톡 캘린더에도 일정을 등록하시겠습니까? 등록 시 앱 일정은 카카오 일정으로 통합됩니다.",
             confirmLabel: "등록",
             tone: "primary",
             onConfirm: () => {
-              syncToKakaoCalendar(newEventId, syncPayload).catch(() => {
-                toast.error("카카오톡 캘린더 등록에 실패했습니다.");
-              });
+              (async () => {
+                try {
+                  const { kakaoEventId } = await syncToKakaoCalendar(newEventId, syncPayload);
+                  if (!kakaoEventId) {
+                    toast.error("카카오톡 캘린더 등록에 실패했습니다.");
+                    return;
+                  }
+
+                  // 카카오 일정으로 통합: 백엔드의 앱 일정 삭제 후 state를 카카오 스타일로 교체
+                  await removeCalendarEvent(newEventId).catch(() => {});
+
+                  const startAt = new Date(
+                    toIso(syncPayload.startDate, syncPayload.isAllDay ? undefined : syncPayload.startTime),
+                  );
+                  const newAppId = `kakao_${kakaoEventId}_${startAt.getTime()}`;
+
+                  setEvents((prev) =>
+                    prev.map((e) =>
+                      e.id === newEventId
+                        ? { ...e, id: newAppId, color: "bg-yellow-400" }
+                        : e,
+                    ),
+                  );
+                  setSelectedEvent((prev) =>
+                    prev?.id === newEventId
+                      ? { ...prev, id: newAppId, color: "bg-yellow-400" }
+                      : prev,
+                  );
+
+                  // 다음 카카오 일정 로드 시 같은 일정으로 인식되도록 매핑 갱신
+                  const loadedMap = getKakaoLoadedIdMap();
+                  loadedMap[newAppId] = kakaoEventId;
+                  saveKakaoLoadedIdMap(loadedMap);
+
+                  // 앱 일정은 더 이상 존재하지 않으므로 syncMap의 매핑 제거
+                  const syncMap = getKakaoSyncMap();
+                  if (syncMap[newEventId]) {
+                    delete syncMap[newEventId];
+                    saveKakaoSyncMap(syncMap);
+                  }
+
+                  toast.success("카카오톡 캘린더에 등록되었습니다.");
+                } catch {
+                  toast.error("카카오톡 캘린더 등록에 실패했습니다.");
+                }
+              })();
             },
           });
         }

@@ -96,7 +96,7 @@ export default function CalendarPageClient() {
     setConfirmDialog,
   });
 
-  const { kakaoLoading, loadKakaoEvents } = useKakaoCalendar({
+  const { kakaoLoading, loadKakaoEvents, forceReloadKakaoEvents } = useKakaoCalendar({
     currentYear,
     currentMonth,
     setEvents,
@@ -191,6 +191,14 @@ export default function CalendarPageClient() {
     void loadKakaoEvents();
   }, [mounted, currentUser, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 새로고침/월 이동 시 카카오 일정 자동 재조회 (Kakao 사용자만)
+  useEffect(() => {
+    if (!mounted || !currentUser) return;
+    if (currentUser.socialProvider !== "KAKAO") return;
+    if (searchParams.get("kakao_login") === "1") return; // 위 effect가 처리
+    void loadKakaoEvents();
+  }, [mounted, currentUser, currentYear, currentMonth]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!mounted) return;
     const errorCode = searchParams.get("kakao_error");
@@ -252,7 +260,7 @@ export default function CalendarPageClient() {
           onPrevMonth={() => moveToMonth(new Date(currentYear, currentMonth - 1, 1))}
           onNextMonth={() => moveToMonth(new Date(currentYear, currentMonth + 1, 1))}
           onToday={() => { const now = new Date(); moveToMonth(now, now.getDate()); }}
-          onLoadKakao={loadKakaoEvents}
+          onLoadKakao={forceReloadKakaoEvents}
           onCreateEvent={() => openCreateModal(selectedDateKey)}
           onSelectDate={(year, month, date) => {
             setCurrentDate(new Date(year, month, 1));

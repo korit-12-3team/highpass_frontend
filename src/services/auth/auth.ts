@@ -30,6 +30,7 @@ function mapCurrentUserPayload(payload: Record<string, unknown>): UserProfile | 
     gender: typeof payload.gender === "string" ? payload.gender : "",
     location,
     role: typeof payload.role === "string" ? payload.role : "USER",
+    status: typeof payload.status === "string" ? payload.status.toLowerCase() : "active",
     profileImage:
       typeof payload.profileImage === "string"
         ? payload.profileImage

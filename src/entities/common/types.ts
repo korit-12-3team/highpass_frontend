@@ -24,6 +24,7 @@ export interface UserProfile {
   gender: string;
   location: string;
   role?: string;
+  status?: "active" | "suspended" | "deleted" | string;
   profileImage?: string | null;
   avatarVisualClassName?: string | null;
   loginType?: string;

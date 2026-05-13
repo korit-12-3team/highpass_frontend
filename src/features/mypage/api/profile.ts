@@ -20,6 +20,7 @@ export type UserApiRecord = {
   siDo?: unknown;
   gunGu?: unknown;
   role?: unknown;
+  status?: unknown;
   profileImage?: unknown;
   profileImageUrl?: unknown;
   avatarVisualClassName?: unknown;
@@ -47,6 +48,7 @@ export function createUserProfile(input: Partial<UserProfile> & Pick<UserProfile
     gender: safeString(input.gender),
     location: safeString(input.location),
     role: safeString(input.role, "USER"),
+    status: safeString(input.status, "active").toLowerCase(),
     profileImage:
       typeof input.profileImage === "string" || input.profileImage === null ? input.profileImage : null,
     avatarVisualClassName:
@@ -79,6 +81,7 @@ export function mapApiRecordToUserProfile(record: UserApiRecord): UserProfile {
     gender: safeString(record.gender),
     location: buildLocation(record.siDo, record.gunGu, record.location),
     role: safeString(record.role, "USER"),
+    status: safeString(record.status, "active").toLowerCase(),
     profileImage,
     avatarVisualClassName:
       typeof record.avatarVisualClassName === "string" || record.avatarVisualClassName === null

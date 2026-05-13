@@ -27,7 +27,11 @@ export default function ProfileModal({
   onStartChat,
 }: ProfileModalProps) {
   const [reportModalOpen, setReportModalOpen] = useState(false);
-  const activeAvatarClass = profile.avatarVisualClassName || DEFAULT_AVATAR_VISUAL_CLASS;
+  const isDeleted =
+    profile.status?.toLowerCase() === "deleted" || profile.nickname === "탈퇴한 계정";
+  const activeAvatarClass = isDeleted
+    ? DEFAULT_AVATAR_VISUAL_CLASS
+    : profile.avatarVisualClassName || DEFAULT_AVATAR_VISUAL_CLASS;
 
   const lastSeenLabel = useMemo(() => {
     if (profile.online) return "접속 중";
@@ -39,7 +43,7 @@ export default function ProfileModal({
 
   if (!isOpen) return null;
 
-  if (reportModalOpen) {
+  if (reportModalOpen && !isDeleted) {
     return (
       <ReportDialog
         isOpen={reportModalOpen}
@@ -74,7 +78,7 @@ export default function ProfileModal({
 
         <div className="relative px-6 pb-6 text-center">
           <Avatar
-            src={profile.profileImage}
+            src={isDeleted ? null : profile.profileImage}
             name={profile.nickname}
             customVisualClassName={activeAvatarClass}
             className="absolute left-1/2 top-0 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white text-2xl shadow-sm"
@@ -89,7 +93,7 @@ export default function ProfileModal({
           <div className="flex flex-col items-center pt-14">
             <h3 className="flex items-center gap-2 text-xl font-bold">
               {profile.nickname}
-              {profile.name && profile.name !== profile.nickname ? (
+              {!isDeleted && profile.name && profile.name !== profile.nickname ? (
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-normal text-slate-500">
                   {profile.name}
                 </span>
@@ -97,34 +101,42 @@ export default function ProfileModal({
             </h3>
 
             <div className="mt-4 flex w-full flex-col gap-2 text-left text-sm text-slate-600">
-              <p className="flex items-center gap-2">
-                <span
-                  className={`h-2.5 w-2.5 rounded-full ${
-                    profile.online ? "bg-emerald-500" : "bg-slate-300"
-                  }`}
-                />
-                {lastSeenLabel}
-              </p>
-              {profile.email ? (
-                <p className="flex items-center gap-2">
-                  <User2 size={16} />
-                  {profile.email}
+              {isDeleted ? (
+                <p className="flex items-center justify-center gap-2 text-slate-500">
+                  탈퇴 처리된 계정입니다.
                 </p>
-              ) : null}
-              {profile.ageRange || profile.gender ? (
-                <div className="flex items-center gap-2">
-                  <Users size={16} className="shrink-0" />
-                  <span>
-                    {[profile.ageRange, profile.gender].filter(Boolean).join(" / ")}
-                  </span>
-                </div>
-              ) : null}
-              {profile.location ? (
-                <p className="flex items-center gap-2">
-                  <MapPin size={16} />
-                  {profile.location}
-                </p>
-              ) : null}
+              ) : (
+                <>
+                  <p className="flex items-center gap-2">
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${
+                        profile.online ? "bg-emerald-500" : "bg-slate-300"
+                      }`}
+                    />
+                    {lastSeenLabel}
+                  </p>
+                  {profile.email ? (
+                    <p className="flex items-center gap-2">
+                      <User2 size={16} />
+                      {profile.email}
+                    </p>
+                  ) : null}
+                  {profile.ageRange || profile.gender ? (
+                    <div className="flex items-center gap-2">
+                      <Users size={16} className="shrink-0" />
+                      <span>
+                        {[profile.ageRange, profile.gender].filter(Boolean).join(" / ")}
+                      </span>
+                    </div>
+                  ) : null}
+                  {profile.location ? (
+                    <p className="flex items-center gap-2">
+                      <MapPin size={16} />
+                      {profile.location}
+                    </p>
+                  ) : null}
+                </>
+              )}
             </div>
 
             {isCurrentUser ? (
@@ -133,6 +145,14 @@ export default function ProfileModal({
                 className="mt-6 w-full rounded-xl bg-hp-600 py-2.5 font-bold text-white transition-colors hover:bg-hp-700"
               >
                 마이페이지로 이동
+              </button>
+            ) : isDeleted ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className="mt-6 w-full rounded-xl bg-slate-100 py-2.5 font-bold text-slate-600 transition-colors hover:bg-slate-200"
+              >
+                닫기
               </button>
             ) : (
               <div className="mt-6 flex w-full gap-2">

@@ -375,10 +375,13 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           return;
         }
 
+        const isViewingIncomingChatRoom =
+          pathnameRef.current.startsWith("/chat") &&
+          String(activeChatRoomIdRef.current) === String(newMessage.roomId);
+
         if (
           newMessage.type === "TALK" &&
-          pathnameRef.current.startsWith("/chat") &&
-          String(activeChatRoomIdRef.current) === String(newMessage.roomId) &&
+          isViewingIncomingChatRoom &&
           Number(newMessage.senderId) !== Number(currentUser?.id)
         ) {
           void markChatRoomAsRead(Number(newMessage.roomId)).catch((error) => {
@@ -387,7 +390,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         }
 
         if (newMessage.type === "TALK" && Number(newMessage.senderId) !== Number(currentUser?.id)) {
-          if (Notification.permission === "granted" && document.hidden) {
+          if (
+            typeof window !== "undefined" &&
+            "Notification" in window &&
+            Notification.permission === "granted" &&
+            document.hidden
+          ) {
             new Notification(newMessage.senderName ?? "새 메시지", {
               body: newMessage.message,
               icon: "/favicon.ico",
@@ -395,7 +403,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             
           }
 
-          if (String(newMessage.roomId) !== String(activeChatRoomIdRef.current)) {
+          if (!isViewingIncomingChatRoom) {
             toast.custom((t) => (
             <div className="flex items-center gap-3 rounded-2xl border border-hp-100 bg-white px-4 py-3 shadow-lg">
               <Avatar
@@ -408,7 +416,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 <p className="truncate text-xs text-slate-400">{newMessage.message}</p>
               </div>
               <button
-                onClick={() => { toast.dismiss(t); router.push("/chat"); }}
+                onClick={() => {
+                  setActiveChatRoomId(String(newMessage.roomId));
+                  toast.dismiss(t);
+                  router.push("/chat");
+                }}
                 className="shrink-0 rounded-full bg-hp-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-hp-700"
               >
                 보기
@@ -541,6 +553,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   const baseProfile = profileModal ? getProfileById(profileModal) : currentUser;
   const profile = profileModal && profileRemote?.id === baseProfile.id ? profileRemote : baseProfile;
+  const profileIsDeleted =
+    profile.status?.toLowerCase() === "deleted" || profile.nickname === "탈퇴한 계정";
 
   const resetWriteForm = () => {
     setWriteModalOpen(false);
@@ -595,6 +609,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         }}
         onClose={() => setProfileModal(null)}
         onStartChat={async () => {
+          if (profileIsDeleted) {
+            toast.error("탈퇴한 계정과는 채팅할 수 없습니다.");
+            return;
+          }
+
           const existing = chatRooms.find((room) => room.partnerId === profile.id);
 
           if (existing) {

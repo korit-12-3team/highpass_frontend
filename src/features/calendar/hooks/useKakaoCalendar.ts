@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { EventType } from "@/shared/context/AppContext";
 import {
@@ -44,26 +44,33 @@ export function useKakaoCalendar({
   setEvents: React.Dispatch<React.SetStateAction<EventType[]>>;
 }) {
   const [kakaoLoading, setKakaoLoading] = useState(false);
+  const loadedMonthsRef = useRef<Set<string>>(new Set());
 
-  const loadKakaoEvents = async () => {
+  const loadKakaoEvents = async (force = false) => {
+    const monthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}`;
+    if (!force && loadedMonthsRef.current.has(monthKey)) return;
     setKakaoLoading(true);
     try {
       const from = new Date(currentYear, currentMonth, 1).toISOString();
       const to   = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59).toISOString();
       const res  = await fetch(
-        `/api/kakao-cal/events/?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+        `/api/kakao-cal/mcp-events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
         { credentials: "include" },
       );
       const data = await res.json() as KakaoCalendarApiResponse;
 
-      if ((res.status === 401 || res.status === 403) && data.connectUrl) {
+      if (res.status === 403 && data.connectUrl) {
+        const connectUrl = data.connectUrl;
+        toast.error("카카오 캘린더 권한이 부족합니다. 톡캘린더 동의 후 재연결해 주세요.", {
+          duration: 12000,
+          action: { label: "재연결하기", onClick: () => { window.location.href = connectUrl; } },
+        });
+        return;
+      }
+
+      if (res.status === 401 && data.connectUrl) {
         if (!canRedirectToKakaoOAuth()) {
-          toast.error(
-            res.status === 403
-              ? "카카오 캘린더 권한이 부족합니다. 카카오 동의 항목에서 '톡캘린더 일정 보기'가 활성화돼 있는지 확인해 주세요."
-              : "카카오 캘린더 인증에 실패했습니다. 잠시 후 다시 시도해 주세요.",
-            { duration: 8000 },
-          );
+          toast.error("카카오 캘린더 인증에 실패했습니다. 잠시 후 다시 시도해 주세요.", { duration: 8000 });
           return;
         }
         markKakaoOAuthRedirect();
@@ -98,6 +105,7 @@ export function useKakaoCalendar({
         const existingIds = new Set(prev.map((e) => e.id));
         return [...prev, ...kakaoEvents.filter((e) => !existingIds.has(e.id))];
       });
+      loadedMonthsRef.current.add(monthKey);
       toast.success(`카카오 일정 ${kakaoEvents.length}개를 불러왔습니다.`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "카카오 일정 불러오기 실패");
@@ -106,5 +114,9 @@ export function useKakaoCalendar({
     }
   };
 
-  return { kakaoLoading, loadKakaoEvents };
+  return {
+    kakaoLoading,
+    loadKakaoEvents,
+    forceReloadKakaoEvents: () => loadKakaoEvents(true),
+  };
 }

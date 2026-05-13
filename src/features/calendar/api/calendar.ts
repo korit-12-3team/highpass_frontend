@@ -23,7 +23,7 @@ type CalendarApiRecord = {
   allDay?: boolean;
   startTime?: string;
   endTime?: string;
-  kind?: "general" | "certificate";
+  kind?: "general" | "certificate" | "kakao";
 };
 
 type CalendarListApiRecord = CalendarApiRecord[] | { data?: CalendarApiRecord[] };
@@ -38,7 +38,7 @@ type CreateCalendarEventInput = {
   isAllDay: boolean;
   startTime?: string;
   endTime?: string;
-  kind?: "general" | "certificate";
+  kind?: "general" | "certificate" | "kakao";
 };
 
 type UpdateCalendarEventInput = {
@@ -51,7 +51,7 @@ type UpdateCalendarEventInput = {
   isAllDay: boolean;
   startTime?: string;
   endTime?: string;
-  kind?: "general" | "certificate";
+  kind?: "general" | "certificate" | "kakao";
 };
 
 function inferEventKind(title?: string, color?: string): "general" | "certificate" {
@@ -97,7 +97,7 @@ function mapApiRecordToEvent(record: CalendarApiRecord): EventType {
     isAllDay: record.isAllDay ?? record.allDay ?? (!record.startTime && !record.endTime),
     startTime: normalizeTime(record.startTime),
     endTime: normalizeTime(record.endTime),
-    kind: record.kind ?? inferEventKind(title, record.color),
+    kind: record.kind === "kakao" ? "kakao" : (record.kind ?? inferEventKind(title, record.color)),
   };
 }
 
