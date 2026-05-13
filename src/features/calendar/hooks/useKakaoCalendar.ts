@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { EventType } from "@/shared/context/AppContext";
+import { fetchWithAuth } from "@/services/auth/auth";
+import { API_BASE_URL } from "@/services/config/config";
 import {
   KakaoCalendarApiResponse,
   KakaoEventRaw,
@@ -53,9 +55,8 @@ export function useKakaoCalendar({
     try {
       const from = new Date(currentYear, currentMonth, 1).toISOString();
       const to   = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59).toISOString();
-      const res  = await fetch(
-        `/api/kakao-cal/mcp-events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
-        { credentials: "include" },
+      const res  = await fetchWithAuth(
+        `${API_BASE_URL}/api/kakao/calendar/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
       );
       const data = await res.json() as KakaoCalendarApiResponse;
 
