@@ -296,6 +296,20 @@ const handleTagClick = (tag: string) => {
     router.push("/free?tag=" + encodeURIComponent(tag));
 };
 
+const handleBackClick = () => {
+  if (isEditingPost) {
+    setCancelConfirmOpen(true);
+    return;
+  }
+
+  if (editingCommentId !== null) {
+    setCancelCommentConfirmOpen(true);
+    return;
+  }
+
+  router.push(returnTo ? decodeURIComponent(returnTo) : "/free");
+};
+
 return (
   <div className="mx-auto max-w-xl animate-in fade-in duration-500">
     {reportTarget ? (
@@ -316,7 +330,7 @@ return (
       <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md">
         <div className="flex items-center gap-2 px-2 py-3">
           <button
-            onClick={() => router.push(returnTo ? decodeURIComponent(returnTo) : "/free")}
+            onClick={handleBackClick}
             className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
             aria-label="뒤로"
           >

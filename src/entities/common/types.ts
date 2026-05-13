@@ -11,7 +11,7 @@ export interface EventType {
   isAllDay: boolean;
   startTime?: string;
   endTime?: string;
-  kind?: "general" | "certificate";
+  kind?: "general" | "certificate" | "kakao";
 }
 
 export interface UserProfile {

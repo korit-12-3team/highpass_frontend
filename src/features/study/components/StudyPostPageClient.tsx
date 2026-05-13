@@ -390,6 +390,20 @@ export default function StudyPostPageClient({
     }
   };
 
+  const handleBackClick = () => {
+    if (editingPost) {
+      setCancelConfirmOpen(true);
+      return;
+    }
+
+    if (editingCommentId !== null) {
+      setCancelCommentConfirmOpen(true);
+      return;
+    }
+
+    router.push(returnTo ? decodeURIComponent(returnTo) : "/study");
+  };
+
   if (!post) {
     return (
       <div className="mx-auto max-w-5xl rounded-[28px] border border-hp-100 bg-white px-6 py-16 text-center text-sm text-slate-400 shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
@@ -413,7 +427,7 @@ return (
       <div className="sticky top-0 z-10 border-b border-hp-100 bg-white/90 backdrop-blur">
         <div className="flex items-center gap-3 px-5 py-3">
           <button
-            onClick={() => router.push(returnTo ? decodeURIComponent(returnTo) : "/study")}
+            onClick={handleBackClick}
             className="flex items-center gap-1.5 rounded-full py-1.5 text-sm font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
             aria-label="뒤로"
           >

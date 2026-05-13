@@ -53,6 +53,7 @@ export default function CalendarPageClient() {
     general: true,
     certificate: true,
     holiday: true,
+    kakao: true,
   });
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isOverlay, setIsOverlay] = useState(false);

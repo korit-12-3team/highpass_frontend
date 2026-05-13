@@ -8,7 +8,7 @@ export type EventFormState = {
   isAllDay: boolean;
   startTime: string;
   endTime: string;
-  kind: "general" | "certificate";
+  kind: "general" | "certificate" | "kakao";
 };
 
 export type ConfirmDialogState = {
